@@ -15,7 +15,7 @@ A vr metaverse platform built on top of Godot and Nakama
 - [Latest ci build](https://forgejo.maio-tech.com/Sammy/Vr-Platform/actions/runs/latest)
 
 ## Roadmap
-- [ ] Implement Basic Setup with ci/cd
+- [x] Implement Basic Setup with ci/cd
 - [ ] Implement Networking
 - [ ] Implement Voip
 - [ ] Implement basic ui

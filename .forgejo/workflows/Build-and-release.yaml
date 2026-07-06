@@ -1,0 +1,157 @@
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.7
+  EXPORT_NAME: generic-vr-metaverse
+  PROJECT_PATH: Godot
+  EXPORT_DIR: ${{ github.workspace }}/build
+
+  ITCH_USER: sammyrules7
+  ITCH_GAME: generic-vr-metaverse
+
+jobs:
+  export-all:
+    name: 🛠️ Build
+    runs-on: default
+    container:
+      image: barichello/godot-ci:4.7
+    steps:
+      - name: Bootstrapping
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends wget xz-utils zstd libfontconfig1
+          wget -q https://nodejs.org/dist/v20.16.0/node-v20.16.0-linux-x64.tar.xz
+          tar -xJf node-v20.16.0-linux-x64.tar.xz --strip-components=1 -C /usr/local
+          rm node-v20.16.0-linux-x64.tar.xz && rm -rf /var/lib/apt/lists/*
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache .godot folder
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PROJECT_PATH }}/.godot
+          key: godot-assets-${{ github.ref_name }}-${{ hashFiles('**/project.godot') }}
+          restore-keys: |
+            godot-assets-${{ github.ref_name }}-
+            godot-assets-
+
+      - name: Run Headless Import
+        run: godot --headless --editor --quit --path ${{ env.PROJECT_PATH }}
+
+      # --- LINUX BUILD ---
+      - name: Build Linux Release
+        run: |
+          mkdir -p ${{ env.EXPORT_DIR }}/linux
+          godot --headless --verbose --path ${{ env.PROJECT_PATH }} --export-release "Linux - Release" "${{ env.EXPORT_DIR }}/linux/${{ env.EXPORT_NAME }}.x86_64"
+
+      - name: Upload Linux Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Linux-Build
+          path: ${{ env.EXPORT_DIR }}/linux
+
+      # --- WINDOWS BUILD ---
+      - name: Build Windows Release
+        run: |
+          mkdir -p ${{ env.EXPORT_DIR }}/windows
+          godot --headless --verbose --path ${{ env.PROJECT_PATH }} --export-release "Windows - Release" "${{ env.EXPORT_DIR }}/windows/${{ env.EXPORT_NAME }}.exe"
+
+      - name: Upload Windows Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Windows-Build
+          path: ${{ env.EXPORT_DIR }}/windows
+
+      # --- ANDROID BUILD ---
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Update Version
+        run: |
+          cd ${{ env.PROJECT_PATH }}
+          VERSION_NAME="0.0.${{ github.run_number }}"
+          sed -i "s/version\/code=.*/version\/code=${{ github.run_number }}/g" export_presets.cfg
+          sed -i "s/version\/name=.*/version\/name=\"$VERSION_NAME\"/g" export_presets.cfg
+
+      - name: Decode Android Keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release.keystore
+
+      - name: Build Android Release
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/release.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p ${{ env.EXPORT_DIR }}/android
+          godot --headless --install-android-build-template --verbose --path ${{ env.PROJECT_PATH }} --export-release "Android - Release" "${{ env.EXPORT_DIR }}/android/${{ env.EXPORT_NAME }}.apk"
+
+      - name: Upload Android Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: app.apk
+          path: ${{ env.EXPORT_DIR }}/android/${{ env.EXPORT_NAME }}.apk
+          archive: false
+
+  deploy-itch:
+    name: 🚀 Deploy to Itch.io
+    needs: export-all
+    if: github.ref_name == 'main'
+    runs-on: default
+    container:
+      image: debian:stable-slim
+    steps:
+      - name: Bootstrapping
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            ca-certificates \
+            curl \
+            unzip \
+            wget  \
+            nodejs
+
+      - name: Download Linux Build
+        uses: actions/download-artifact@v3
+        with:
+          name: Linux-Build
+          path: ${{ env.EXPORT_DIR }}/linux
+
+      - name: Download Windows Build
+        uses: actions/download-artifact@v3
+        with:
+          name: Windows-Build
+          path: ${{ env.EXPORT_DIR }}/windows
+
+      - name: Download Android Build
+        uses: actions/download-artifact@v3
+        with:
+          name: app.apk
+          path: ${{ env.EXPORT_DIR }}/android
+
+      - name: Install Butler
+        run: |
+          mkdir -p ./.butler
+          wget -q -O butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip -q butler.zip -d ./.butler
+          rm butler.zip
+          echo "${{ github.workspace }}/.butler" >> $GITHUB_PATH
+
+      - name: Push Builds to Itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          butler push ${{ env.EXPORT_DIR }}/linux ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:linux
+          butler push ${{ env.EXPORT_DIR }}/windows ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:windows
+          butler push ${{ env.EXPORT_DIR }}/android ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:android
