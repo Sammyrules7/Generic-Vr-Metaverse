@@ -1,7 +1,10 @@
 [gd_scene format=3 uid="uid://cy05t2rnrega0"]
 
 [ext_resource type="PackedScene" uid="uid://bg1dca8yl5u4x" path="res://floating_island/floating_island.tscn" id="1_glv2v"]
+[ext_resource type="PackedScene" uid="uid://blne0tbqd5lsk" path="res://vr_player/player.tscn" id="2_uu6xs"]
 
 [node name="Node3D" type="Node3D" unique_id=1687796141]
 
 [node name="Floating-Island" parent="." unique_id=1464280197 instance=ExtResource("1_glv2v")]
+
+[node name="Player" parent="." unique_id=523273823 instance=ExtResource("2_uu6xs")]

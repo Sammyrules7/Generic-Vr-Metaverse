@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://blne0tbqd5lsk"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_y70hp"]
+radius = 0.1
+height = 0.2
+
+[node name="Player" type="Node3D" unique_id=523273823]
+
+[node name="Origin" type="XROrigin3D" parent="." unique_id=948954173]
+
+[node name="HMDView" type="XRCamera3D" parent="Origin" unique_id=840652172]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="LeftHand" type="XRController3D" parent="Origin" unique_id=207669535]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1, -0.5)
+tracker = &"left_hand"
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Origin/LeftHand" unique_id=482778660]
+mesh = SubResource("SphereMesh_y70hp")
+
+[node name="RightHand" type="XRController3D" parent="Origin" unique_id=182070339]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1, -0.5)
+tracker = &"right_hand"
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Origin/RightHand" unique_id=849583674]
+mesh = SubResource("SphereMesh_y70hp")
