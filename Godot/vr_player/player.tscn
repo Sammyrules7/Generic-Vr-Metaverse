@@ -20,6 +20,7 @@ tracker = &"left_hand"
 pose = &"grip"
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Origin/LeftHand" unique_id=482778660]
+gi_mode = 2
 mesh = SubResource("SphereMesh_y70hp")
 
 [node name="RightHand" type="XRController3D" parent="Origin" unique_id=182070339]
@@ -28,4 +29,5 @@ tracker = &"right_hand"
 pose = &"grip"
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Origin/RightHand" unique_id=849583674]
+gi_mode = 2
 mesh = SubResource("SphereMesh_y70hp")
