@@ -1,12 +1,13 @@
 [gd_scene format=3 uid="uid://blne0tbqd5lsk"]
 
-[sub_resource type="SphereMesh" id="SphereMesh_y70hp"]
-radius = 0.1
-height = 0.2
+[ext_resource type="Script" uid="uid://chtnvtd7q3r06" path="res://vr_player/player.gd" id="1_n4hyk"]
+[ext_resource type="PackedScene" uid="uid://b4kad2kuba1yn" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/left_hand_low.tscn" id="1_xb12b"]
+[ext_resource type="PackedScene" uid="uid://l2n30mpbkdyw" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/right_hand_low.tscn" id="3_fxb4o"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_y70hp"]
 
 [node name="CharacterBody3D" type="CharacterBody3D" unique_id=1419766794]
+script = ExtResource("1_n4hyk")
 
 [node name="Origin" type="XROrigin3D" parent="." unique_id=1559145585]
 
@@ -18,18 +19,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1, -0.5)
 tracker = &"left_hand"
 pose = &"grip"
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Origin/LeftHand" unique_id=36011270]
-gi_mode = 2
-mesh = SubResource("SphereMesh_y70hp")
+[node name="LeftHand" parent="Origin/LeftHand" unique_id=1944509751 instance=ExtResource("1_xb12b")]
 
 [node name="RightHand" type="XRController3D" parent="Origin" unique_id=970086904]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1, -0.5)
 tracker = &"right_hand"
 pose = &"grip"
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Origin/RightHand" unique_id=1662144959]
-gi_mode = 2
-mesh = SubResource("SphereMesh_y70hp")
+[node name="RightHand" parent="Origin/RightHand" unique_id=1042687619 instance=ExtResource("3_fxb4o")]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1588983903]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
