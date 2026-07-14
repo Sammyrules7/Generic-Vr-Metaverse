@@ -1,6 +1,7 @@
 extends Node3D
 
 var xr_interface: XRInterface
+var vr: bool = true
 
 func _ready():
 	xr_interface = XRServer.find_interface("OpenXR")
@@ -9,3 +10,5 @@ func _ready():
 		get_viewport().use_xr = true
 	else:
 		print("OpenXR not initialized, please check if your headset is connected. Starting in desktop mode")
+		get_node("Origin").visible = false
+		vr = false
