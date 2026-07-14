@@ -8,4 +8,4 @@ func _ready():
 		print("OpenXR initialized successfully")
 		get_viewport().use_xr = true
 	else:
-		print("OpenXR not initialized, please check if your headset is connected")
+		print("OpenXR not initialized, please check if your headset is connected. Starting in desktop mode")
