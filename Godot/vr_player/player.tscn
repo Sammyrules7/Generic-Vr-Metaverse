@@ -6,8 +6,10 @@
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_y70hp"]
 
-[node name="CharacterBody3D" type="CharacterBody3D" unique_id=1419766794]
+[node name="CharacterBody3D" type="CharacterBody3D" unique_id=1419766794 node_paths=PackedStringArray("left_controller", "right_controller")]
 script = ExtResource("1_n4hyk")
+left_controller = NodePath("Origin/LeftHand")
+right_controller = NodePath("Origin/RightHand")
 
 [node name="Origin" type="XROrigin3D" parent="." unique_id=1559145585]
 
