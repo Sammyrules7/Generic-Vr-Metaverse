@@ -13,6 +13,7 @@ script = ExtResource("1_n4hyk")
 
 [node name="HMDView" type="XRCamera3D" parent="Origin" unique_id=1539567803]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+current = true
 
 [node name="LeftHand" type="XRController3D" parent="Origin" unique_id=1990556017]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1, -0.5)
