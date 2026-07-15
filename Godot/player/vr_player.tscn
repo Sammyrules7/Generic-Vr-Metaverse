@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://vxxwgpbct06d"]
+
+[ext_resource type="PackedScene" uid="uid://b4kad2kuba1yn" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/left_hand_low.tscn" id="1_1gflb"]
+[ext_resource type="Script" uid="uid://lrvhxiola8hx" path="res://vr_player/vr_player.gd" id="1_wb0hk"]
+[ext_resource type="PackedScene" uid="uid://l2n30mpbkdyw" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/right_hand_low.tscn" id="2_wb0hk"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_rvawm"]
+
+[node name="Player" type="CharacterBody3D" unique_id=750944741 node_paths=PackedStringArray("left_controller", "right_controller")]
+script = ExtResource("1_wb0hk")
+left_controller = NodePath("Origin/LeftHand")
+right_controller = NodePath("Origin/RightHand")
+speed = 5.0
+
+[node name="Origin" type="XROrigin3D" parent="." unique_id=121001570]
+
+[node name="HMDView" type="XRCamera3D" parent="Origin" unique_id=1905088971]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+current = true
+
+[node name="LeftHand" type="XRController3D" parent="Origin" unique_id=227644641]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1, -0.5)
+tracker = &"left_hand"
+pose = &"grip"
+
+[node name="LeftHand" parent="Origin/LeftHand" unique_id=1635367066 instance=ExtResource("1_1gflb")]
+
+[node name="RightHand" type="XRController3D" parent="Origin" unique_id=54487901]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1, -0.5)
+tracker = &"right_hand"
+pose = &"grip"
+
+[node name="RightHand" parent="Origin/RightHand" unique_id=1508850518 instance=ExtResource("2_wb0hk")]
+
+[node name="Collider" type="CollisionShape3D" parent="." unique_id=20463221]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("CapsuleShape3D_rvawm")

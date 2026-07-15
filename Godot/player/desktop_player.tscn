@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://c7ib7q76huhy"]
+
+[ext_resource type="Script" uid="uid://c0jc1w7jjfkqs" path="res://vr_player/desktop_player.gd" id="1_gapbl"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_glvjp"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_y70hp"]
+
+[node name="Player" type="CharacterBody3D" unique_id=451555701]
+script = ExtResource("1_gapbl")
+speed = 5.0
+
+[node name="Collider" type="CollisionShape3D" parent="." unique_id=2032254686]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("CapsuleShape3D_glvjp")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=727663122]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1436416929]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("CapsuleMesh_y70hp")
