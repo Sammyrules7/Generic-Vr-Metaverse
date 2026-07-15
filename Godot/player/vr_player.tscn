@@ -10,6 +10,7 @@
 script = ExtResource("1_wb0hk")
 left_controller = NodePath("Origin/LeftHand")
 right_controller = NodePath("Origin/RightHand")
+speed = 5.0
 
 [node name="Origin" type="XROrigin3D" parent="." unique_id=121001570]
 

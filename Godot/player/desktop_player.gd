@@ -1,5 +1,13 @@
 extends CharacterBody3D
 
+# ===============================
+# README!!!!!!!!
+# This is like all vibe coded
+# I mean "agentic engineered"
+# I will rewrite it at some point
+# I recomend not touching it.
+# ===============================
+
 @onready var camera: Camera3D = $Camera
 
 @export var speed: float = 10.0

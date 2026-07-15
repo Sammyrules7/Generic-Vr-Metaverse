@@ -10,10 +10,10 @@ func _ready() -> void:
 	var player_instance: Node3D
 
 	if xr_interface and xr_interface.initialize():
-		print("VR Headset detected! Spawning VR Player...")
+		print("VR Headset detected! Starting in vr!")
 		player_instance = vr_player_scene.instantiate()
 	else:
-		print("No VR Headset found. Spawning Desktop Player...")
+		print("No VR Headset found. Starting in desktop!")
 		player_instance = desktop_player_scene.instantiate()
 
 	player_instance.global_transform = spawn_point.global_transform
