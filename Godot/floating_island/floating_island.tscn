@@ -3,6 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://g6uhs04cbvq" path="res://floating_island/Textures/Leaves_NormalTree_C.png" id="1_ilpm4"]
 [ext_resource type="Texture2D" uid="uid://c53mjds2m5rks" path="res://floating_island/Textures/Leaves_NormalTree.png" id="2_7xfla"]
 [ext_resource type="LightmapGIData" uid="uid://b4ubxm0yxdfr8" path="res://floating_island/floating_island.lmbake" id="6_tubb4"]
+[ext_resource type="Script" uid="uid://bknqt5giwfo88" path="res://floating_island/bounds.gd" id="7_al0re"]
 [ext_resource type="ArrayMesh" uid="uid://6jdu5lnbxcsp" path="res://floating_island/Objects/Grass-short.res" id="8_qj3uf"]
 [ext_resource type="Texture2D" uid="uid://8g0un1tkudsp" path="res://floating_island/Textures/Grass.png" id="9_7gh3e"]
 [ext_resource type="ArrayMesh" uid="uid://2dv5ohngje4q" path="res://floating_island/Objects/Grass-tall.res" id="9_40aks"]
@@ -485,6 +486,9 @@ volumetric_fog_emission = Color(0.28235295, 0.43137255, 0.7647059, 1)
 adjustment_contrast = 1.02
 adjustment_saturation = 1.05
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_1u0mw"]
+size = Vector3(25, 10, 25)
+
 [node name="Floating-Island" type="Node3D" unique_id=1464280197]
 
 [node name="World" type="Node" parent="." unique_id=820934544]
@@ -621,3 +625,10 @@ environment = SubResource("Environment_7gh3e")
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=349775170]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03272648, 0)
 gizmo_extents = 0.0
+
+[node name="Bounds" type="Area3D" parent="." unique_id=182319743]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03272648, 0)
+script = ExtResource("7_al0re")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Bounds" unique_id=84874552]
+shape = SubResource("BoxShape3D_1u0mw")
