@@ -101,9 +101,8 @@ jobs:
       - name: Upload Android Build Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: app.apk
-          path: ${{ env.EXPORT_DIR }}/android/${{ env.EXPORT_NAME }}.apk
-          archive: false
+          name: Android-Build
+          path: ${{ env.EXPORT_DIR }}/android
 
   deploy-itch:
     name: 🚀 Deploy to Itch.io
@@ -120,7 +119,12 @@ jobs:
             curl \
             unzip \
             wget  \
-            nodejs
+            nodejs \
+            file \
+            gzip
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Download Linux Build
         uses: actions/download-artifact@v3
@@ -137,8 +141,29 @@ jobs:
       - name: Download Android Build
         uses: actions/download-artifact@v3
         with:
-          name: app.apk
+          name: Android-Build
           path: ${{ env.EXPORT_DIR }}/android
+
+      - name: Decompress Gzipped Artifacts & Set Permissions
+        run: |
+          echo "Scanning for API-corrupted gzip files..."
+          find "${{ env.EXPORT_DIR }}" -type f | while read -r filepath; do
+            if file "$filepath" | grep -q "gzip compressed data"; then
+              echo "Healing compressed file to its exact name: $filepath"
+              mv "$filepath" "$filepath.gz"
+              gunzip -c "$filepath.gz" > "$filepath"
+              rm "$filepath.gz"
+            fi
+          done
+
+          # Explicitly ensure the Linux executable has run permissions
+          echo "Setting Linux executable permissions..."
+          chmod +x "${{ env.EXPORT_DIR }}/linux/${{ env.EXPORT_NAME }}.x86_64"
+
+      - name: Inject .itch.toml into Build Folders
+        run: |
+          cp .itch.toml ${{ env.EXPORT_DIR }}/linux/
+          cp .itch.toml ${{ env.EXPORT_DIR }}/windows/
 
       - name: Install Butler
         run: |

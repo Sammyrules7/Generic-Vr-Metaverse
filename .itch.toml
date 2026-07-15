@@ -1,0 +1,4 @@
+[[actions]]
+name = "play"
+path = "generic-vr-metaverse.x86_64"
+platform = "linux"
