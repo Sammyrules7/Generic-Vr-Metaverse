@@ -1,6 +1,6 @@
 # Generic Vr Platform
 
-A vr metaverse platform built on top of Godot and Nakama
+A vr metaverse platform built on top of Godot
 
 ### [Join the discord](https://discord.gg/6ybKAH2BfZ)
 
@@ -25,5 +25,5 @@ A vr metaverse platform built on top of Godot and Nakama
 
 ## Stack:
 - Godot
-- Nakama
+- Golang
 - Kubernetes
