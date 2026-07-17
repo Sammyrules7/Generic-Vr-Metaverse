@@ -17,4 +17,4 @@ func _ready() -> void:
 		player_instance = desktop_player_scene.instantiate()
 
 	player_instance.global_transform = spawn_point.global_transform
-	add_child(player_instance)
+	get_node("/root/Main/Players").add_child(player_instance)

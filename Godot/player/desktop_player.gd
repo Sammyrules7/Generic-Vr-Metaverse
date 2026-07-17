@@ -27,9 +27,21 @@ var grav_vel: Vector3
 var jump_vel: Vector3
 
 func _ready() -> void:
+	if multiplayer.connected_to_server:
+		network_connected()
+		return
+	else:
+		multiplayer.connected_to_server.connect(network_connected)
+
 	capture_mouse()
 
+func network_connected() -> void:
+	self.name = str(multiplayer.get_unique_id())
+	self.set_multiplayer_authority(multiplayer.get_unique_id())
+
 func _input(event: InputEvent) -> void:
+	if !is_multiplayer_authority(): return
+
 	if event is InputEventMouseMotion and mouse_captured:
 		look_dir = event.relative * 0.001
 		_rotate_camera()
@@ -42,6 +54,8 @@ func _input(event: InputEvent) -> void:
 			capture_mouse()
 
 func _physics_process(delta: float) -> void:
+	if !is_multiplayer_authority(): return
+
 	if Input.is_action_just_pressed(&"jump"):
 		jumping = true
 
@@ -51,6 +65,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func capture_mouse() -> void:
+	if !is_multiplayer_authority(): return
+
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	mouse_captured = true
 
