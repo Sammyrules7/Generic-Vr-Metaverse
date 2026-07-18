@@ -8,6 +8,10 @@ var rtc_peer: WebRTCMultiplayerPeer = WebRTCMultiplayerPeer.new()
 var my_id: int = 0
 var peers: Dictionary = {} # Format: { remote_id (int) : WebRTCPeerConnection }
 
+func _input(event: InputEvent) -> void:
+	if Input.is_action_pressed("JoinPublic"):
+		print("JOINNMNNNN")
+
 func _ready():
 	ws.connect_to_url(SIGNALING_URL)
 	print("Connecting to signaling server...")
@@ -23,6 +27,7 @@ func _process(_delta):
 	elif state == WebSocketPeer.STATE_CLOSED:
 		print("WebSocket disconnected. Retrying...")
 		ws.connect_to_url(SIGNALING_URL)
+
 
 func _on_signaling_message(text: String):
 	var json = JSON.parse_string(text)
