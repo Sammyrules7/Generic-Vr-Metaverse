@@ -59,4 +59,19 @@ func wsConnected(w http.ResponseWriter, r *http.Request) {
 		wsConn.Close()
 	}()
 
+	// Check packet loop
+	for {
+		_, p, err := wsConn.ReadMessage()
+		if err != nil {
+			fmt.Printf("And error occured in the websocket connection: %s\n", err)
+			break
+		}
+
+		packetRecived(p, id)
+	}
+
+}
+
+func packetRecived(contents []byte, id int32) {
+	fmt.Printf("Packet recived from %d. Contents: %s\n", id, string(contents))
 }
