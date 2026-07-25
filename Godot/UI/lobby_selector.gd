@@ -4,26 +4,22 @@ const lobby_element := preload("lobby_element.tscn")
 
 var lobby_placeholder: bool = true
 
-# Called when the node enters the scene tree for the first time.
+
 func _ready() -> void:
-	lobby_created(null)
 	Networking.connect("lobby_opend", lobby_created)
-	for i in range(15):
-		i += 1
 
-		var lobby = LobbyClass.new()
-		lobby.id = randi()
-		lobby.playercount = randi_range(1,100)
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
-		lobby_created(lobby)
+	if Networking.ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		%LobbyList.get_node("Placeholder").text = "An error occured"
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
+	await get_tree().create_timer(5).timeout
+	if lobby_placeholder:
+		%LobbyList.get_node("Placeholder").text = "No lobbies found."
 
-func lobby_created(lobby):
+func lobby_created(lobby: LobbyClass) -> void:
 
-	# Check if the lobby_placeholder is in place
+	# Check if the lobby_placeholder is in place and remove if it is
 	if lobby_placeholder:
 		%LobbyList.get_node("Placeholder").queue_free()
 
@@ -31,12 +27,11 @@ func lobby_created(lobby):
 	lobby_element_instance.lobby = lobby
 	%LobbyList.add_child(lobby_element_instance)
 
-func lobby_closed(id):
-	%LobbyList.get_node(id).queue_free()
+func lobby_closed(id: int) -> void:
+	%LobbyList.get_node(str(id)).queue_free()
 
-func create_lobby():
+func create_lobby() -> void:
 	Networking.create_lobby()
 
-class LobbyClass:
-	var id: int
-	var playercount: int
+func _exit_tree() -> void:
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
