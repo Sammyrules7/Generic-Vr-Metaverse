@@ -42,6 +42,10 @@ func wsConnected(w http.ResponseWriter, r *http.Request) {
 
 	// Add to player list
 	id := rand.Int32()
+	wsConn.WriteJSON(Packet{
+		Type: "Init",
+		Data: id,
+	})
 	fmt.Printf("Client %d connected!\n", id)
 
 	ClientMu.Lock()
@@ -74,4 +78,9 @@ func wsConnected(w http.ResponseWriter, r *http.Request) {
 
 func packetRecived(contents []byte, id int32) {
 	fmt.Printf("Packet recived from %d. Contents: %s\n", id, string(contents))
+}
+
+type Packet struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }

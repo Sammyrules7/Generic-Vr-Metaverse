@@ -22,10 +22,13 @@ XRToolsRumbleManager="*uid://by853dk86g1qw"
 Start="*uid://ceow7rr56wtyp"
 Networking="*uid://dyxyds7ejwh76"
 
+[debug]
+
+gdscript/warnings/untyped_declaration=1
+
 [display]
 
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/stretch/aspect="ignore"
 
 [input]
 
