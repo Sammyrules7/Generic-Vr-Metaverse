@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://jk31ivob5kff"]
 
-[ext_resource type="Script" uid="uid://de31qm6dv3d2f" path="res://UI/lobby_element.gd" id="1_ixk2y"]
+[ext_resource type="Script" uid="uid://de31qm6dv3d2f" path="res://UI/room_element.gd" id="1_ixk2y"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y70hp"]
 bg_color = Color(0.15686275, 0.17254902, 0.20392157, 1)
@@ -23,22 +23,22 @@ script = ExtResource("1_ixk2y")
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_y70hp")
 
-[node name="Lobby" type="HBoxContainer" parent="." unique_id=1147695659]
+[node name="room" type="HBoxContainer" parent="." unique_id=1147695659]
 layout_mode = 2
 
-[node name="LobbyID" type="Label" parent="Lobby" unique_id=1395531521]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Err"
-horizontal_alignment = 1
-
-[node name="PlayerCount" type="Label" parent="Lobby" unique_id=182405666]
+[node name="roomID" type="Label" parent="room" unique_id=1395531521]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Err"
 horizontal_alignment = 1
 
-[node name="Button" type="Button" parent="Lobby" unique_id=1294733525]
+[node name="PlayerCount" type="Label" parent="room" unique_id=182405666]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Err"
+horizontal_alignment = 1
+
+[node name="Button" type="Button" parent="room" unique_id=1294733525]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3

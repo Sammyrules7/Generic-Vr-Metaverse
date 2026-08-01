@@ -1,4 +1,4 @@
-class_name LobbyClass extends RefCounted
+class_name roomClass extends RefCounted
 
 var id: int
 var player_count: int

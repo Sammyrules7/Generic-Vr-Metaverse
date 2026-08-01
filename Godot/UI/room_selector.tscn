@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ca60rpgpuo7oc"]
 
-[ext_resource type="Script" uid="uid://ts1mfk5pyvsy" path="res://UI/lobby_selector.gd" id="1_rwtf5"]
+[ext_resource type="Script" uid="uid://ts1mfk5pyvsy" path="res://UI/room_selector.gd" id="1_rwtf5"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y70hp"]
 
@@ -43,7 +43,7 @@ corner_radius_top_right = 5
 corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
 
-[node name="LobbySelector" type="Control" unique_id=200591092]
+[node name="roomSelector" type="Control" unique_id=200591092]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -102,13 +102,13 @@ layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="LobbyList" type="VBoxContainer" parent="VBoxContainer/MarginContainer/Panel/VBoxContainer/Panel2/ScrollContainer" unique_id=2052359096]
+[node name="roomList" type="VBoxContainer" parent="VBoxContainer/MarginContainer/Panel/VBoxContainer/Panel2/ScrollContainer" unique_id=2052359096]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="Placeholder" type="Label" parent="VBoxContainer/MarginContainer/Panel/VBoxContainer/Panel2/ScrollContainer/LobbyList" unique_id=1824174787]
+[node name="Placeholder" type="Label" parent="VBoxContainer/MarginContainer/Panel/VBoxContainer/Panel2/ScrollContainer/roomList" unique_id=1824174787]
 layout_mode = 2
 text = "Loading"
 horizontal_alignment = 1
@@ -125,7 +125,7 @@ alignment = 1
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-text = "Create a lobby?"
+text = "Create a room?"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -134,4 +134,4 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_colors/icon_normal_color = Color(0.20784314, 0.23137255, 0.27058825, 1)
-text = "New Lobby"
+text = "New room"
