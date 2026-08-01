@@ -1,7 +1,7 @@
 extends Node
 
-signal lobby_opend
-signal lobby_closed
+signal room_opend
+signal room_closed
 
 const SIGNALING_URL = "ws://127.0.0.1:8080/ws"
 
@@ -35,6 +35,7 @@ func _process(_delta: float) -> void:
 
 		if ws_last == WebSocketPeer.STATE_OPEN:
 			print("Connected to signalling server.")
+			send_test_packet()
 
 		if ws_last == WebSocketPeer.STATE_CLOSED:
 			print("WebSocket disconnected. Retrying...")
@@ -48,7 +49,7 @@ func _process_packet() -> void:
 		printerr("Packet recived was not text.")
 		return
 
-	var json_packet = JSON.parse_string(packet.get_string_from_utf8())
+	var json_packet: Dictionary = JSON.parse_string(packet.get_string_from_utf8())
 	if json_packet == null:
 		printerr("Packet failed to parse")
 		return
@@ -70,8 +71,30 @@ func listen_lobbies() -> void:
 func silence_lobbies() -> void:
 	pass
 
-func join_lobby(_id: int) -> void:
+func join_room(_id: int) -> void:
 	pass
 
-func create_lobby() -> void:
-	pass
+func create_room() -> void:
+
+	print("Creating room!")
+
+	var packet: Dictionary = {
+    	"type": "create_room",
+    	"payload": "AWAWAWAWA",
+    	"sender": 1,
+    	"target": 2,
+	}
+
+	ws.send_text(JSON.stringify(packet))
+
+
+
+func send_test_packet() -> void:
+	var packet: Dictionary = {
+    	"type": "generic",
+    	"payload": "AWAWAWAWA",
+    	"sender": 1,
+    	"target": 2,
+	}
+
+	ws.send_text(JSON.stringify(packet))

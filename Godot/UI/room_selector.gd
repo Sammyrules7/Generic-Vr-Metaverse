@@ -7,8 +7,10 @@ var room_placeholder: bool = true
 
 func _ready() -> void:
 	Networking.connect("room_opend", room_created)
+	%CreateRoom.connect("pressed", create_room)
 
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 	if Networking.ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		%roomList.get_node("Placeholder").text = "An error occured"
