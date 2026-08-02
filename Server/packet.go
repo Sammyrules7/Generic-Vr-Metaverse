@@ -8,6 +8,7 @@ import (
 type PacketType string
 
 const (
+	TypeInit      PacketType = "Init"
 	TypeOffer     PacketType = "offer"
 	TypeAnswer    PacketType = "answer"
 	TypeCandidate PacketType = "candidate"
@@ -25,8 +26,8 @@ type DataPacket struct {
 }
 
 type Packet struct {
-	Type string `json:"type"`
-	Data any    `json:"data"`
+	Type PacketType `json:"type"`
+	Data any        `json:"data"`
 }
 
 func handlePacket(contents []byte, id uint32) {

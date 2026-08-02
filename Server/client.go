@@ -10,12 +10,25 @@ import (
 
 var wsUpgrader = websocket.Upgrader{}
 
-var ids atomic.Uint32
+var clientIds atomic.Uint32
 
 type Client struct {
 	ID   uint32
 	Conn *websocket.Conn
+	Ch   chan ClientEvent
 }
+
+type ClientEvent struct {
+	Type
+	Payload
+}
+
+type ClientEventType Int
+
+const (
+	err ClientEventTypes = iota
+	PacketRecived
+)
 
 func wsConnected(w http.ResponseWriter, r *http.Request) {
 
@@ -28,22 +41,26 @@ func wsConnected(w http.ResponseWriter, r *http.Request) {
 
 	// Create the client struct
 	client := Client{
-		ID:   ids.Add(1),
-		Conn: wsConn,
+		ID:      clientIds.Add(1),
+		Conn:    wsConn,
+		EventCh: make(chan ClientEvent, 10),
+		WriteCh: make(chan packet, 10),
 	}
 
 	// Inform the client
 	pktErr := wsConn.WriteJSON(Packet{
-		Type: "Init",
+		Type: TypeInit,
 		Data: client.ID,
 	})
 	if pktErr != nil {
-		print("An error occurred in %i's init packet:%s\n", client.ID, err)
+		fmt.Printf("An error occurred in %i's init packet:%s\n", client.ID, err)
 	}
 
 	fmt.Printf("Client %d connected!\n", client.ID)
 
-	pollPacket(&client)
+	pollClientEvents(&client)
+
+	go pollPacket(&client)
 
 }
 
