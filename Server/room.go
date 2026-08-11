@@ -28,13 +28,16 @@ func announceRoom(room *Room) {
 	pktBytes, err := json.Marshal(
 		Packet{
 			Type: TypeCreated,
-			Payload: &room,
+			Data: &room,
 		},
 	)
 
 	if err != nil {
 		fmt.Printf("Error marshaling packet to announce room creation:%s", err)
+		return
 	}
 
-	for peer
+	for _, ch := range Clients {
+		ch <- pktBytes
+	}
 }
