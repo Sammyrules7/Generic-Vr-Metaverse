@@ -20,7 +20,6 @@ config/icon="res://icon.svg"
 XRToolsUserSettings="*uid://bqgb8i74tm0t"
 XRToolsRumbleManager="*uid://by853dk86g1qw"
 Start="*uid://ceow7rr56wtyp"
-Networking="*uid://dyxyds7ejwh76"
 
 [debug]
 
