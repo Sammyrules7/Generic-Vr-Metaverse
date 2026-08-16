@@ -29,8 +29,4 @@ func handleWsConn(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error upgrading WebSocket: %s\n", err)
 	}
 
-	err = wsConn.WriteMessage(websocket.TextMessage, []byte("Hi from the signaller!"))
-	if err != nil {
-		fmt.Printf("Error sending packet: %s\n", err)
-	}
 }
