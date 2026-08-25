@@ -27,6 +27,9 @@ func handleWsConn(w http.ResponseWriter, r *http.Request) {
 	wsConn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Printf("Error upgrading WebSocket: %s\n", err)
+		return
 	}
+
+	initClient(wsConn)
 
 }
