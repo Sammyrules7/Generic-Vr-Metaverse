@@ -28,6 +28,7 @@ func _process(_delta: float) -> void:
 				print("Retrying WebSocket connection to: ", ws_url)
 			WebSocketPeer.State.STATE_OPEN:
 				print("WebSocket Connected!")
+				sendtestpacket()
 			WebSocketPeer.State.STATE_CLOSING:
 				pass
 			WebSocketPeer.State.STATE_CONNECTING:
@@ -41,3 +42,6 @@ func _process(_delta: float) -> void:
 func _handle_packet() -> void:
 	var packet: PackedByteArray = ws.get_packet()
 	print("Packet recived: ", packet.get_string_from_utf8())
+
+func sendtestpacket() -> void:
+	ws.send_text(JSON.stringify("test: tickle"))

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
@@ -22,26 +23,38 @@ func initClient(wsConn *websocket.Conn) {
 
 	// Send the client its id
 	wsConn.WriteJSON(Packet{
-		Type: PacketInit,
+		Type: "Init",
 		Data: client.Id,
 	})
 
-	pollForEventsAndSend(client.Chan, wsConn)
+	go readPump(&client, wsConn)
+	go writePump(client.Chan, wsConn)
 }
 
-func pollForEventsAndSend(ch chan []byte, conn *websocket.Conn) {
-	select {
-	case message, ok := <-ch:
-		if !ok {
-			clientExit()
+func readPump(client *Client, conn *websocket.Conn) {
+
+	for {
+		_, pkt, err := conn.ReadMessage()
+		if err != nil {
 			return
 		}
 
-		err := conn.WriteMessage(websocket.TextMessage, message)
-		if err != nil {
-			clientExit()
-		}
+		handlePacket(pkt, client)
 	}
 }
 
-func clientExit()
+func writePump(ch <-chan []byte, conn *websocket.Conn) {
+
+	for message := range ch {
+		if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			clientExit()
+			return
+		}
+	}
+
+	clientExit()
+}
+
+func clientExit() {
+	fmt.Printf("Client exited\n")
+}
