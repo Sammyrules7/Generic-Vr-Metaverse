@@ -16,6 +16,14 @@ const (
 	PacketCreateRoom
 )
 
+func (client *Client) sendPacket(pkt []byte) {
+	select {
+	case client.Chan <- pkt:
+	default:
+		return
+	}
+}
+
 func handlePacket(pkt []byte, sender *Client) {
 
 	jsonPkt := Packet{
@@ -33,5 +41,5 @@ func handlePacket(pkt []byte, sender *Client) {
 		return
 	}
 
-	sender.Chan <- newpkt
+	sender.sendPacket(newpkt)
 }
