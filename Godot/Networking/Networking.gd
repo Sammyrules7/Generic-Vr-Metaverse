@@ -44,4 +44,7 @@ func _handle_packet() -> void:
 	print("Packet recived: ", packet.get_string_from_utf8())
 
 func sendtestpacket() -> void:
-	ws.send_text(JSON.stringify("test: tickle"))
+	ws.send_text(JSON.stringify({
+		"Sender": 1,
+		"type": ServerPacket.Type.PacketDirect
+	}))
