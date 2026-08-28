@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option go_package = "vr.maio-tech.com/server/protocol;protocol";
+
+// Everything the client is allowed to send to the signalling server.
+message ClientPacket {
+  oneof payload {
+    ClientData data = 1;
+  }
+}
+
+// Everything the signalling server is allowed to send to a client.
+message ServerPacket {
+  oneof payload {
+    ClientConnected connected = 1;
+    ServerData data = 2;
+  }
+}
+
+// An intentionally generic payload for proving the transport. Replace or
+// supplement this with typed signalling messages as the protocol grows.
+message ClientData {
+  bytes value = 1;
+}
+
+message ClientConnected {
+  uint32 client_id = 1;
+}
+
+message ServerData {
+  uint32 sender_id = 1;
+  bytes value = 2;
+}

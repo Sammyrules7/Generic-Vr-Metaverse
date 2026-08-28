@@ -1,67 +1,59 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"google.golang.org/protobuf/proto"
+	"vr.maio-tech.com/server/protocol"
 )
 
-type Packet struct {
-	Sender uint32          `json:"sender"`
-	Type   PacketType      `json:"type"`
-	Data   json.RawMessage `json:"data"`
+// encode a packet to then pass to Client.sendPacket()
+func encodePacket(packet *protocol.ServerPacket) ([]byte, error) {
+	return proto.Marshal(packet)
 }
 
-type PacketType int
-
-const (
-	Init PacketType = iota
-	PacketDirect
-	PacketCreateRoom
-)
-
-// Putting the packet directly in the goroutine may block. This stops that.
-func (client *Client) sendPacket(pkt []byte) {
+// sendPacket queues an already-encoded packet for the client's single
+// WebSocket writer. The byte slice must not be modified after this call.
+// returns true if seuceccsful.
+func (client *Client) sendPacket(encoded []byte) bool {
 	select {
-	case client.ch <- pkt:
+	case <-client.closed:
+		return false
+	case client.outgoing <- encoded:
+		return true
 	default:
-		return
+		fmt.Printf("Client %d outgoing packet queue is full\n", client.id)
+		return false
 	}
 }
 
-func handlePacket(pkt []byte, sender *Client) {
-
-	jsonPkt := Packet{}
-
-	if err := json.Unmarshal(pkt, &jsonPkt); err != nil {
-		fmt.Printf("Error unmarshelling packet: %s\n", err)
+func handlePacket(encoded []byte, sender *Client) {
+	packet := &protocol.ClientPacket{}
+	if err := proto.Unmarshal(encoded, packet); err != nil {
+		fmt.Printf("Failed to decode packet from client %d: %v\n", sender.id, err)
 		return
 	}
 
-	// Check if the sender might be modifing packets
-	if jsonPkt.Sender != sender.Id {
-		fmt.Printf("Ids do not match with packet from: %d.\n", sender.Id)
+	payload := packet.GetData()
+	if payload == nil {
+		fmt.Printf("Client %d sent a packet without a payload\n", sender.id)
 		return
 	}
 
-	// Call the correct function for the packets. (Test prints for now.)
-	switch jsonPkt.Type {
-
-	case Init:
-		fmt.Printf("Packet init")
-	case PacketDirect:
-		fmt.Printf("Got a direct packet!")
-	case PacketCreateRoom:
-		fmt.Printf("Got a create room packet")
-	default:
-		fmt.Printf("Packet from %d failed to match type: %+v .\n", sender.Id, jsonPkt)
-	}
-
-	// Test Implementation ping pong sending the packets back
-	newpkt, err := json.Marshal(jsonPkt)
+	// Echo the payload for now to prove the transport in both directions.
+	// Final implementain would have a switch case for the diffrent methods to call.
+	response, err := encodePacket(&protocol.ServerPacket{
+		Payload: &protocol.ServerPacket_Data{
+			Data: &protocol.ServerData{
+				SenderId: sender.id,
+				Value:    payload.Value,
+			},
+		},
+	})
 	if err != nil {
-		fmt.Printf("Error marshelling apksdfakrdjkl\n")
+		fmt.Printf("Failed to encode response for client %d: %v\n", sender.id, err)
 		return
 	}
 
-	sender.sendPacket(newpkt)
+	sender.sendPacket(response)
 }

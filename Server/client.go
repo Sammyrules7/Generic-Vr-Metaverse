@@ -6,65 +6,80 @@ import (
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
+	"vr.maio-tech.com/server/protocol"
 )
 
-var clientIds atomic.Uint32
+var clientIDs atomic.Uint32
 
 type Client struct {
-	Id   uint32          // Godot M-Api compatable id
-	ch   chan []byte     // Feeder for packets. May block so use Client.sendPacket()
-	conn *websocket.Conn // Do not use directly. Use Client.sendPacket()
-	done sync.Once       // Do not use directly. Used as helper with clientExit() to clean up goroutines
+	id       uint32
+	outgoing chan []byte
+	closed   chan struct{}
+	conn     *websocket.Conn
+	close    sync.Once
 }
 
 func initClient(wsConn *websocket.Conn) {
-
-	client := Client{
-		Id:   clientIds.Add(1),
-		ch:   make(chan []byte, 10),
-		conn: wsConn,
+	client := &Client{
+		id:       clientIDs.Add(1),
+		outgoing: make(chan []byte, 10),
+		closed:   make(chan struct{}),
+		conn:     wsConn,
 	}
 
-	// Send the client its id
-	wsConn.WriteJSON(Packet{
-		Type: Init,
-		Data: client.Id,
-	})
+	go readPump(client)
+	go writePump(client)
 
-	// Start it's pollers and handlers
-	go readPump(&client)
-	go writePump(&client)
+	connected, err := encodePacket(&protocol.ServerPacket{
+		Payload: &protocol.ServerPacket_Connected{
+			Connected: &protocol.ClientConnected{ClientId: client.id},
+		},
+	})
+	if err != nil {
+		fmt.Printf("Failed to encode connection packet for client %d: %v\n", client.id, err)
+		client.clientExit()
+		return
+	}
+	client.sendPacket(connected)
 }
 
 func readPump(client *Client) {
-
-	// Just polls for messages and then feeds them to the handlePacket() func
 	for {
-		_, pkt, err := client.conn.ReadMessage()
+		messageType, packet, err := client.conn.ReadMessage()
 		if err != nil {
-			client.done.Do(client.clientExit)
+			client.clientExit()
 			return
 		}
+		if messageType != websocket.BinaryMessage {
+			fmt.Printf("Client %d sent a non-binary packet\n", client.id)
+			continue
+		}
 
-		handlePacket(pkt, client)
+		handlePacket(packet, client)
 	}
 }
 
 func writePump(client *Client) {
-
-	// Just feeds raw bytes into the websocket
-	for message := range client.ch {
-		if err := client.conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			client.done.Do(client.clientExit)
+	for {
+		select {
+		case <-client.closed:
 			return
+		case message := <-client.outgoing:
+
+			err := client.conn.WriteMessage(websocket.BinaryMessage, message)
+
+			if err != nil {
+				client.clientExit()
+				return
+			}
 		}
 	}
-
-	client.done.Do(client.clientExit)
 }
 
 func (client *Client) clientExit() {
-	close(client.ch)
-	client.conn.Close()
-	fmt.Printf("Client %d exited\n", client.Id)
+	client.close.Do(func() {
+		close(client.closed)
+		client.conn.Close()
+		fmt.Printf("Client %d exited\n", client.id)
+	})
 }
