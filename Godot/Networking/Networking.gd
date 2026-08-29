@@ -73,3 +73,8 @@ func send_test_packet() -> void:
 	var result: Error = send_data("Hello from Godot".to_utf8_buffer())
 	if result != OK:
 		push_error("Failed to send test packet: %s" % error_string(result))
+
+func create_room() -> void:
+	var packet := Packets.ClientPacket.new()
+	packet.__room_create.name = "awawawawawaawaw"
+	ws.send(packet.to_bytes())

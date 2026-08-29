@@ -3,15 +3,12 @@ set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-if ! command -v protoc >/dev/null 2>&1; then
-	printf 'protoc is required to regenerate protocol code.\n' >&2
+if ! command -v nix >/dev/null 2>&1; then
+	printf 'nix is required to regenerate protocol code.\n' >&2
 	exit 1
 fi
 
-if ! command -v protoc-gen-go >/dev/null 2>&1; then
-	printf 'protoc-gen-go is required: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest\n' >&2
-	exit 1
-fi
+nix-shell -p protobuf protoc-gen-go protoc-gen-go-grpc
 
 mkdir -p "$repo_dir/Server/protocol" "$repo_dir/Godot/Networking/Generated"
 

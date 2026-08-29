@@ -690,11 +690,18 @@ class ClientPacket:
 		service.func_ref = Callable(self, "new_data")
 		data[__data.tag] = service
 		
+		__room_create = PBField.new("room_create", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __room_create
+		service.func_ref = Callable(self, "new_room_create")
+		data[__room_create.tag] = service
+		
 	var data = {}
 	
 	enum PayloadCase {
 		PAYLOAD_NOT_SET = 0,
 		DATA = 1,
+		ROOM_CREATE = 2,
 	}
 	var _payload_case: int = 0
 
@@ -709,8 +716,26 @@ class ClientPacket:
 	func new_data() -> ClientData:
 		data[1].state = PB_SERVICE_STATE.FILLED
 		_payload_case = 1
+		__room_create.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[2].state = PB_SERVICE_STATE.UNFILLED
 		__data.value = ClientData.new()
 		return __data.value
+	
+	var __room_create: PBField
+	func has_room_create() -> bool:
+		return data[2].state == PB_SERVICE_STATE.FILLED
+	func get_room_create() -> ClientRoomCreate:
+		return __room_create.value
+	func clear_room_create() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__room_create.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_room_create() -> ClientRoomCreate:
+		__data.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		data[2].state = PB_SERVICE_STATE.FILLED
+		_payload_case = 2
+		__room_create.value = ClientRoomCreate.new()
+		return __room_create.value
 	
 	func get_payload_case() -> int:
 		return _payload_case
@@ -751,12 +776,26 @@ class ServerPacket:
 		service.func_ref = Callable(self, "new_data")
 		data[__data.tag] = service
 		
+		__room_created = PBField.new("room_created", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __room_created
+		service.func_ref = Callable(self, "new_room_created")
+		data[__room_created.tag] = service
+		
+		__room_closed = PBField.new("room_closed", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __room_closed
+		service.func_ref = Callable(self, "new_room_closed")
+		data[__room_closed.tag] = service
+		
 	var data = {}
 	
 	enum PayloadCase {
 		PAYLOAD_NOT_SET = 0,
 		CONNECTED = 1,
 		DATA = 2,
+		ROOM_CREATED = 3,
+		ROOM_CLOSED = 4,
 	}
 	var _payload_case: int = 0
 
@@ -773,6 +812,10 @@ class ServerPacket:
 		_payload_case = 1
 		__data.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
 		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__room_created.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__room_closed.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[4].state = PB_SERVICE_STATE.UNFILLED
 		__connected.value = ClientConnected.new()
 		return __connected.value
 	
@@ -789,8 +832,52 @@ class ServerPacket:
 		data[1].state = PB_SERVICE_STATE.UNFILLED
 		data[2].state = PB_SERVICE_STATE.FILLED
 		_payload_case = 2
+		__room_created.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__room_closed.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[4].state = PB_SERVICE_STATE.UNFILLED
 		__data.value = ServerData.new()
 		return __data.value
+	
+	var __room_created: PBField
+	func has_room_created() -> bool:
+		return data[3].state == PB_SERVICE_STATE.FILLED
+	func get_room_created() -> ServerRoomCreated:
+		return __room_created.value
+	func clear_room_created() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__room_created.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_room_created() -> ServerRoomCreated:
+		__connected.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__data.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		data[3].state = PB_SERVICE_STATE.FILLED
+		_payload_case = 3
+		__room_closed.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__room_created.value = ServerRoomCreated.new()
+		return __room_created.value
+	
+	var __room_closed: PBField
+	func has_room_closed() -> bool:
+		return data[4].state == PB_SERVICE_STATE.FILLED
+	func get_room_closed() -> ServerRoomClosed:
+		return __room_closed.value
+	func clear_room_closed() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__room_closed.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_room_closed() -> ServerRoomClosed:
+		__connected.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__data.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__room_created.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		data[4].state = PB_SERVICE_STATE.FILLED
+		_payload_case = 4
+		__room_closed.value = ServerRoomClosed.new()
+		return __room_closed.value
 	
 	func get_payload_case() -> int:
 		return _payload_case
@@ -838,6 +925,159 @@ class ClientData:
 		__value.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES]
 	func set_value(value : PackedByteArray) -> void:
 		__value.value = value
+	
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+		
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+		
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class ClientRoomCreate:
+	func _init():
+		var service
+		
+		__name = PBField.new("name", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __name
+		data[__name.tag] = service
+		
+	var data = {}
+	
+	var __name: PBField
+	func has_name() -> bool:
+		if __name.value != null:
+			return true
+		return false
+	func get_name() -> String:
+		return __name.value
+	func clear_name() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__name.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_name(value : String) -> void:
+		__name.value = value
+	
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+		
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+		
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class ServerRoomCreated:
+	func _init():
+		var service
+		
+		__name = PBField.new("name", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __name
+		data[__name.tag] = service
+		
+		__current = PBField.new("current", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
+		service = PBServiceField.new()
+		service.field = __current
+		data[__current.tag] = service
+		
+	var data = {}
+	
+	var __name: PBField
+	func has_name() -> bool:
+		if __name.value != null:
+			return true
+		return false
+	func get_name() -> String:
+		return __name.value
+	func clear_name() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__name.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_name(value : String) -> void:
+		__name.value = value
+	
+	var __current: PBField
+	func has_current() -> bool:
+		if __current.value != null:
+			return true
+		return false
+	func get_current() -> bool:
+		return __current.value
+	func clear_current() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__current.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
+	func set_current(value : bool) -> void:
+		__current.value = value
+	
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+		
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+		
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class ServerRoomClosed:
+	func _init():
+		var service
+		
+		__current = PBField.new("current", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
+		service = PBServiceField.new()
+		service.field = __current
+		data[__current.tag] = service
+		
+	var data = {}
+	
+	var __current: PBField
+	func has_current() -> bool:
+		if __current.value != null:
+			return true
+		return false
+	func get_current() -> bool:
+		return __current.value
+	func clear_current() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__current.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
+	func set_current(value : bool) -> void:
+		__current.value = value
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)

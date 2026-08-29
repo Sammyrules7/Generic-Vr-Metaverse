@@ -6,6 +6,7 @@ option go_package = "vr.maio-tech.com/server/protocol;protocol";
 message ClientPacket {
   oneof payload {
     ClientData data = 1;
+    ClientRoomCreate room_create = 2;
   }
 }
 
@@ -14,6 +15,8 @@ message ServerPacket {
   oneof payload {
     ClientConnected connected = 1;
     ServerData data = 2;
+    ServerRoomCreated room_created = 3;
+    ServerRoomClosed room_closed = 4;
   }
 }
 
@@ -21,6 +24,19 @@ message ServerPacket {
 // supplement this with typed signalling messages as the protocol grows.
 message ClientData {
   bytes value = 1;
+}
+
+message ClientRoomCreate {
+  string name = 1;
+}
+
+message ServerRoomCreated {
+  string name = 1;
+  bool current = 2;
+}
+
+message ServerRoomClosed {
+  bool current = 1;
 }
 
 message ClientConnected {
