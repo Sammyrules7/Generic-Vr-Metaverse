@@ -12,8 +12,8 @@ import (
 var clientIDs atomic.Uint32
 
 type Client struct {
-	id       uint32
-	outgoing chan []byte
+	id       uint32      // Godot compatable M Api id
+	outgoing chan []byte // Do not use directly, use Client.sendPacket()
 	closed   chan struct{}
 	conn     *websocket.Conn
 	close    sync.Once
@@ -30,7 +30,8 @@ func initClient(wsConn *websocket.Conn) {
 	go readPump(client)
 	go writePump(client)
 
-	connected, err := encodePacket(&protocol.ServerPacket{
+	// Send init packet
+	pkt, err := encodePacket(&protocol.ServerPacket{
 		Payload: &protocol.ServerPacket_Connected{
 			Connected: &protocol.ClientConnected{ClientId: client.id},
 		},
@@ -40,7 +41,7 @@ func initClient(wsConn *websocket.Conn) {
 		client.clientExit()
 		return
 	}
-	client.sendPacket(connected)
+	client.sendPacket(pkt)
 }
 
 func readPump(client *Client) {

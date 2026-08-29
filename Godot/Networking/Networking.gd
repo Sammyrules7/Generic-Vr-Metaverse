@@ -14,20 +14,24 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	ws.poll()
+	_poll_ws_events(ws)
 
-	# ===== Event based WebSocket stuff =====
+	while ws.get_available_packet_count():
+		_handle_packet()
 
-	var ws_state: WebSocketPeer.State = ws.get_ready_state()
+func _poll_ws_events(ws_conn: WebSocketPeer) -> void:
+
+	var ws_state: WebSocketPeer.State = ws_conn.get_ready_state()
 
 	if ws_state == WebSocketPeer.State.STATE_CLOSED:
-		ws.connect_to_url(ws_url)
+		ws_conn.connect_to_url(ws_url)
 
 	if ws_last != ws_state:
 		ws_last = ws_state
 
 		match  ws_state:
 			WebSocketPeer.State.STATE_CLOSED:
-				print("WebSocket closed with code: %i, Reason: %s" % ws.get_close_code(), ws.get_close_reason())
+				print("WebSocket closed with code: %i, Reason: %s" % ws_conn.get_close_code(), ws_conn.get_close_reason())
 				print("Retrying WebSocket connection to: ", ws_url)
 			WebSocketPeer.State.STATE_OPEN:
 				print("WebSocket Connected!")
@@ -36,11 +40,6 @@ func _process(_delta: float) -> void:
 				pass
 			WebSocketPeer.State.STATE_CONNECTING:
 				pass
-
-	# ===== Packet Handler =====
-
-	while ws.get_available_packet_count():
-		_handle_packet()
 
 func _handle_packet() -> void:
 	var packet := Packets.ServerPacket.new()
