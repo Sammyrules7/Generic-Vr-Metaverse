@@ -22,10 +22,6 @@ XRToolsRumbleManager="*uid://by853dk86g1qw"
 Start="*uid://ceow7rr56wtyp"
 Networking="*uid://ljq8p7wlh6di"
 
-[debug]
-
-gdscript/warnings/untyped_declaration=1
-
 [display]
 
 window/stretch/aspect="ignore"
