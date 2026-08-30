@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://vxxwgpbct06d"]
 
 [ext_resource type="PackedScene" uid="uid://b4kad2kuba1yn" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/left_hand_low.tscn" id="1_1gflb"]
-[ext_resource type="Script" uid="uid://lrvhxiola8hx" path="res://vr_player/vr_player.gd" id="1_wb0hk"]
+[ext_resource type="Script" path="res://player/vr_player.gd" id="1_wb0hk"]
 [ext_resource type="PackedScene" uid="uid://l2n30mpbkdyw" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/right_hand_low.tscn" id="2_wb0hk"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_rvawm"]

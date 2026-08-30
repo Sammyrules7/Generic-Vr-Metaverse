@@ -7,14 +7,10 @@ import (
 	"vr.maio-tech.com/server/protocol"
 )
 
-// encode a packet to then pass to Client.sendPacket()
 func encodePacket(packet *protocol.ServerPacket) ([]byte, error) {
 	return proto.Marshal(packet)
 }
 
-// sendPacket queues an already-encoded packet for the client's single
-// WebSocket writer. The byte slice must not be modified after this call.
-// returns true if seuceccsful.
 func (client *Client) sendPacket(encoded []byte) bool {
 	select {
 	case <-client.closed:
@@ -27,33 +23,38 @@ func (client *Client) sendPacket(encoded []byte) bool {
 	}
 }
 
+func send(client *Client, packet *protocol.ServerPacket) bool {
+	encoded, err := encodePacket(packet)
+	if err != nil {
+		fmt.Printf("Failed to encode packet for client %d: %v\n", client.id, err)
+		return false
+	}
+	return client.sendPacket(encoded)
+}
+
+func sendError(client *Client, reason string) {
+	send(client, &protocol.ServerPacket{Payload: &protocol.ServerPacket_Error{
+		Error: &protocol.ServerError{Reason: reason},
+	}})
+}
+
 func handlePacket(encoded []byte, sender *Client) {
 	packet := &protocol.ClientPacket{}
 	if err := proto.Unmarshal(encoded, packet); err != nil {
-		fmt.Printf("Failed to decode packet from client %d: %v\n", sender.id, err)
+		sendError(sender, "invalid packet")
 		return
 	}
 
-	payload := packet.GetData()
-	if payload == nil {
-		fmt.Printf("Client %d sent a packet without a payload\n", sender.id)
-		return
+	switch payload := packet.Payload.(type) {
+	case *protocol.ClientPacket_RoomCreate:
+		hub.createRoom(sender, payload.RoomCreate.Name)
+	case *protocol.ClientPacket_RoomJoin:
+		hub.joinRoom(sender, payload.RoomJoin.RoomId)
+	case *protocol.ClientPacket_RoomLeave:
+		hub.leaveRoom(sender, true)
+	case *protocol.ClientPacket_Relay:
+		hub.relay(sender, payload.Relay)
+	default:
+		sendError(sender, "packet has no payload")
 	}
-
-	// Echo the payload for now to prove the transport in both directions.
-	// Final implementain would have a switch case for the diffrent methods to call.
-	response, err := encodePacket(&protocol.ServerPacket{
-		Payload: &protocol.ServerPacket_Data{
-			Data: &protocol.ServerData{
-				SenderId: sender.id,
-				Value:    payload.Value,
-			},
-		},
-	})
-	if err != nil {
-		fmt.Printf("Failed to encode response for client %d: %v\n", sender.id, err)
-		return
-	}
-
-	sender.sendPacket(response)
 }

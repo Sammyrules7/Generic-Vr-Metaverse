@@ -44,3 +44,4 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/icon_normal_color = Color(0.20784314, 0.23137255, 0.27058825, 1)
 text = "Join"
+text = "Join"

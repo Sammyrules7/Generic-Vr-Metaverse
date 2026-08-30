@@ -27,17 +27,9 @@ var grav_vel: Vector3
 var jump_vel: Vector3
 
 func _ready() -> void:
-	if multiplayer.connected_to_server:
-		network_connected()
-		return
-	else:
-		multiplayer.connected_to_server.connect(network_connected)
-
-	capture_mouse()
-
-func network_connected() -> void:
-	self.name = str(multiplayer.get_unique_id())
-	self.set_multiplayer_authority(multiplayer.get_unique_id())
+	camera.current = is_multiplayer_authority()
+	if is_multiplayer_authority():
+		capture_mouse()
 
 func _input(event: InputEvent) -> void:
 	if !is_multiplayer_authority(): return
@@ -63,6 +55,12 @@ func _physics_process(delta: float) -> void:
 
 	velocity = _walk(delta) + _gravity(delta) + _jump(delta)
 	move_and_slide()
+	sync_transform.rpc(global_transform)
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_transform(value: Transform3D) -> void:
+	if multiplayer.get_remote_sender_id() == get_multiplayer_authority():
+		global_transform = value
 
 func capture_mouse() -> void:
 	if !is_multiplayer_authority(): return

@@ -48,10 +48,18 @@ func _ready() -> void:
 	tracker_left = XRServer.get_tracker("/user/hand_tracker/left") as XRHandTracker
 
 func _physics_process(delta: float) -> void:
+	if not is_multiplayer_authority():
+		return
 	_handle_vr_rotation(delta)
 
 	velocity = _walk(delta) + _gravity(delta) + _jump(delta)
 	move_and_slide()
+	sync_transform.rpc(global_transform)
+
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_transform(value: Transform3D) -> void:
+	if multiplayer.get_remote_sender_id() == get_multiplayer_authority():
+		global_transform = value
 
 func _handle_vr_rotation(delta: float) -> void:
 	if not right_controller or not right_controller.get_is_active():

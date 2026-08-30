@@ -2,48 +2,87 @@ syntax = "proto3";
 
 option go_package = "vr.maio-tech.com/server/protocol;protocol";
 
-// Everything the client is allowed to send to the signalling server.
 message ClientPacket {
   oneof payload {
-    ClientData data = 1;
-    ClientRoomCreate room_create = 2;
+    ClientRoomCreate room_create = 1;
+    ClientRoomJoin room_join = 2;
+    ClientRoomLeave room_leave = 3;
+    ClientRelay relay = 4;
   }
 }
 
-// Everything the signalling server is allowed to send to a client.
 message ServerPacket {
   oneof payload {
     ClientConnected connected = 1;
-    ServerData data = 2;
-    ServerRoomCreated room_created = 3;
-    ServerRoomClosed room_closed = 4;
+    ServerRoomList room_list = 2;
+    ServerRoomUpdated room_updated = 3;
+    ServerRoomRemoved room_removed = 4;
+    ServerRoomJoined room_joined = 5;
+    ServerRoomLeft room_left = 6;
+    ServerPeerJoined peer_joined = 7;
+    ServerPeerLeft peer_left = 8;
+    ServerRelay relay = 9;
+    ServerError error = 10;
   }
 }
 
-// An intentionally generic payload for proving the transport. Replace or
-// supplement this with typed signalling messages as the protocol grows.
-message ClientData {
-  bytes value = 1;
+message Room {
+  uint32 id = 1;
+  string name = 2;
+  uint32 player_count = 3;
 }
 
 message ClientRoomCreate {
   string name = 1;
 }
 
-message ServerRoomCreated {
-  string name = 1;
-  bool current = 2;
+message ClientRoomJoin {
+  uint32 room_id = 1;
 }
 
-message ServerRoomClosed {
-  bool current = 1;
+message ClientRoomLeave {}
+
+message ClientRelay {
+  uint32 destination_id = 1;
+  bytes value = 2;
 }
 
 message ClientConnected {
   uint32 client_id = 1;
 }
 
-message ServerData {
+message ServerRoomList {
+  repeated Room rooms = 1;
+}
+
+message ServerRoomUpdated {
+  Room room = 1;
+}
+
+message ServerRoomRemoved {
+  uint32 room_id = 1;
+}
+
+message ServerRoomJoined {
+  Room room = 1;
+  repeated uint32 peer_ids = 2;
+}
+
+message ServerRoomLeft {}
+
+message ServerPeerJoined {
+  uint32 peer_id = 1;
+}
+
+message ServerPeerLeft {
+  uint32 peer_id = 1;
+}
+
+message ServerRelay {
   uint32 sender_id = 1;
   bytes value = 2;
+}
+
+message ServerError {
+  string reason = 1;
 }

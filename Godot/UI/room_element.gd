@@ -1,20 +1,23 @@
-extends Node
-
-signal joining_room(id: int)
+extends MarginContainer
 
 var room: roomClass
 
+
 func _ready() -> void:
-	%Button.connect("pressed", join_room)
+	%Button.pressed.connect(_join_room)
+	set_room(room)
 
-	if room == null:
-		printerr("room element room was null")
 
-	self.name = str(room.id)
-	get_child(1).get_child(0).text = str(room.id)
-	get_child(1).get_child(1).text = str(room.player_count)
+func set_room(value: roomClass) -> void:
+	room = value
+	if not is_node_ready() or room == null:
+		return
+	name = str(room.id)
+	$room/roomID.text = "%s (#%d)" % [room.room_name, room.id]
+	$room/PlayerCount.text = "%d / 16" % room.player_count
+	%Button.text = "Join"
 
-func join_room() -> void:
-	%Button.text = "Joining!"
-	emit_signal("joining_room", self.name)
-	Networking.join_room(int(self.name))
+
+func _join_room() -> void:
+	%Button.text = "Joining..."
+	Networking.join_room(room.id)

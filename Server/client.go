@@ -11,12 +11,18 @@ import (
 
 var clientIDs atomic.Uint32
 
+func init() {
+	// Godot reserves multiplayer peer ID 1 for a server. This is a peer mesh.
+	clientIDs.Store(1)
+}
+
 type Client struct {
 	id       uint32      // Godot compatable M Api id
 	outgoing chan []byte // Do not use directly, use Client.sendPacket()
 	closed   chan struct{}
 	conn     *websocket.Conn
 	close    sync.Once
+	roomID   uint32 // guarded by hub.mu
 }
 
 func initClient(wsConn *websocket.Conn) {
@@ -29,6 +35,7 @@ func initClient(wsConn *websocket.Conn) {
 
 	go readPump(client)
 	go writePump(client)
+	hub.addClient(client)
 
 	// Send init packet
 	pkt, err := encodePacket(&protocol.ServerPacket{
@@ -42,6 +49,7 @@ func initClient(wsConn *websocket.Conn) {
 		return
 	}
 	client.sendPacket(pkt)
+	hub.sendRoomList(client)
 }
 
 func readPump(client *Client) {
@@ -79,6 +87,7 @@ func writePump(client *Client) {
 
 func (client *Client) clientExit() {
 	client.close.Do(func() {
+		hub.removeClient(client)
 		close(client.closed)
 		client.conn.Close()
 		fmt.Printf("Client %d exited\n", client.id)
