@@ -1,0 +1,16 @@
+[mcp_servers.godot]
+command = "nix"
+args = [
+  "--quiet",
+  "shell",
+  "--no-warn-dirty",
+  "nixpkgs#nodejs",
+  "-c",
+  "npx",
+  "-y",
+  "@coding-solo/godot-mcp"
+]
+disabled = false
+
+[mcp_servers.godot.env]
+DEBUG = "true"
