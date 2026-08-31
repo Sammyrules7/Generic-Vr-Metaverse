@@ -44,7 +44,10 @@ message ClientRoomLeave {}
 
 message ClientRelay {
   uint32 destination_id = 1;
-  bytes value = 2;
+  oneof signal {
+    WebRTCSessionDescription description = 2;
+    WebRTCIceCandidate candidate = 3;
+  }
 }
 
 message ClientConnected {
@@ -80,7 +83,21 @@ message ServerPeerLeft {
 
 message ServerRelay {
   uint32 sender_id = 1;
-  bytes value = 2;
+  oneof signal {
+    WebRTCSessionDescription description = 2;
+    WebRTCIceCandidate candidate = 3;
+  }
+}
+
+message WebRTCSessionDescription {
+  string type = 1;
+  string sdp = 2;
+}
+
+message WebRTCIceCandidate {
+  string media = 1;
+  int32 index = 2;
+  string candidate = 3;
 }
 
 message ServerError {

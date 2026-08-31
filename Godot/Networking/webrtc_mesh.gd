@@ -1,11 +1,11 @@
 class_name WebRTCMesh
 extends RefCounted
 
+const Packets = preload("res://Networking/Generated/Packets.gd")
 const ICE_SERVERS := {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 const MAX_QUEUED_CANDIDATES := 64
-const MAX_CANDIDATE_LENGTH := 16 * 1024
 
-signal relay_requested(destination_id: int, value: PackedByteArray)
+signal packet_created(packet: Packets.ClientPacket)
 signal connection_error(reason: String)
 
 var multiplayer_peer: WebRTCMultiplayerPeer
@@ -53,23 +53,18 @@ func remove_peer(peer_id: int) -> void:
 	queued_candidates.erase(peer_id)
 
 
-func receive_relay(peer_id: int, value: PackedByteArray) -> void:
-	var message = JSON.parse_string(value.get_string_from_utf8())
-	if typeof(message) != TYPE_DICTIONARY or not message.has("kind"):
-		connection_error.emit("Peer %d sent invalid signaling data" % peer_id)
-		return
+func receive_relay(relay: Packets.ServerRelay) -> void:
+	var peer_id: int = relay.get_sender_id()
 	if not connections.has(peer_id):
 		add_peer(peer_id, false)
 	var connection: WebRTCPeerConnection = connections.get(peer_id)
 	if connection == null:
 		return
 
-	match message["kind"]:
-		"description":
-			if not _has_fields(message, ["type", "sdp"]):
-				connection_error.emit("Peer %d sent an incomplete description" % peer_id)
-				return
-			if connection.set_remote_description(str(message["type"]), str(message["sdp"])) != OK:
+	match relay.get_signal_case():
+		Packets.ServerRelay.SignalCase.DESCRIPTION:
+			var description = relay.get_description()
+			if connection.set_remote_description(description.get_type(), description.get_sdp()) != OK:
 				connection_error.emit("Peer %d sent an invalid description" % peer_id)
 				return
 			remote_descriptions[peer_id] = true
@@ -77,14 +72,9 @@ func receive_relay(peer_id: int, value: PackedByteArray) -> void:
 				if connection.add_ice_candidate(candidate[0], candidate[1], candidate[2]) != OK:
 					connection_error.emit("Could not apply a candidate from peer %d" % peer_id)
 			queued_candidates[peer_id] = []
-		"candidate":
-			if not _has_fields(message, ["media", "index", "candidate"]):
-				connection_error.emit("Peer %d sent an incomplete candidate" % peer_id)
-				return
-			var candidate := [str(message["media"]), int(message["index"]), str(message["candidate"])]
-			if candidate[2].length() > MAX_CANDIDATE_LENGTH:
-				connection_error.emit("Peer %d sent an oversized candidate" % peer_id)
-				return
+		Packets.ServerRelay.SignalCase.CANDIDATE:
+			var message = relay.get_candidate()
+			var candidate := [message.get_media(), message.get_index(), message.get_candidate()]
 			if remote_descriptions.has(peer_id):
 				if connection.add_ice_candidate(candidate[0], candidate[1], candidate[2]) != OK:
 					connection_error.emit("Peer %d sent an invalid candidate" % peer_id)
@@ -94,7 +84,7 @@ func receive_relay(peer_id: int, value: PackedByteArray) -> void:
 					return
 				queued_candidates[peer_id].append(candidate)
 		_:
-			connection_error.emit("Peer %d sent unknown signaling data" % peer_id)
+			connection_error.emit("Peer %d sent empty signaling data" % peer_id)
 
 
 func _description_created(type: String, sdp: String, peer_id: int) -> void:
@@ -104,19 +94,21 @@ func _description_created(type: String, sdp: String, peer_id: int) -> void:
 	if connection.set_local_description(type, sdp) != OK:
 		connection_error.emit("Could not set local description for peer %d" % peer_id)
 		return
-	_relay(peer_id, {"kind": "description", "type": type, "sdp": sdp})
+	var packet := Packets.ClientPacket.new()
+	var relay = packet.new_relay()
+	relay.set_destination_id(peer_id)
+	var description = relay.new_description()
+	description.set_type(type)
+	description.set_sdp(sdp)
+	packet_created.emit(packet)
 
 
 func _candidate_created(media: String, index: int, candidate: String, peer_id: int) -> void:
-	_relay(peer_id, {"kind": "candidate", "media": media, "index": index, "candidate": candidate})
-
-
-func _relay(peer_id: int, message: Dictionary) -> void:
-	relay_requested.emit(peer_id, JSON.stringify(message).to_utf8_buffer())
-
-
-func _has_fields(message: Dictionary, fields: Array[String]) -> bool:
-	for field in fields:
-		if not message.has(field):
-			return false
-	return true
+	var packet := Packets.ClientPacket.new()
+	var relay = packet.new_relay()
+	relay.set_destination_id(peer_id)
+	var message = relay.new_candidate()
+	message.set_media(media)
+	message.set_index(index)
+	message.set_candidate(candidate)
+	packet_created.emit(packet)

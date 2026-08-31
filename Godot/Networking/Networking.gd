@@ -77,11 +77,13 @@ func _handle_packet(bytes: PackedByteArray) -> void:
 			room_removed.emit(room_id)
 		Packets.ServerPacket.PayloadCase.ROOM_JOINED:
 			var joined := packet.get_room_joined()
+			_stop_mesh()
 			current_room = _decode_room(joined.get_room())
 			_start_mesh()
-			for peer_id in joined.get_peer_ids():
-				rtc_mesh.add_peer(peer_id, true)
-			room_joined.emit(current_room)
+			if rtc_mesh != null:
+				for peer_id in joined.get_peer_ids():
+					rtc_mesh.add_peer(peer_id, true)
+				room_joined.emit(current_room)
 		Packets.ServerPacket.PayloadCase.ROOM_LEFT:
 			_stop_mesh()
 			room_left.emit()
@@ -92,18 +94,17 @@ func _handle_packet(bytes: PackedByteArray) -> void:
 			if rtc_mesh != null:
 				rtc_mesh.remove_peer(packet.get_peer_left().get_peer_id())
 		Packets.ServerPacket.PayloadCase.RELAY:
-			var relay = packet.get_relay()
 			if rtc_mesh != null:
-				rtc_mesh.receive_relay(relay.get_sender_id(), relay.get_value())
+				rtc_mesh.receive_relay(packet.get_relay())
 		Packets.ServerPacket.PayloadCase.ERROR:
 			network_error.emit(packet.get_error().get_reason())
 
 
-func _decode_room(packet) -> roomClass:
+func _decode_room(packet: Packets.Room) -> roomClass:
 	return roomClass.new(packet.get_id(), packet.get_name(), packet.get_player_count())
 
 
-func _send(packet) -> Error:
+func _send(packet: Packets.ClientPacket) -> Error:
 	if ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		return ERR_UNAVAILABLE
 	return ws.send(packet.to_bytes(), WebSocketPeer.WRITE_MODE_BINARY)
@@ -128,13 +129,13 @@ func leave_room() -> void:
 
 
 func _start_mesh() -> void:
-	_stop_mesh()
 	rtc_mesh = WebRTCMeshService.new()
-	rtc_mesh.relay_requested.connect(_send_relay)
+	rtc_mesh.packet_created.connect(_send)
 	rtc_mesh.connection_error.connect(network_error.emit)
 	var result := rtc_mesh.start(client_id)
 	if result != OK:
 		network_error.emit("Could not create WebRTC mesh: %s" % error_string(result))
+		rtc_mesh = null
 		return
 	multiplayer.multiplayer_peer = rtc_mesh.multiplayer_peer
 
@@ -146,11 +147,3 @@ func _stop_mesh() -> void:
 	if not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	current_room = null
-
-
-func _send_relay(destination_id: int, value: PackedByteArray) -> void:
-	var packet := Packets.ClientPacket.new()
-	var relay = packet.new_relay()
-	relay.set_destination_id(destination_id)
-	relay.set_value(value)
-	_send(packet)

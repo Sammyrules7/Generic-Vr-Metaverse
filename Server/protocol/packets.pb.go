@@ -532,7 +532,11 @@ func (*ClientRoomLeave) Descriptor() ([]byte, []int) {
 type ClientRelay struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DestinationId uint32                 `protobuf:"varint,1,opt,name=destination_id,json=destinationId,proto3" json:"destination_id,omitempty"`
-	Value         []byte                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	// Types that are valid to be assigned to Signal:
+	//
+	//	*ClientRelay_Description
+	//	*ClientRelay_Candidate
+	Signal        isClientRelay_Signal `protobuf_oneof:"signal"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -574,12 +578,46 @@ func (x *ClientRelay) GetDestinationId() uint32 {
 	return 0
 }
 
-func (x *ClientRelay) GetValue() []byte {
+func (x *ClientRelay) GetSignal() isClientRelay_Signal {
 	if x != nil {
-		return x.Value
+		return x.Signal
 	}
 	return nil
 }
+
+func (x *ClientRelay) GetDescription() *WebRTCSessionDescription {
+	if x != nil {
+		if x, ok := x.Signal.(*ClientRelay_Description); ok {
+			return x.Description
+		}
+	}
+	return nil
+}
+
+func (x *ClientRelay) GetCandidate() *WebRTCIceCandidate {
+	if x != nil {
+		if x, ok := x.Signal.(*ClientRelay_Candidate); ok {
+			return x.Candidate
+		}
+	}
+	return nil
+}
+
+type isClientRelay_Signal interface {
+	isClientRelay_Signal()
+}
+
+type ClientRelay_Description struct {
+	Description *WebRTCSessionDescription `protobuf:"bytes,2,opt,name=description,proto3,oneof"`
+}
+
+type ClientRelay_Candidate struct {
+	Candidate *WebRTCIceCandidate `protobuf:"bytes,3,opt,name=candidate,proto3,oneof"`
+}
+
+func (*ClientRelay_Description) isClientRelay_Signal() {}
+
+func (*ClientRelay_Candidate) isClientRelay_Signal() {}
 
 type ClientConnected struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -934,9 +972,13 @@ func (x *ServerPeerLeft) GetPeerId() uint32 {
 }
 
 type ServerRelay struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SenderId      uint32                 `protobuf:"varint,1,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
-	Value         []byte                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	SenderId uint32                 `protobuf:"varint,1,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	// Types that are valid to be assigned to Signal:
+	//
+	//	*ServerRelay_Description
+	//	*ServerRelay_Candidate
+	Signal        isServerRelay_Signal `protobuf_oneof:"signal"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -978,11 +1020,157 @@ func (x *ServerRelay) GetSenderId() uint32 {
 	return 0
 }
 
-func (x *ServerRelay) GetValue() []byte {
+func (x *ServerRelay) GetSignal() isServerRelay_Signal {
 	if x != nil {
-		return x.Value
+		return x.Signal
 	}
 	return nil
+}
+
+func (x *ServerRelay) GetDescription() *WebRTCSessionDescription {
+	if x != nil {
+		if x, ok := x.Signal.(*ServerRelay_Description); ok {
+			return x.Description
+		}
+	}
+	return nil
+}
+
+func (x *ServerRelay) GetCandidate() *WebRTCIceCandidate {
+	if x != nil {
+		if x, ok := x.Signal.(*ServerRelay_Candidate); ok {
+			return x.Candidate
+		}
+	}
+	return nil
+}
+
+type isServerRelay_Signal interface {
+	isServerRelay_Signal()
+}
+
+type ServerRelay_Description struct {
+	Description *WebRTCSessionDescription `protobuf:"bytes,2,opt,name=description,proto3,oneof"`
+}
+
+type ServerRelay_Candidate struct {
+	Candidate *WebRTCIceCandidate `protobuf:"bytes,3,opt,name=candidate,proto3,oneof"`
+}
+
+func (*ServerRelay_Description) isServerRelay_Signal() {}
+
+func (*ServerRelay_Candidate) isServerRelay_Signal() {}
+
+type WebRTCSessionDescription struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Sdp           string                 `protobuf:"bytes,2,opt,name=sdp,proto3" json:"sdp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WebRTCSessionDescription) Reset() {
+	*x = WebRTCSessionDescription{}
+	mi := &file_packets_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebRTCSessionDescription) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebRTCSessionDescription) ProtoMessage() {}
+
+func (x *WebRTCSessionDescription) ProtoReflect() protoreflect.Message {
+	mi := &file_packets_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebRTCSessionDescription.ProtoReflect.Descriptor instead.
+func (*WebRTCSessionDescription) Descriptor() ([]byte, []int) {
+	return file_packets_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *WebRTCSessionDescription) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *WebRTCSessionDescription) GetSdp() string {
+	if x != nil {
+		return x.Sdp
+	}
+	return ""
+}
+
+type WebRTCIceCandidate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Media         string                 `protobuf:"bytes,1,opt,name=media,proto3" json:"media,omitempty"`
+	Index         int32                  `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
+	Candidate     string                 `protobuf:"bytes,3,opt,name=candidate,proto3" json:"candidate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WebRTCIceCandidate) Reset() {
+	*x = WebRTCIceCandidate{}
+	mi := &file_packets_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebRTCIceCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebRTCIceCandidate) ProtoMessage() {}
+
+func (x *WebRTCIceCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_packets_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebRTCIceCandidate.ProtoReflect.Descriptor instead.
+func (*WebRTCIceCandidate) Descriptor() ([]byte, []int) {
+	return file_packets_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *WebRTCIceCandidate) GetMedia() string {
+	if x != nil {
+		return x.Media
+	}
+	return ""
+}
+
+func (x *WebRTCIceCandidate) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *WebRTCIceCandidate) GetCandidate() string {
+	if x != nil {
+		return x.Candidate
+	}
+	return ""
 }
 
 type ServerError struct {
@@ -994,7 +1182,7 @@ type ServerError struct {
 
 func (x *ServerError) Reset() {
 	*x = ServerError{}
-	mi := &file_packets_proto_msgTypes[16]
+	mi := &file_packets_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1006,7 +1194,7 @@ func (x *ServerError) String() string {
 func (*ServerError) ProtoMessage() {}
 
 func (x *ServerError) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[16]
+	mi := &file_packets_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1019,7 +1207,7 @@ func (x *ServerError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerError.ProtoReflect.Descriptor instead.
 func (*ServerError) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{16}
+	return file_packets_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ServerError) GetReason() string {
@@ -1065,10 +1253,12 @@ const file_packets_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\")\n" +
 	"\x0eClientRoomJoin\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\rR\x06roomId\"\x11\n" +
-	"\x0fClientRoomLeave\"J\n" +
+	"\x0fClientRoomLeave\"\xb2\x01\n" +
 	"\vClientRelay\x12%\n" +
-	"\x0edestination_id\x18\x01 \x01(\rR\rdestinationId\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\fR\x05value\".\n" +
+	"\x0edestination_id\x18\x01 \x01(\rR\rdestinationId\x12=\n" +
+	"\vdescription\x18\x02 \x01(\v2\x19.WebRTCSessionDescriptionH\x00R\vdescription\x123\n" +
+	"\tcandidate\x18\x03 \x01(\v2\x13.WebRTCIceCandidateH\x00R\tcandidateB\b\n" +
+	"\x06signal\".\n" +
 	"\x0fClientConnected\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\rR\bclientId\"-\n" +
 	"\x0eServerRoomList\x12\x1b\n" +
@@ -1084,10 +1274,19 @@ const file_packets_proto_rawDesc = "" +
 	"\x10ServerPeerJoined\x12\x17\n" +
 	"\apeer_id\x18\x01 \x01(\rR\x06peerId\")\n" +
 	"\x0eServerPeerLeft\x12\x17\n" +
-	"\apeer_id\x18\x01 \x01(\rR\x06peerId\"@\n" +
+	"\apeer_id\x18\x01 \x01(\rR\x06peerId\"\xa8\x01\n" +
 	"\vServerRelay\x12\x1b\n" +
-	"\tsender_id\x18\x01 \x01(\rR\bsenderId\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\fR\x05value\"%\n" +
+	"\tsender_id\x18\x01 \x01(\rR\bsenderId\x12=\n" +
+	"\vdescription\x18\x02 \x01(\v2\x19.WebRTCSessionDescriptionH\x00R\vdescription\x123\n" +
+	"\tcandidate\x18\x03 \x01(\v2\x13.WebRTCIceCandidateH\x00R\tcandidateB\b\n" +
+	"\x06signal\"@\n" +
+	"\x18WebRTCSessionDescription\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x10\n" +
+	"\x03sdp\x18\x02 \x01(\tR\x03sdp\"^\n" +
+	"\x12WebRTCIceCandidate\x12\x14\n" +
+	"\x05media\x18\x01 \x01(\tR\x05media\x12\x14\n" +
+	"\x05index\x18\x02 \x01(\x05R\x05index\x12\x1c\n" +
+	"\tcandidate\x18\x03 \x01(\tR\tcandidate\"%\n" +
 	"\vServerError\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reasonB+Z)vr.maio-tech.com/server/protocol;protocolb\x06proto3"
 
@@ -1103,25 +1302,27 @@ func file_packets_proto_rawDescGZIP() []byte {
 	return file_packets_proto_rawDescData
 }
 
-var file_packets_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_packets_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_packets_proto_goTypes = []any{
-	(*ClientPacket)(nil),      // 0: ClientPacket
-	(*ServerPacket)(nil),      // 1: ServerPacket
-	(*Room)(nil),              // 2: Room
-	(*ClientRoomCreate)(nil),  // 3: ClientRoomCreate
-	(*ClientRoomJoin)(nil),    // 4: ClientRoomJoin
-	(*ClientRoomLeave)(nil),   // 5: ClientRoomLeave
-	(*ClientRelay)(nil),       // 6: ClientRelay
-	(*ClientConnected)(nil),   // 7: ClientConnected
-	(*ServerRoomList)(nil),    // 8: ServerRoomList
-	(*ServerRoomUpdated)(nil), // 9: ServerRoomUpdated
-	(*ServerRoomRemoved)(nil), // 10: ServerRoomRemoved
-	(*ServerRoomJoined)(nil),  // 11: ServerRoomJoined
-	(*ServerRoomLeft)(nil),    // 12: ServerRoomLeft
-	(*ServerPeerJoined)(nil),  // 13: ServerPeerJoined
-	(*ServerPeerLeft)(nil),    // 14: ServerPeerLeft
-	(*ServerRelay)(nil),       // 15: ServerRelay
-	(*ServerError)(nil),       // 16: ServerError
+	(*ClientPacket)(nil),             // 0: ClientPacket
+	(*ServerPacket)(nil),             // 1: ServerPacket
+	(*Room)(nil),                     // 2: Room
+	(*ClientRoomCreate)(nil),         // 3: ClientRoomCreate
+	(*ClientRoomJoin)(nil),           // 4: ClientRoomJoin
+	(*ClientRoomLeave)(nil),          // 5: ClientRoomLeave
+	(*ClientRelay)(nil),              // 6: ClientRelay
+	(*ClientConnected)(nil),          // 7: ClientConnected
+	(*ServerRoomList)(nil),           // 8: ServerRoomList
+	(*ServerRoomUpdated)(nil),        // 9: ServerRoomUpdated
+	(*ServerRoomRemoved)(nil),        // 10: ServerRoomRemoved
+	(*ServerRoomJoined)(nil),         // 11: ServerRoomJoined
+	(*ServerRoomLeft)(nil),           // 12: ServerRoomLeft
+	(*ServerPeerJoined)(nil),         // 13: ServerPeerJoined
+	(*ServerPeerLeft)(nil),           // 14: ServerPeerLeft
+	(*ServerRelay)(nil),              // 15: ServerRelay
+	(*WebRTCSessionDescription)(nil), // 16: WebRTCSessionDescription
+	(*WebRTCIceCandidate)(nil),       // 17: WebRTCIceCandidate
+	(*ServerError)(nil),              // 18: ServerError
 }
 var file_packets_proto_depIdxs = []int32{
 	3,  // 0: ClientPacket.room_create:type_name -> ClientRoomCreate
@@ -1137,15 +1338,19 @@ var file_packets_proto_depIdxs = []int32{
 	13, // 10: ServerPacket.peer_joined:type_name -> ServerPeerJoined
 	14, // 11: ServerPacket.peer_left:type_name -> ServerPeerLeft
 	15, // 12: ServerPacket.relay:type_name -> ServerRelay
-	16, // 13: ServerPacket.error:type_name -> ServerError
-	2,  // 14: ServerRoomList.rooms:type_name -> Room
-	2,  // 15: ServerRoomUpdated.room:type_name -> Room
-	2,  // 16: ServerRoomJoined.room:type_name -> Room
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	18, // 13: ServerPacket.error:type_name -> ServerError
+	16, // 14: ClientRelay.description:type_name -> WebRTCSessionDescription
+	17, // 15: ClientRelay.candidate:type_name -> WebRTCIceCandidate
+	2,  // 16: ServerRoomList.rooms:type_name -> Room
+	2,  // 17: ServerRoomUpdated.room:type_name -> Room
+	2,  // 18: ServerRoomJoined.room:type_name -> Room
+	16, // 19: ServerRelay.description:type_name -> WebRTCSessionDescription
+	17, // 20: ServerRelay.candidate:type_name -> WebRTCIceCandidate
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_packets_proto_init() }
@@ -1171,13 +1376,21 @@ func file_packets_proto_init() {
 		(*ServerPacket_Relay)(nil),
 		(*ServerPacket_Error)(nil),
 	}
+	file_packets_proto_msgTypes[6].OneofWrappers = []any{
+		(*ClientRelay_Description)(nil),
+		(*ClientRelay_Candidate)(nil),
+	}
+	file_packets_proto_msgTypes[15].OneofWrappers = []any{
+		(*ServerRelay_Description)(nil),
+		(*ServerRelay_Candidate)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_packets_proto_rawDesc), len(file_packets_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -33,9 +33,7 @@ func send(client *Client, packet *protocol.ServerPacket) bool {
 }
 
 func sendError(client *Client, reason string) {
-	send(client, &protocol.ServerPacket{Payload: &protocol.ServerPacket_Error{
-		Error: &protocol.ServerError{Reason: reason},
-	}})
+	send(client, errorPacket(reason))
 }
 
 func handlePacket(encoded []byte, sender *Client) {
@@ -44,17 +42,46 @@ func handlePacket(encoded []byte, sender *Client) {
 		sendError(sender, "invalid packet")
 		return
 	}
+	hub.handle(sender, packet)
+}
 
-	switch payload := packet.Payload.(type) {
-	case *protocol.ClientPacket_RoomCreate:
-		hub.createRoom(sender, payload.RoomCreate.Name)
-	case *protocol.ClientPacket_RoomJoin:
-		hub.joinRoom(sender, payload.RoomJoin.RoomId)
-	case *protocol.ClientPacket_RoomLeave:
-		hub.leaveRoom(sender, true)
-	case *protocol.ClientPacket_Relay:
-		hub.relay(sender, payload.Relay)
-	default:
-		sendError(sender, "packet has no payload")
-	}
+func connectedPacket(id uint32) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_Connected{Connected: &protocol.ClientConnected{ClientId: id}}}
+}
+
+func roomListPacket(rooms []*protocol.Room) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomList{RoomList: &protocol.ServerRoomList{Rooms: rooms}}}
+}
+
+func roomUpdatedPacket(room *protocol.Room) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomUpdated{RoomUpdated: &protocol.ServerRoomUpdated{Room: room}}}
+}
+
+func roomRemovedPacket(id uint32) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomRemoved{RoomRemoved: &protocol.ServerRoomRemoved{RoomId: id}}}
+}
+
+func roomJoinedPacket(room *protocol.Room, peers []uint32) *protocol.ServerPacket {
+	joined := &protocol.ServerRoomJoined{Room: room, PeerIds: peers}
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomJoined{RoomJoined: joined}}
+}
+
+func roomLeftPacket() *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomLeft{RoomLeft: &protocol.ServerRoomLeft{}}}
+}
+
+func peerJoinedPacket(id uint32) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_PeerJoined{PeerJoined: &protocol.ServerPeerJoined{PeerId: id}}}
+}
+
+func peerLeftPacket(id uint32) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_PeerLeft{PeerLeft: &protocol.ServerPeerLeft{PeerId: id}}}
+}
+
+func relayPacket(relay *protocol.ServerRelay) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_Relay{Relay: relay}}
+}
+
+func errorPacket(reason string) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_Error{Error: &protocol.ServerError{Reason: reason}}}
 }

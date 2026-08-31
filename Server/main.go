@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/gorilla/websocket"
 )
@@ -30,6 +29,7 @@ func handleWsConn(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error upgrading WebSocket: %s\n", err)
 		return
 	}
+	wsConn.SetReadLimit(256 * 1024)
 
 	initClient(wsConn)
 

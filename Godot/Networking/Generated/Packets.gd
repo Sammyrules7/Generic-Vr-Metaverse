@@ -1453,13 +1453,27 @@ class ClientRelay:
 		service.field = __destination_id
 		data[__destination_id.tag] = service
 		
-		__value = PBField.new("value", PB_DATA_TYPE.BYTES, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES])
+		__description = PBField.new("description", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
-		service.field = __value
-		data[__value.tag] = service
+		service.field = __description
+		service.func_ref = Callable(self, "new_description")
+		data[__description.tag] = service
+		
+		__candidate = PBField.new("candidate", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __candidate
+		service.func_ref = Callable(self, "new_candidate")
+		data[__candidate.tag] = service
 		
 	var data = {}
 	
+	enum SignalCase {
+		SIGNAL_NOT_SET = 0,
+		DESCRIPTION = 2,
+		CANDIDATE = 3,
+	}
+	var _signal_case: int = 0
+
 	var __destination_id: PBField
 	func has_destination_id() -> bool:
 		if __destination_id.value != null:
@@ -1473,19 +1487,40 @@ class ClientRelay:
 	func set_destination_id(value : int) -> void:
 		__destination_id.value = value
 	
-	var __value: PBField
-	func has_value() -> bool:
-		if __value.value != null:
-			return true
-		return false
-	func get_value() -> PackedByteArray:
-		return __value.value
-	func clear_value() -> void:
+	var __description: PBField
+	func has_description() -> bool:
+		return data[2].state == PB_SERVICE_STATE.FILLED
+	func get_description() -> WebRTCSessionDescription:
+		return __description.value
+	func clear_description() -> void:
 		data[2].state = PB_SERVICE_STATE.UNFILLED
-		__value.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES]
-	func set_value(value : PackedByteArray) -> void:
-		__value.value = value
+		__description.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_description() -> WebRTCSessionDescription:
+		data[2].state = PB_SERVICE_STATE.FILLED
+		_signal_case = 2
+		__candidate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__description.value = WebRTCSessionDescription.new()
+		return __description.value
 	
+	var __candidate: PBField
+	func has_candidate() -> bool:
+		return data[3].state == PB_SERVICE_STATE.FILLED
+	func get_candidate() -> WebRTCIceCandidate:
+		return __candidate.value
+	func clear_candidate() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__candidate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_candidate() -> WebRTCIceCandidate:
+		__description.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		data[3].state = PB_SERVICE_STATE.FILLED
+		_signal_case = 3
+		__candidate.value = WebRTCIceCandidate.new()
+		return __candidate.value
+	
+	func get_signal_case() -> int:
+		return _signal_case
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
 		
@@ -1877,13 +1912,27 @@ class ServerRelay:
 		service.field = __sender_id
 		data[__sender_id.tag] = service
 		
-		__value = PBField.new("value", PB_DATA_TYPE.BYTES, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES])
+		__description = PBField.new("description", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
-		service.field = __value
-		data[__value.tag] = service
+		service.field = __description
+		service.func_ref = Callable(self, "new_description")
+		data[__description.tag] = service
+		
+		__candidate = PBField.new("candidate", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __candidate
+		service.func_ref = Callable(self, "new_candidate")
+		data[__candidate.tag] = service
 		
 	var data = {}
 	
+	enum SignalCase {
+		SIGNAL_NOT_SET = 0,
+		DESCRIPTION = 2,
+		CANDIDATE = 3,
+	}
+	var _signal_case: int = 0
+
 	var __sender_id: PBField
 	func has_sender_id() -> bool:
 		if __sender_id.value != null:
@@ -1897,18 +1946,183 @@ class ServerRelay:
 	func set_sender_id(value : int) -> void:
 		__sender_id.value = value
 	
-	var __value: PBField
-	func has_value() -> bool:
-		if __value.value != null:
+	var __description: PBField
+	func has_description() -> bool:
+		return data[2].state == PB_SERVICE_STATE.FILLED
+	func get_description() -> WebRTCSessionDescription:
+		return __description.value
+	func clear_description() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__description.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_description() -> WebRTCSessionDescription:
+		data[2].state = PB_SERVICE_STATE.FILLED
+		_signal_case = 2
+		__candidate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__description.value = WebRTCSessionDescription.new()
+		return __description.value
+	
+	var __candidate: PBField
+	func has_candidate() -> bool:
+		return data[3].state == PB_SERVICE_STATE.FILLED
+	func get_candidate() -> WebRTCIceCandidate:
+		return __candidate.value
+	func clear_candidate() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__candidate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_candidate() -> WebRTCIceCandidate:
+		__description.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		data[3].state = PB_SERVICE_STATE.FILLED
+		_signal_case = 3
+		__candidate.value = WebRTCIceCandidate.new()
+		return __candidate.value
+	
+	func get_signal_case() -> int:
+		return _signal_case
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+		
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+		
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class WebRTCSessionDescription:
+	func _init():
+		var service
+		
+		__type = PBField.new("type", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __type
+		data[__type.tag] = service
+		
+		__sdp = PBField.new("sdp", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __sdp
+		data[__sdp.tag] = service
+		
+	var data = {}
+	
+	var __type: PBField
+	func has_type() -> bool:
+		if __type.value != null:
 			return true
 		return false
-	func get_value() -> PackedByteArray:
-		return __value.value
-	func clear_value() -> void:
+	func get_type() -> String:
+		return __type.value
+	func clear_type() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__type.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_type(value : String) -> void:
+		__type.value = value
+	
+	var __sdp: PBField
+	func has_sdp() -> bool:
+		if __sdp.value != null:
+			return true
+		return false
+	func get_sdp() -> String:
+		return __sdp.value
+	func clear_sdp() -> void:
 		data[2].state = PB_SERVICE_STATE.UNFILLED
-		__value.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES]
-	func set_value(value : PackedByteArray) -> void:
-		__value.value = value
+		__sdp.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_sdp(value : String) -> void:
+		__sdp.value = value
+	
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+		
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+		
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class WebRTCIceCandidate:
+	func _init():
+		var service
+		
+		__media = PBField.new("media", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __media
+		data[__media.tag] = service
+		
+		__index = PBField.new("index", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
+		service = PBServiceField.new()
+		service.field = __index
+		data[__index.tag] = service
+		
+		__candidate = PBField.new("candidate", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __candidate
+		data[__candidate.tag] = service
+		
+	var data = {}
+	
+	var __media: PBField
+	func has_media() -> bool:
+		if __media.value != null:
+			return true
+		return false
+	func get_media() -> String:
+		return __media.value
+	func clear_media() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__media.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_media(value : String) -> void:
+		__media.value = value
+	
+	var __index: PBField
+	func has_index() -> bool:
+		if __index.value != null:
+			return true
+		return false
+	func get_index() -> int:
+		return __index.value
+	func clear_index() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__index.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
+	func set_index(value : int) -> void:
+		__index.value = value
+	
+	var __candidate: PBField
+	func has_candidate() -> bool:
+		if __candidate.value != null:
+			return true
+		return false
+	func get_candidate() -> String:
+		return __candidate.value
+	func clear_candidate() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__candidate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_candidate(value : String) -> void:
+		__candidate.value = value
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
