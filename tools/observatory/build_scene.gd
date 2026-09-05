@@ -67,6 +67,82 @@ func label(parent: Node, node_name: String, text: String, at: Vector3, size: int
 	return node
 
 
+func lantern(node_name: String, at: Vector3, color: Color, energy: float, radius: float, shadows: bool) -> void:
+	var lamp := OmniLight3D.new()
+	lamp.name = node_name
+	lamp.position = at
+	lamp.light_color = color
+	lamp.light_energy = energy
+	lamp.omni_range = radius
+	lamp.omni_attenuation = 1.4
+	lamp.shadow_enabled = shadows
+	lamp.shadow_bias = 0.1
+	lamp.shadow_normal_bias = 1.0
+	own(lamp, world)
+
+
+func motes(node_name: String, at: Vector3, volume: Vector3, color: Color, count: int) -> void:
+	var particles := GPUParticles3D.new()
+	particles.name = node_name
+	particles.position = at
+	particles.amount = count
+	particles.lifetime = 14
+	particles.preprocess = 3
+	particles.fixed_fps = 30
+	particles.use_fixed_seed = true
+	particles.seed = 47 + count
+	particles.visibility_aabb = AABB(-volume - Vector3.ONE * 3, volume * 2 + Vector3.ONE * 6)
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process.emission_box_extents = volume
+	process.direction = Vector3.UP
+	process.spread = 65
+	process.gravity = Vector3(0.015, 0.008, 0)
+	process.initial_velocity_min = 0.035
+	process.initial_velocity_max = 0.12
+	process.scale_min = 0.045
+	process.scale_max = 0.11
+	process.turbulence_enabled = true
+	process.turbulence_noise_scale = 2.0
+	process.turbulence_noise_strength = 0.25
+	process.turbulence_influence_min = 0.08
+	process.turbulence_influence_max = 0.18
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0, 0.15, 0.7, 1])
+	fade.colors = PackedColorArray([Color(color, 0), color, color, Color(color, 0)])
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = fade
+	process.color_ramp = ramp
+	particles.process_material = process
+	var sprite := GradientTexture2D.new()
+	sprite.width = 64
+	sprite.height = 64
+	sprite.fill = GradientTexture2D.FILL_RADIAL
+	sprite.fill_from = Vector2(0.5, 0.5)
+	sprite.fill_to = Vector2(1, 0.5)
+	var halo := Gradient.new()
+	halo.offsets = PackedFloat32Array([0, 0.15, 0.5, 1])
+	halo.colors = PackedColorArray([Color.WHITE, Color(1, 1, 1, 0.9), Color(1, 1, 1, 0.22), Color(1, 1, 1, 0)])
+	sprite.gradient = halo
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.billboard_keep_scale = true
+	mat.vertex_color_use_as_albedo = true
+	mat.albedo_texture = sprite
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_texture = sprite
+	mat.emission_energy_multiplier = 2.0
+	var mesh := QuadMesh.new()
+	mesh.material = mat
+	particles.draw_pass_1 = mesh
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	own(particles, world)
+
+
 func _initialize() -> void:
 	world = Node3D.new()
 	world.name = "World"
@@ -88,22 +164,28 @@ func _initialize() -> void:
 	sky.sky_material = sky_material
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.48, 0.59, 0.8)
-	env.ambient_light_energy = 0.22
+	env.ambient_light_color = Color(0.32, 0.44, 0.7)
+	env.ambient_light_energy = 0.085
+	env.ssao_enabled = true
+	env.ssao_radius = 0.9
+	env.ssao_intensity = 1.8
+	env.ssao_power = 1.5
+	env.ssao_detail = 0.65
+	env.ssao_light_affect = 0.2
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
-	env.glow_intensity = 0.6
+	env.glow_intensity = 0.75
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.18, 0.26, 0.4)
-	env.fog_density = 0.0015
-	env.fog_sky_affect = 0.05
+	env.fog_light_color = Color(0.08, 0.14, 0.24)
+	env.fog_density = 0.0018
+	env.fog_sky_affect = 0.02
 	environment.environment = env
 	own(environment, world)
 	var moonlight := DirectionalLight3D.new()
 	moonlight.name = "Moonlight"
-	moonlight.rotation_degrees = Vector3(-42, -35, 0)
-	moonlight.light_color = Color(0.62, 0.76, 1)
-	moonlight.light_energy = 0.25
+	moonlight.rotation_degrees = Vector3(-28, -55, 0)
+	moonlight.light_color = Color(0.49, 0.68, 1)
+	moonlight.light_energy = 0.65
 	moonlight.shadow_enabled = true
 	moonlight.directional_shadow_max_distance = 45
 	own(moonlight, world)
@@ -118,15 +200,18 @@ func _initialize() -> void:
 	clouds.material_override = cloud_material
 	clouds.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	own(clouds, world)
-	for location in [Vector3(0, 3.8, 0), Vector3(0, 4.0, -8), Vector3(-8, 3, 5), Vector3(8, 3, 5)]:
-		var lamp := OmniLight3D.new()
-		lamp.name = "WarmPool"
-		lamp.position = location
-		lamp.light_color = Color(1, 0.63, 0.31)
-		lamp.light_energy = 2.4
-		lamp.omni_range = 9
-		lamp.shadow_enabled = false
-		own(lamp, world)
+	# Practical light sources create warm islands with dark space between them.
+	lantern("GlobeAmberBounce", Vector3(0, 1.38, 0), Color(1, 0.47, 0.15), 3.2, 7, true)
+	lantern("GlobeCyanAccent", Vector3(0, 2.8, 0.3), Color(0.16, 0.65, 1), 0.65, 3, false)
+	lantern("DomeWarmKey", Vector3(-3.9, 3.5, -10.5), Color(1, 0.55, 0.22), 4.0, 10, true)
+	lantern("DomeCoolRim", Vector3(3.8, 3.5, -10.5), Color(0.18, 0.65, 0.8), 1.8, 8, false)
+	for location in [Vector3(-10, 1.35, 0), Vector3(10, 1.35, 0), Vector3(-8, 1.35, 9), Vector3(8, 1.35, 9)]:
+		lantern("TableLantern", location, Color(1, 0.52, 0.18), 2.2, 5.2, false)
+	for i in 12:
+		var angle := TAU * i / 12
+		lantern("PerimeterLantern", Vector3(cos(angle) * 14.9, 1.38, -sin(angle) * 14.9), Color(1, 0.56, 0.22), 0.85, 3.2, false)
+	motes("LoungeFireflies", Vector3(0, 1.0, 0), Vector3(5.5, 0.75, 5.5), Color(1, 0.63, 0.22), 64)
+	motes("ObservatoryStardust", Vector3(0, 3.0, -8), Vector3(3.5, 1.5, 3.5), Color(0.25, 0.8, 1), 36)
 	label(world, "Welcome", "S T A R L I G H T\nO B S E R V A T O R Y", Vector3(0, 3.8, -3.2), 60, Color(0.93, 0.77, 0.45))
 	label(world, "WelcomeSubtitle", "A   Q U I E T   P L A C E   A B O V E   T H E   C L O U D S", Vector3(0, 3.05, -3.2), 17, Color(0.58, 0.77, 0.85))
 	label(world, "TelescopePlaque", "02  /  THE OBSERVATORY\nLook a little further.", Vector3(2.5, 1.25, -5.5), 23, Color(0.86, 0.8, 0.63))

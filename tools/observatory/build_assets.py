@@ -37,6 +37,7 @@ cyan = mat('Celestial cyan', (.22,.8,1), emission=2)
 rock = mat('Basalt', (.09,.13,.19))
 leaf = mat('Alpine blue spruce', (.055,.19,.19))
 mountains = [mat('Mountain haze '+str(i), (.075+i*.018,.11+i*.021,.19+i*.025)) for i in range(3)]
+snow = mat('Moonlit snow', (.43,.58,.67))
 
 def finish(o, name, material):
     o.name = name
@@ -174,13 +175,52 @@ for i in range(12):
     cyl('Lantern window',(x,y,1.35),.18,.3,light,8)
     cyl('Lantern cap',(x,y,1.55),.28,.12,brass,8)
 
-# A rocky peak below the platform, distant faceted mountains, and cloud ribbons.
+# Jagged, snow-capped ridges give the distant landscape distinct silhouettes.
 cyl('Mountain beneath',(0,0,-7),7,13,rock,11,top=16)
-for i in range(45):
-    a=i*math.tau/45+random.uniform(-.08,.08)
-    radius=random.uniform(85,155);h=random.uniform(20,60)
-    o=cyl('Distant alpine peak',(radius*math.cos(a),radius*math.sin(a),-22),random.uniform(14,30),h,mountains[i%3],random.randint(5,8),top=0)
-    o.rotation_euler[2]=random.random()*3
+def mountain(x,y,base,width,height,material):
+    segments=9
+    verts=[]
+    rotation=random.random()*math.tau
+    radii=[random.uniform(.72,1.28) for _ in range(segments)]
+    for level,scale in [(0,1),(.4,.66),(.7,.34)]:
+        for j in range(segments):
+            a=j*math.tau/segments+rotation
+            z=base+height*(level+random.uniform(-.055,.055))
+            verts.append((x+math.cos(a)*width*scale*radii[j]+level*width*.15,y+math.sin(a)*width*scale*radii[j],z))
+    verts.append((x+width*.21,y-width*.12,base+height))
+    faces=[];snow_faces=[]
+    for ring in range(2):
+        for j in range(segments):
+            a=ring*segments+j;b=ring*segments+(j+1)%segments
+            faces.extend([(a,b,a+segments),(b,b+segments,a+segments)])
+            snow_faces.extend([False,ring==1])
+    for j in range(segments):
+        faces.append((segments*2+j,segments*2+(j+1)%segments,segments*3));snow_faces.append(True)
+    mesh=bpy.data.meshes.new('Alpine ridge');mesh.from_pydata(verts,[],faces);mesh.update()
+    o=bpy.data.objects.new('Snow capped ridge',mesh);bpy.context.collection.objects.link(o)
+    o.data.materials.append(material);o.data.materials.append(snow)
+    for poly,is_snow in zip(mesh.polygons,snow_faces):poly.material_index=int(is_snow)
+
+for i in range(38):
+    a=i*math.tau/38+random.uniform(-.04,.04)
+    radius=random.uniform(100,165)
+    mountain(radius*math.cos(a),radius*math.sin(a),-27,random.uniform(16,31),random.uniform(40,76),mountains[i%3])
+
+# Two unoccupied beacon outposts hint at a larger world beyond this home.
+for x,y,z in [(-40,35,1),(48,57,5)]:
+    cyl('Beacon outcrop',(x,y,z-6),2.7,12,rock,9,top=7)
+    cyl('Outcrop crown',(x,y,z),7,.7,mountains[0],9)
+    cyl('Beacon footing',(x,y,z+.6),2.8,.5,stone,12)
+    for j in range(6):
+        a=j*math.tau/6;px,py=x+2.2*math.cos(a),y+2.2*math.sin(a)
+        cyl('Far beacon pillar',(px,py,z+3.7),.18,6,stone,8)
+    arc('Far beacon cornice',(x,y),2.5,z+6.7,0,math.tau,.4,.3,brass,32)
+    cyl('Far beacon roof',(x,y,z+7.9),2.9,2.2,dark,12,top=.15)
+    cyl('Beacon flame',(x,y,z+4.1),.38,2.4,light,12,top=.1)
+    cyl('Beacon spire',(x,y,z+9.5),.12,1.3,brass,8,top=0)
+    for px,py,h in [(x-4,y+1,3.2),(x+3,y+3,4.3),(x-2,y-4,2.3)]:
+        cyl('Far spruce trunk',(px,py,z+h*.3),.11,h*.6,wood,8)
+        cyl('Far spruce crown',(px,py,z+h*.65),h*.35,h,leaf,8,top=0)
 
 OUT.mkdir(parents=True,exist_ok=True)
 # Save the modular, editable source before batching the export by material.

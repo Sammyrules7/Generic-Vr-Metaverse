@@ -2,6 +2,8 @@
 
 A second home world: a moonlit alpine terrace, an open brass observatory dome,
 a telescope, curved lounge seating, and an interactive constellation globe.
+Aurora curtains and a galactic dust band frame snow-capped ridges and distant
+beacon outposts. Slow cloud drift and gold/cyan particles animate the setting.
 All models and shaders are original to this project. The existing floating island
 and default startup scene are unchanged.
 
@@ -85,10 +87,20 @@ To also render three 1600×1000 views into `/tmp/observatory-*.png`, omit
 `tools/observatory/previews/` at the repository root.
 
 Tested with Godot 4.7.2, Blender 5.2.1, and desktop Vulkan Forward+ rendering.
-Lighting uses one shadowed directional light, four unshadowed local lights, and
-emissive materials; no lightmap bake or external textures are required. The sky
-and cloud layer are static shaders. Exported architecture uses five static
-collision bodies, material batching, and generated import LODs.
+Lighting uses cool, shadowed moonlight, two shadowed local lights around the globe
+and dome, and smaller unshadowed lights at the tables and perimeter lanterns.
+Lower ambient fill and SSAO give the seating and architecture stronger contact
+shadows. These are realtime effects; no lightmap bake or external textures are
+required. The sky shader stays static to avoid updating its reflection cubemap
+every frame, while the cloud shader drifts slowly. Two seeded GPU particle
+emitters provide 100 small, softly fading motes with gentle turbulence.
+
+Exported architecture uses five static collision bodies, material batching, and
+generated import LODs. The two distant beacon outposts are background scenery.
+Lighting and particles are native, editable nodes in `observatory.tscn`; their
+reproducible settings live in `build_scene.gd`. For a lighter render, disable SSAO
+in `NightAtmosphere`, disable shadows on `GlobeAmberBounce` and `DomeWarmKey`, or
+reduce the `amount` on `LoungeFireflies` and `ObservatoryStardust`.
 
 Physical headset comfort, standalone headset performance, and mobile rendering
 remain unverified. Desktop startup can report the host's missing `xdg-user-dir`
