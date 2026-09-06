@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://jdwonkx5o3kx"]
+
+[ext_resource type="Script" uid="uid://cxk1b4t76a64h" path="res://player/network_player.gd" id="1"]
+
+[sub_resource type="CapsuleShape3D" id="Collider"]
+
+[sub_resource type="CapsuleMesh" id="Body"]
+radius = 0.3
+height = 1.2
+
+[sub_resource type="SphereMesh" id="Head"]
+radius = 0.18
+height = 0.36
+
+[sub_resource type="SphereMesh" id="Hand"]
+radius = 0.07
+height = 0.14
+
+[node name="Player" type="CharacterBody3D" unique_id=1148612965]
+script = ExtResource("1")
+
+[node name="Collider" type="CollisionShape3D" parent="." unique_id=1382636623]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("Collider")
+
+[node name="Avatar" type="Node3D" parent="." unique_id=1874303836]
+
+[node name="Body" type="MeshInstance3D" parent="Avatar" unique_id=481854000]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+gi_mode = 2
+mesh = SubResource("Body")
+
+[node name="Head" type="MeshInstance3D" parent="Avatar" unique_id=784780944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+gi_mode = 2
+mesh = SubResource("Head")
+
+[node name="LeftHand" type="MeshInstance3D" parent="Avatar" unique_id=740288496]
+gi_mode = 2
+mesh = SubResource("Hand")
+
+[node name="RightHand" type="MeshInstance3D" parent="Avatar" unique_id=1079118451]
+gi_mode = 2
+mesh = SubResource("Hand")

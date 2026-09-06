@@ -61,6 +61,15 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
+[node name="LeaveRoom" type="Button" parent="."]
+unique_name_in_owner = true
+visible = false
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 156.0
+offset_bottom = 56.0
+text = "Leave room"
+
 [node name="MarginContainer2" type="MarginContainer" parent="VBoxContainer" unique_id=229573749]
 layout_mode = 2
 theme_override_constants/margin_top = 24

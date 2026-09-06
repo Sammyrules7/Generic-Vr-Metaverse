@@ -3,17 +3,19 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 type Client struct {
-	id       uint32      // Godot compatable M Api id
-	outgoing chan []byte // Do not use directly, use Client.sendPacket()
-	closed   chan struct{}
-	conn     *websocket.Conn
-	close    sync.Once
-	roomID   uint32 // guarded by hub.mu
+	id        uint32      // Godot multiplayer peer ID; assigned before pumps start.
+	outgoing  chan []byte // Do not use directly, use Client.sendPacket()
+	closed    chan struct{}
+	conn      *websocket.Conn
+	close     sync.Once
+	roomID    uint32 // guarded by hub.mu
+	sessionID uint32 // guarded by hub.mu; renewed on every room entry
 }
 
 func initClient(wsConn *websocket.Conn) {
@@ -23,16 +25,16 @@ func initClient(wsConn *websocket.Conn) {
 		conn:     wsConn,
 	}
 
-	go writePump(client)
 	hub.addClient(client)
+	go writePump(client)
 	go readPump(client)
 }
 
 func readPump(client *Client) {
+	defer client.disconnect()
 	for {
 		messageType, packet, err := client.conn.ReadMessage()
 		if err != nil {
-			client.clientExit()
 			return
 		}
 		if messageType != websocket.BinaryMessage {
@@ -45,27 +47,32 @@ func readPump(client *Client) {
 }
 
 func writePump(client *Client) {
+	// One writer owns socket writes. Hub operations only enqueue bytes, so a slow
+	// connection cannot hold up every client's membership changes.
+	defer client.disconnect()
 	for {
 		select {
 		case <-client.closed:
 			return
 		case message := <-client.outgoing:
 
+			client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			err := client.conn.WriteMessage(websocket.BinaryMessage, message)
 
 			if err != nil {
-				client.clientExit()
 				return
 			}
 		}
 	}
 }
 
-func (client *Client) clientExit() {
+// Closing the socket wakes the read pump, which removes membership. Keeping
+// that cleanup out of disconnect lets a hub send disconnect a slow client.
+func (client *Client) disconnect() {
 	client.close.Do(func() {
-		hub.removeClient(client)
 		close(client.closed)
 		client.conn.Close()
+		hub.removeClient(client)
 		fmt.Printf("Client %d exited\n", client.id)
 	})
 }

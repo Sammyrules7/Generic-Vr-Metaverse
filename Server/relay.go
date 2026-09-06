@@ -13,13 +13,21 @@ func (h *Hub) relay(sender *Client, relay *protocol.ClientRelay) {
 		sendError(sender, "relay destination is not in your room")
 		return
 	}
+	// Either endpoint may have left and rejoined while signaling was in flight.
+	// Stale sessions are expected during transitions, so discard them quietly.
+	if relay.SenderSessionId != sender.sessionID {
+		return
+	}
 	destination := room.clients[relay.DestinationId]
 	if destination == nil {
 		sendError(sender, "relay destination is not in your room")
 		return
 	}
+	if relay.DestinationSessionId != destination.sessionID {
+		return
+	}
 
-	forwarded := &protocol.ServerRelay{SenderId: sender.id}
+	forwarded := &protocol.ServerRelay{SenderId: sender.id, SenderSessionId: sender.sessionID, DestinationSessionId: destination.sessionID}
 	switch signal := relay.Signal.(type) {
 	case *protocol.ClientRelay_Description:
 		description := signal.Description

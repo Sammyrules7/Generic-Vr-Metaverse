@@ -1,5 +1,7 @@
 extends MarginContainer
 
+signal join_requested(room_id: int)
+
 var room: roomClass
 
 
@@ -19,5 +21,8 @@ func set_room(value: roomClass) -> void:
 
 
 func _join_room() -> void:
-	%Button.text = "Joining..."
-	Networking.join_room(room.id)
+	join_requested.emit(room.id)
+
+
+func set_available(available: bool) -> void:
+	%Button.disabled = not available

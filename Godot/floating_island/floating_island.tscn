@@ -626,9 +626,10 @@ environment = SubResource("Environment_7gh3e")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03272648, 0)
 gizmo_extents = 0.0
 
-[node name="Bounds" type="Area3D" parent="." unique_id=182319743]
+[node name="Bounds" type="Area3D" parent="." unique_id=182319743 node_paths=PackedStringArray("spawn_point")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03272648, 0)
 script = ExtResource("7_al0re")
+spawn_point = NodePath("../SpawnPoint")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Bounds" unique_id=84874552]
 shape = SubResource("BoxShape3D_1u0mw")

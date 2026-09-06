@@ -9,6 +9,8 @@ message ClientPacket {
     ClientRoomLeave room_leave = 3;
     ClientRelay relay = 4;
   }
+  // Nonzero for room commands; echoed on their success or error reply.
+  uint32 request_id = 10;
 }
 
 message ServerPacket {
@@ -24,6 +26,7 @@ message ServerPacket {
     ServerRelay relay = 9;
     ServerError error = 10;
   }
+  uint32 request_id = 11;
 }
 
 message Room {
@@ -32,14 +35,14 @@ message Room {
   uint32 player_count = 3;
 }
 
-message ClientRoomCreate {
-  string name = 1;
+// A session changes every time a client enters a room, including rejoining it.
+message Peer {
+  uint32 id = 1;
+  uint32 session_id = 2;
 }
 
-message ClientRoomJoin {
-  uint32 room_id = 1;
-}
-
+message ClientRoomCreate { string name = 1; }
+message ClientRoomJoin { uint32 room_id = 1; }
 message ClientRoomLeave {}
 
 message ClientRelay {
@@ -48,38 +51,24 @@ message ClientRelay {
     WebRTCSessionDescription description = 2;
     WebRTCIceCandidate candidate = 3;
   }
+  uint32 sender_session_id = 4;
+  uint32 destination_session_id = 5;
 }
 
-message ClientConnected {
-  uint32 client_id = 1;
-}
-
-message ServerRoomList {
-  repeated Room rooms = 1;
-}
-
-message ServerRoomUpdated {
-  Room room = 1;
-}
-
-message ServerRoomRemoved {
-  uint32 room_id = 1;
-}
+message ClientConnected { uint32 client_id = 1; }
+message ServerRoomList { repeated Room rooms = 1; }
+message ServerRoomUpdated { Room room = 1; }
+message ServerRoomRemoved { uint32 room_id = 1; }
 
 message ServerRoomJoined {
   Room room = 1;
-  repeated uint32 peer_ids = 2;
+  repeated Peer peers = 2;
+  uint32 session_id = 3;
 }
 
 message ServerRoomLeft {}
-
-message ServerPeerJoined {
-  uint32 peer_id = 1;
-}
-
-message ServerPeerLeft {
-  uint32 peer_id = 1;
-}
+message ServerPeerJoined { Peer peer = 1; }
+message ServerPeerLeft { uint32 peer_id = 1; }
 
 message ServerRelay {
   uint32 sender_id = 1;
@@ -87,6 +76,8 @@ message ServerRelay {
     WebRTCSessionDescription description = 2;
     WebRTCIceCandidate candidate = 3;
   }
+  uint32 sender_session_id = 4;
+  uint32 destination_session_id = 5;
 }
 
 message WebRTCSessionDescription {
@@ -100,6 +91,4 @@ message WebRTCIceCandidate {
   string candidate = 3;
 }
 
-message ServerError {
-  string reason = 1;
-}
+message ServerError { string reason = 1; }

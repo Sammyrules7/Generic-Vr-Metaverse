@@ -7,11 +7,13 @@ import (
 	"vr.maio-tech.com/server/protocol"
 )
 
-func encodePacket(packet *protocol.ServerPacket) ([]byte, error) {
-	return proto.Marshal(packet)
-}
-
 func (client *Client) sendPacket(encoded []byte) bool {
+	select {
+	case <-client.closed:
+		return false
+	default:
+	}
+
 	select {
 	case <-client.closed:
 		return false
@@ -19,12 +21,13 @@ func (client *Client) sendPacket(encoded []byte) bool {
 		return true
 	default:
 		fmt.Printf("Client %d outgoing packet queue is full\n", client.id)
+		client.disconnect()
 		return false
 	}
 }
 
 func send(client *Client, packet *protocol.ServerPacket) bool {
-	encoded, err := encodePacket(packet)
+	encoded, err := proto.Marshal(packet)
 	if err != nil {
 		fmt.Printf("Failed to encode packet for client %d: %v\n", client.id, err)
 		return false
@@ -61,8 +64,8 @@ func roomRemovedPacket(id uint32) *protocol.ServerPacket {
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomRemoved{RoomRemoved: &protocol.ServerRoomRemoved{RoomId: id}}}
 }
 
-func roomJoinedPacket(room *protocol.Room, peers []uint32) *protocol.ServerPacket {
-	joined := &protocol.ServerRoomJoined{Room: room, PeerIds: peers}
+func roomJoinedPacket(room *protocol.Room, peers []*protocol.Peer, sessionID uint32) *protocol.ServerPacket {
+	joined := &protocol.ServerRoomJoined{Room: room, Peers: peers, SessionId: sessionID}
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomJoined{RoomJoined: joined}}
 }
 
@@ -70,8 +73,8 @@ func roomLeftPacket() *protocol.ServerPacket {
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomLeft{RoomLeft: &protocol.ServerRoomLeft{}}}
 }
 
-func peerJoinedPacket(id uint32) *protocol.ServerPacket {
-	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_PeerJoined{PeerJoined: &protocol.ServerPeerJoined{PeerId: id}}}
+func peerJoinedPacket(client *Client) *protocol.ServerPacket {
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_PeerJoined{PeerJoined: &protocol.ServerPeerJoined{Peer: &protocol.Peer{Id: client.id, SessionId: client.sessionID}}}}
 }
 
 func peerLeftPacket(id uint32) *protocol.ServerPacket {

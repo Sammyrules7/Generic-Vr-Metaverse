@@ -29,7 +29,9 @@ type ClientPacket struct {
 	//	*ClientPacket_RoomJoin
 	//	*ClientPacket_RoomLeave
 	//	*ClientPacket_Relay
-	Payload       isClientPacket_Payload `protobuf_oneof:"payload"`
+	Payload isClientPacket_Payload `protobuf_oneof:"payload"`
+	// Nonzero for room commands; echoed on their success or error reply.
+	RequestId     uint32 `protobuf:"varint,10,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -107,6 +109,13 @@ func (x *ClientPacket) GetRelay() *ClientRelay {
 	return nil
 }
 
+func (x *ClientPacket) GetRequestId() uint32 {
+	if x != nil {
+		return x.RequestId
+	}
+	return 0
+}
+
 type isClientPacket_Payload interface {
 	isClientPacket_Payload()
 }
@@ -150,6 +159,7 @@ type ServerPacket struct {
 	//	*ServerPacket_Relay
 	//	*ServerPacket_Error
 	Payload       isServerPacket_Payload `protobuf_oneof:"payload"`
+	RequestId     uint32                 `protobuf:"varint,11,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,6 +291,13 @@ func (x *ServerPacket) GetError() *ServerError {
 	return nil
 }
 
+func (x *ServerPacket) GetRequestId() uint32 {
+	if x != nil {
+		return x.RequestId
+	}
+	return 0
+}
+
 type isServerPacket_Payload interface {
 	isServerPacket_Payload()
 }
@@ -405,6 +422,59 @@ func (x *Room) GetPlayerCount() uint32 {
 	return 0
 }
 
+// A session changes every time a client enters a room, including rejoining it.
+type Peer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId     uint32                 `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Peer) Reset() {
+	*x = Peer{}
+	mi := &file_packets_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Peer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Peer) ProtoMessage() {}
+
+func (x *Peer) ProtoReflect() protoreflect.Message {
+	mi := &file_packets_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Peer.ProtoReflect.Descriptor instead.
+func (*Peer) Descriptor() ([]byte, []int) {
+	return file_packets_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Peer) GetId() uint32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Peer) GetSessionId() uint32 {
+	if x != nil {
+		return x.SessionId
+	}
+	return 0
+}
+
 type ClientRoomCreate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -414,7 +484,7 @@ type ClientRoomCreate struct {
 
 func (x *ClientRoomCreate) Reset() {
 	*x = ClientRoomCreate{}
-	mi := &file_packets_proto_msgTypes[3]
+	mi := &file_packets_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -426,7 +496,7 @@ func (x *ClientRoomCreate) String() string {
 func (*ClientRoomCreate) ProtoMessage() {}
 
 func (x *ClientRoomCreate) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[3]
+	mi := &file_packets_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -439,7 +509,7 @@ func (x *ClientRoomCreate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientRoomCreate.ProtoReflect.Descriptor instead.
 func (*ClientRoomCreate) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{3}
+	return file_packets_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ClientRoomCreate) GetName() string {
@@ -458,7 +528,7 @@ type ClientRoomJoin struct {
 
 func (x *ClientRoomJoin) Reset() {
 	*x = ClientRoomJoin{}
-	mi := &file_packets_proto_msgTypes[4]
+	mi := &file_packets_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -470,7 +540,7 @@ func (x *ClientRoomJoin) String() string {
 func (*ClientRoomJoin) ProtoMessage() {}
 
 func (x *ClientRoomJoin) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[4]
+	mi := &file_packets_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -483,7 +553,7 @@ func (x *ClientRoomJoin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientRoomJoin.ProtoReflect.Descriptor instead.
 func (*ClientRoomJoin) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{4}
+	return file_packets_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ClientRoomJoin) GetRoomId() uint32 {
@@ -501,7 +571,7 @@ type ClientRoomLeave struct {
 
 func (x *ClientRoomLeave) Reset() {
 	*x = ClientRoomLeave{}
-	mi := &file_packets_proto_msgTypes[5]
+	mi := &file_packets_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -513,7 +583,7 @@ func (x *ClientRoomLeave) String() string {
 func (*ClientRoomLeave) ProtoMessage() {}
 
 func (x *ClientRoomLeave) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[5]
+	mi := &file_packets_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -526,7 +596,7 @@ func (x *ClientRoomLeave) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientRoomLeave.ProtoReflect.Descriptor instead.
 func (*ClientRoomLeave) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{5}
+	return file_packets_proto_rawDescGZIP(), []int{6}
 }
 
 type ClientRelay struct {
@@ -536,14 +606,16 @@ type ClientRelay struct {
 	//
 	//	*ClientRelay_Description
 	//	*ClientRelay_Candidate
-	Signal        isClientRelay_Signal `protobuf_oneof:"signal"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Signal               isClientRelay_Signal `protobuf_oneof:"signal"`
+	SenderSessionId      uint32               `protobuf:"varint,4,opt,name=sender_session_id,json=senderSessionId,proto3" json:"sender_session_id,omitempty"`
+	DestinationSessionId uint32               `protobuf:"varint,5,opt,name=destination_session_id,json=destinationSessionId,proto3" json:"destination_session_id,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ClientRelay) Reset() {
 	*x = ClientRelay{}
-	mi := &file_packets_proto_msgTypes[6]
+	mi := &file_packets_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -555,7 +627,7 @@ func (x *ClientRelay) String() string {
 func (*ClientRelay) ProtoMessage() {}
 
 func (x *ClientRelay) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[6]
+	mi := &file_packets_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -568,7 +640,7 @@ func (x *ClientRelay) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientRelay.ProtoReflect.Descriptor instead.
 func (*ClientRelay) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{6}
+	return file_packets_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ClientRelay) GetDestinationId() uint32 {
@@ -603,6 +675,20 @@ func (x *ClientRelay) GetCandidate() *WebRTCIceCandidate {
 	return nil
 }
 
+func (x *ClientRelay) GetSenderSessionId() uint32 {
+	if x != nil {
+		return x.SenderSessionId
+	}
+	return 0
+}
+
+func (x *ClientRelay) GetDestinationSessionId() uint32 {
+	if x != nil {
+		return x.DestinationSessionId
+	}
+	return 0
+}
+
 type isClientRelay_Signal interface {
 	isClientRelay_Signal()
 }
@@ -628,7 +714,7 @@ type ClientConnected struct {
 
 func (x *ClientConnected) Reset() {
 	*x = ClientConnected{}
-	mi := &file_packets_proto_msgTypes[7]
+	mi := &file_packets_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -640,7 +726,7 @@ func (x *ClientConnected) String() string {
 func (*ClientConnected) ProtoMessage() {}
 
 func (x *ClientConnected) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[7]
+	mi := &file_packets_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -653,7 +739,7 @@ func (x *ClientConnected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientConnected.ProtoReflect.Descriptor instead.
 func (*ClientConnected) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{7}
+	return file_packets_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ClientConnected) GetClientId() uint32 {
@@ -672,7 +758,7 @@ type ServerRoomList struct {
 
 func (x *ServerRoomList) Reset() {
 	*x = ServerRoomList{}
-	mi := &file_packets_proto_msgTypes[8]
+	mi := &file_packets_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -684,7 +770,7 @@ func (x *ServerRoomList) String() string {
 func (*ServerRoomList) ProtoMessage() {}
 
 func (x *ServerRoomList) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[8]
+	mi := &file_packets_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -697,7 +783,7 @@ func (x *ServerRoomList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRoomList.ProtoReflect.Descriptor instead.
 func (*ServerRoomList) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{8}
+	return file_packets_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ServerRoomList) GetRooms() []*Room {
@@ -716,7 +802,7 @@ type ServerRoomUpdated struct {
 
 func (x *ServerRoomUpdated) Reset() {
 	*x = ServerRoomUpdated{}
-	mi := &file_packets_proto_msgTypes[9]
+	mi := &file_packets_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +814,7 @@ func (x *ServerRoomUpdated) String() string {
 func (*ServerRoomUpdated) ProtoMessage() {}
 
 func (x *ServerRoomUpdated) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[9]
+	mi := &file_packets_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +827,7 @@ func (x *ServerRoomUpdated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRoomUpdated.ProtoReflect.Descriptor instead.
 func (*ServerRoomUpdated) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{9}
+	return file_packets_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ServerRoomUpdated) GetRoom() *Room {
@@ -760,7 +846,7 @@ type ServerRoomRemoved struct {
 
 func (x *ServerRoomRemoved) Reset() {
 	*x = ServerRoomRemoved{}
-	mi := &file_packets_proto_msgTypes[10]
+	mi := &file_packets_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -772,7 +858,7 @@ func (x *ServerRoomRemoved) String() string {
 func (*ServerRoomRemoved) ProtoMessage() {}
 
 func (x *ServerRoomRemoved) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[10]
+	mi := &file_packets_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -785,7 +871,7 @@ func (x *ServerRoomRemoved) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRoomRemoved.ProtoReflect.Descriptor instead.
 func (*ServerRoomRemoved) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{10}
+	return file_packets_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ServerRoomRemoved) GetRoomId() uint32 {
@@ -798,14 +884,15 @@ func (x *ServerRoomRemoved) GetRoomId() uint32 {
 type ServerRoomJoined struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Room          *Room                  `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
-	PeerIds       []uint32               `protobuf:"varint,2,rep,packed,name=peer_ids,json=peerIds,proto3" json:"peer_ids,omitempty"`
+	Peers         []*Peer                `protobuf:"bytes,2,rep,name=peers,proto3" json:"peers,omitempty"`
+	SessionId     uint32                 `protobuf:"varint,3,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ServerRoomJoined) Reset() {
 	*x = ServerRoomJoined{}
-	mi := &file_packets_proto_msgTypes[11]
+	mi := &file_packets_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -817,7 +904,7 @@ func (x *ServerRoomJoined) String() string {
 func (*ServerRoomJoined) ProtoMessage() {}
 
 func (x *ServerRoomJoined) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[11]
+	mi := &file_packets_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,7 +917,7 @@ func (x *ServerRoomJoined) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRoomJoined.ProtoReflect.Descriptor instead.
 func (*ServerRoomJoined) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{11}
+	return file_packets_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ServerRoomJoined) GetRoom() *Room {
@@ -840,11 +927,18 @@ func (x *ServerRoomJoined) GetRoom() *Room {
 	return nil
 }
 
-func (x *ServerRoomJoined) GetPeerIds() []uint32 {
+func (x *ServerRoomJoined) GetPeers() []*Peer {
 	if x != nil {
-		return x.PeerIds
+		return x.Peers
 	}
 	return nil
+}
+
+func (x *ServerRoomJoined) GetSessionId() uint32 {
+	if x != nil {
+		return x.SessionId
+	}
+	return 0
 }
 
 type ServerRoomLeft struct {
@@ -855,7 +949,7 @@ type ServerRoomLeft struct {
 
 func (x *ServerRoomLeft) Reset() {
 	*x = ServerRoomLeft{}
-	mi := &file_packets_proto_msgTypes[12]
+	mi := &file_packets_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -867,7 +961,7 @@ func (x *ServerRoomLeft) String() string {
 func (*ServerRoomLeft) ProtoMessage() {}
 
 func (x *ServerRoomLeft) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[12]
+	mi := &file_packets_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -880,19 +974,19 @@ func (x *ServerRoomLeft) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRoomLeft.ProtoReflect.Descriptor instead.
 func (*ServerRoomLeft) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{12}
+	return file_packets_proto_rawDescGZIP(), []int{13}
 }
 
 type ServerPeerJoined struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PeerId        uint32                 `protobuf:"varint,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	Peer          *Peer                  `protobuf:"bytes,1,opt,name=peer,proto3" json:"peer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ServerPeerJoined) Reset() {
 	*x = ServerPeerJoined{}
-	mi := &file_packets_proto_msgTypes[13]
+	mi := &file_packets_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -904,7 +998,7 @@ func (x *ServerPeerJoined) String() string {
 func (*ServerPeerJoined) ProtoMessage() {}
 
 func (x *ServerPeerJoined) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[13]
+	mi := &file_packets_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -917,14 +1011,14 @@ func (x *ServerPeerJoined) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerPeerJoined.ProtoReflect.Descriptor instead.
 func (*ServerPeerJoined) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{13}
+	return file_packets_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *ServerPeerJoined) GetPeerId() uint32 {
+func (x *ServerPeerJoined) GetPeer() *Peer {
 	if x != nil {
-		return x.PeerId
+		return x.Peer
 	}
-	return 0
+	return nil
 }
 
 type ServerPeerLeft struct {
@@ -936,7 +1030,7 @@ type ServerPeerLeft struct {
 
 func (x *ServerPeerLeft) Reset() {
 	*x = ServerPeerLeft{}
-	mi := &file_packets_proto_msgTypes[14]
+	mi := &file_packets_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -948,7 +1042,7 @@ func (x *ServerPeerLeft) String() string {
 func (*ServerPeerLeft) ProtoMessage() {}
 
 func (x *ServerPeerLeft) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[14]
+	mi := &file_packets_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -961,7 +1055,7 @@ func (x *ServerPeerLeft) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerPeerLeft.ProtoReflect.Descriptor instead.
 func (*ServerPeerLeft) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{14}
+	return file_packets_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ServerPeerLeft) GetPeerId() uint32 {
@@ -978,14 +1072,16 @@ type ServerRelay struct {
 	//
 	//	*ServerRelay_Description
 	//	*ServerRelay_Candidate
-	Signal        isServerRelay_Signal `protobuf_oneof:"signal"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Signal               isServerRelay_Signal `protobuf_oneof:"signal"`
+	SenderSessionId      uint32               `protobuf:"varint,4,opt,name=sender_session_id,json=senderSessionId,proto3" json:"sender_session_id,omitempty"`
+	DestinationSessionId uint32               `protobuf:"varint,5,opt,name=destination_session_id,json=destinationSessionId,proto3" json:"destination_session_id,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ServerRelay) Reset() {
 	*x = ServerRelay{}
-	mi := &file_packets_proto_msgTypes[15]
+	mi := &file_packets_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -997,7 +1093,7 @@ func (x *ServerRelay) String() string {
 func (*ServerRelay) ProtoMessage() {}
 
 func (x *ServerRelay) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[15]
+	mi := &file_packets_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1010,7 +1106,7 @@ func (x *ServerRelay) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRelay.ProtoReflect.Descriptor instead.
 func (*ServerRelay) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{15}
+	return file_packets_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ServerRelay) GetSenderId() uint32 {
@@ -1045,6 +1141,20 @@ func (x *ServerRelay) GetCandidate() *WebRTCIceCandidate {
 	return nil
 }
 
+func (x *ServerRelay) GetSenderSessionId() uint32 {
+	if x != nil {
+		return x.SenderSessionId
+	}
+	return 0
+}
+
+func (x *ServerRelay) GetDestinationSessionId() uint32 {
+	if x != nil {
+		return x.DestinationSessionId
+	}
+	return 0
+}
+
 type isServerRelay_Signal interface {
 	isServerRelay_Signal()
 }
@@ -1071,7 +1181,7 @@ type WebRTCSessionDescription struct {
 
 func (x *WebRTCSessionDescription) Reset() {
 	*x = WebRTCSessionDescription{}
-	mi := &file_packets_proto_msgTypes[16]
+	mi := &file_packets_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1083,7 +1193,7 @@ func (x *WebRTCSessionDescription) String() string {
 func (*WebRTCSessionDescription) ProtoMessage() {}
 
 func (x *WebRTCSessionDescription) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[16]
+	mi := &file_packets_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1096,7 +1206,7 @@ func (x *WebRTCSessionDescription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebRTCSessionDescription.ProtoReflect.Descriptor instead.
 func (*WebRTCSessionDescription) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{16}
+	return file_packets_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *WebRTCSessionDescription) GetType() string {
@@ -1124,7 +1234,7 @@ type WebRTCIceCandidate struct {
 
 func (x *WebRTCIceCandidate) Reset() {
 	*x = WebRTCIceCandidate{}
-	mi := &file_packets_proto_msgTypes[17]
+	mi := &file_packets_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1136,7 +1246,7 @@ func (x *WebRTCIceCandidate) String() string {
 func (*WebRTCIceCandidate) ProtoMessage() {}
 
 func (x *WebRTCIceCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[17]
+	mi := &file_packets_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1149,7 +1259,7 @@ func (x *WebRTCIceCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebRTCIceCandidate.ProtoReflect.Descriptor instead.
 func (*WebRTCIceCandidate) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{17}
+	return file_packets_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *WebRTCIceCandidate) GetMedia() string {
@@ -1182,7 +1292,7 @@ type ServerError struct {
 
 func (x *ServerError) Reset() {
 	*x = ServerError{}
-	mi := &file_packets_proto_msgTypes[18]
+	mi := &file_packets_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1194,7 +1304,7 @@ func (x *ServerError) String() string {
 func (*ServerError) ProtoMessage() {}
 
 func (x *ServerError) ProtoReflect() protoreflect.Message {
-	mi := &file_packets_proto_msgTypes[18]
+	mi := &file_packets_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1207,7 +1317,7 @@ func (x *ServerError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerError.ProtoReflect.Descriptor instead.
 func (*ServerError) Descriptor() ([]byte, []int) {
-	return file_packets_proto_rawDescGZIP(), []int{18}
+	return file_packets_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ServerError) GetReason() string {
@@ -1221,15 +1331,18 @@ var File_packets_proto protoreflect.FileDescriptor
 
 const file_packets_proto_rawDesc = "" +
 	"\n" +
-	"\rpackets.proto\"\xd8\x01\n" +
+	"\rpackets.proto\"\xf7\x01\n" +
 	"\fClientPacket\x124\n" +
 	"\vroom_create\x18\x01 \x01(\v2\x11.ClientRoomCreateH\x00R\n" +
 	"roomCreate\x12.\n" +
 	"\troom_join\x18\x02 \x01(\v2\x0f.ClientRoomJoinH\x00R\broomJoin\x121\n" +
 	"\n" +
 	"room_leave\x18\x03 \x01(\v2\x10.ClientRoomLeaveH\x00R\troomLeave\x12$\n" +
-	"\x05relay\x18\x04 \x01(\v2\f.ClientRelayH\x00R\x05relayB\t\n" +
-	"\apayload\"\x85\x04\n" +
+	"\x05relay\x18\x04 \x01(\v2\f.ClientRelayH\x00R\x05relay\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\n" +
+	" \x01(\rR\trequestIdB\t\n" +
+	"\apayload\"\xa4\x04\n" +
 	"\fServerPacket\x120\n" +
 	"\tconnected\x18\x01 \x01(\v2\x10.ClientConnectedH\x00R\tconnected\x12.\n" +
 	"\troom_list\x18\x02 \x01(\v2\x0f.ServerRoomListH\x00R\broomList\x127\n" +
@@ -1243,21 +1356,29 @@ const file_packets_proto_rawDesc = "" +
 	"\tpeer_left\x18\b \x01(\v2\x0f.ServerPeerLeftH\x00R\bpeerLeft\x12$\n" +
 	"\x05relay\x18\t \x01(\v2\f.ServerRelayH\x00R\x05relay\x12$\n" +
 	"\x05error\x18\n" +
-	" \x01(\v2\f.ServerErrorH\x00R\x05errorB\t\n" +
+	" \x01(\v2\f.ServerErrorH\x00R\x05error\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\v \x01(\rR\trequestIdB\t\n" +
 	"\apayload\"M\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
-	"\fplayer_count\x18\x03 \x01(\rR\vplayerCount\"&\n" +
+	"\fplayer_count\x18\x03 \x01(\rR\vplayerCount\"5\n" +
+	"\x04Peer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\rR\tsessionId\"&\n" +
 	"\x10ClientRoomCreate\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\")\n" +
 	"\x0eClientRoomJoin\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\rR\x06roomId\"\x11\n" +
-	"\x0fClientRoomLeave\"\xb2\x01\n" +
+	"\x0fClientRoomLeave\"\x94\x02\n" +
 	"\vClientRelay\x12%\n" +
 	"\x0edestination_id\x18\x01 \x01(\rR\rdestinationId\x12=\n" +
 	"\vdescription\x18\x02 \x01(\v2\x19.WebRTCSessionDescriptionH\x00R\vdescription\x123\n" +
-	"\tcandidate\x18\x03 \x01(\v2\x13.WebRTCIceCandidateH\x00R\tcandidateB\b\n" +
+	"\tcandidate\x18\x03 \x01(\v2\x13.WebRTCIceCandidateH\x00R\tcandidate\x12*\n" +
+	"\x11sender_session_id\x18\x04 \x01(\rR\x0fsenderSessionId\x124\n" +
+	"\x16destination_session_id\x18\x05 \x01(\rR\x14destinationSessionIdB\b\n" +
 	"\x06signal\".\n" +
 	"\x0fClientConnected\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\rR\bclientId\"-\n" +
@@ -1266,19 +1387,23 @@ const file_packets_proto_rawDesc = "" +
 	"\x11ServerRoomUpdated\x12\x19\n" +
 	"\x04room\x18\x01 \x01(\v2\x05.RoomR\x04room\",\n" +
 	"\x11ServerRoomRemoved\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\rR\x06roomId\"H\n" +
+	"\aroom_id\x18\x01 \x01(\rR\x06roomId\"i\n" +
 	"\x10ServerRoomJoined\x12\x19\n" +
-	"\x04room\x18\x01 \x01(\v2\x05.RoomR\x04room\x12\x19\n" +
-	"\bpeer_ids\x18\x02 \x03(\rR\apeerIds\"\x10\n" +
-	"\x0eServerRoomLeft\"+\n" +
-	"\x10ServerPeerJoined\x12\x17\n" +
-	"\apeer_id\x18\x01 \x01(\rR\x06peerId\")\n" +
+	"\x04room\x18\x01 \x01(\v2\x05.RoomR\x04room\x12\x1b\n" +
+	"\x05peers\x18\x02 \x03(\v2\x05.PeerR\x05peers\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x03 \x01(\rR\tsessionId\"\x10\n" +
+	"\x0eServerRoomLeft\"-\n" +
+	"\x10ServerPeerJoined\x12\x19\n" +
+	"\x04peer\x18\x01 \x01(\v2\x05.PeerR\x04peer\")\n" +
 	"\x0eServerPeerLeft\x12\x17\n" +
-	"\apeer_id\x18\x01 \x01(\rR\x06peerId\"\xa8\x01\n" +
+	"\apeer_id\x18\x01 \x01(\rR\x06peerId\"\x8a\x02\n" +
 	"\vServerRelay\x12\x1b\n" +
 	"\tsender_id\x18\x01 \x01(\rR\bsenderId\x12=\n" +
 	"\vdescription\x18\x02 \x01(\v2\x19.WebRTCSessionDescriptionH\x00R\vdescription\x123\n" +
-	"\tcandidate\x18\x03 \x01(\v2\x13.WebRTCIceCandidateH\x00R\tcandidateB\b\n" +
+	"\tcandidate\x18\x03 \x01(\v2\x13.WebRTCIceCandidateH\x00R\tcandidate\x12*\n" +
+	"\x11sender_session_id\x18\x04 \x01(\rR\x0fsenderSessionId\x124\n" +
+	"\x16destination_session_id\x18\x05 \x01(\rR\x14destinationSessionIdB\b\n" +
 	"\x06signal\"@\n" +
 	"\x18WebRTCSessionDescription\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x10\n" +
@@ -1302,55 +1427,58 @@ func file_packets_proto_rawDescGZIP() []byte {
 	return file_packets_proto_rawDescData
 }
 
-var file_packets_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_packets_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_packets_proto_goTypes = []any{
 	(*ClientPacket)(nil),             // 0: ClientPacket
 	(*ServerPacket)(nil),             // 1: ServerPacket
 	(*Room)(nil),                     // 2: Room
-	(*ClientRoomCreate)(nil),         // 3: ClientRoomCreate
-	(*ClientRoomJoin)(nil),           // 4: ClientRoomJoin
-	(*ClientRoomLeave)(nil),          // 5: ClientRoomLeave
-	(*ClientRelay)(nil),              // 6: ClientRelay
-	(*ClientConnected)(nil),          // 7: ClientConnected
-	(*ServerRoomList)(nil),           // 8: ServerRoomList
-	(*ServerRoomUpdated)(nil),        // 9: ServerRoomUpdated
-	(*ServerRoomRemoved)(nil),        // 10: ServerRoomRemoved
-	(*ServerRoomJoined)(nil),         // 11: ServerRoomJoined
-	(*ServerRoomLeft)(nil),           // 12: ServerRoomLeft
-	(*ServerPeerJoined)(nil),         // 13: ServerPeerJoined
-	(*ServerPeerLeft)(nil),           // 14: ServerPeerLeft
-	(*ServerRelay)(nil),              // 15: ServerRelay
-	(*WebRTCSessionDescription)(nil), // 16: WebRTCSessionDescription
-	(*WebRTCIceCandidate)(nil),       // 17: WebRTCIceCandidate
-	(*ServerError)(nil),              // 18: ServerError
+	(*Peer)(nil),                     // 3: Peer
+	(*ClientRoomCreate)(nil),         // 4: ClientRoomCreate
+	(*ClientRoomJoin)(nil),           // 5: ClientRoomJoin
+	(*ClientRoomLeave)(nil),          // 6: ClientRoomLeave
+	(*ClientRelay)(nil),              // 7: ClientRelay
+	(*ClientConnected)(nil),          // 8: ClientConnected
+	(*ServerRoomList)(nil),           // 9: ServerRoomList
+	(*ServerRoomUpdated)(nil),        // 10: ServerRoomUpdated
+	(*ServerRoomRemoved)(nil),        // 11: ServerRoomRemoved
+	(*ServerRoomJoined)(nil),         // 12: ServerRoomJoined
+	(*ServerRoomLeft)(nil),           // 13: ServerRoomLeft
+	(*ServerPeerJoined)(nil),         // 14: ServerPeerJoined
+	(*ServerPeerLeft)(nil),           // 15: ServerPeerLeft
+	(*ServerRelay)(nil),              // 16: ServerRelay
+	(*WebRTCSessionDescription)(nil), // 17: WebRTCSessionDescription
+	(*WebRTCIceCandidate)(nil),       // 18: WebRTCIceCandidate
+	(*ServerError)(nil),              // 19: ServerError
 }
 var file_packets_proto_depIdxs = []int32{
-	3,  // 0: ClientPacket.room_create:type_name -> ClientRoomCreate
-	4,  // 1: ClientPacket.room_join:type_name -> ClientRoomJoin
-	5,  // 2: ClientPacket.room_leave:type_name -> ClientRoomLeave
-	6,  // 3: ClientPacket.relay:type_name -> ClientRelay
-	7,  // 4: ServerPacket.connected:type_name -> ClientConnected
-	8,  // 5: ServerPacket.room_list:type_name -> ServerRoomList
-	9,  // 6: ServerPacket.room_updated:type_name -> ServerRoomUpdated
-	10, // 7: ServerPacket.room_removed:type_name -> ServerRoomRemoved
-	11, // 8: ServerPacket.room_joined:type_name -> ServerRoomJoined
-	12, // 9: ServerPacket.room_left:type_name -> ServerRoomLeft
-	13, // 10: ServerPacket.peer_joined:type_name -> ServerPeerJoined
-	14, // 11: ServerPacket.peer_left:type_name -> ServerPeerLeft
-	15, // 12: ServerPacket.relay:type_name -> ServerRelay
-	18, // 13: ServerPacket.error:type_name -> ServerError
-	16, // 14: ClientRelay.description:type_name -> WebRTCSessionDescription
-	17, // 15: ClientRelay.candidate:type_name -> WebRTCIceCandidate
+	4,  // 0: ClientPacket.room_create:type_name -> ClientRoomCreate
+	5,  // 1: ClientPacket.room_join:type_name -> ClientRoomJoin
+	6,  // 2: ClientPacket.room_leave:type_name -> ClientRoomLeave
+	7,  // 3: ClientPacket.relay:type_name -> ClientRelay
+	8,  // 4: ServerPacket.connected:type_name -> ClientConnected
+	9,  // 5: ServerPacket.room_list:type_name -> ServerRoomList
+	10, // 6: ServerPacket.room_updated:type_name -> ServerRoomUpdated
+	11, // 7: ServerPacket.room_removed:type_name -> ServerRoomRemoved
+	12, // 8: ServerPacket.room_joined:type_name -> ServerRoomJoined
+	13, // 9: ServerPacket.room_left:type_name -> ServerRoomLeft
+	14, // 10: ServerPacket.peer_joined:type_name -> ServerPeerJoined
+	15, // 11: ServerPacket.peer_left:type_name -> ServerPeerLeft
+	16, // 12: ServerPacket.relay:type_name -> ServerRelay
+	19, // 13: ServerPacket.error:type_name -> ServerError
+	17, // 14: ClientRelay.description:type_name -> WebRTCSessionDescription
+	18, // 15: ClientRelay.candidate:type_name -> WebRTCIceCandidate
 	2,  // 16: ServerRoomList.rooms:type_name -> Room
 	2,  // 17: ServerRoomUpdated.room:type_name -> Room
 	2,  // 18: ServerRoomJoined.room:type_name -> Room
-	16, // 19: ServerRelay.description:type_name -> WebRTCSessionDescription
-	17, // 20: ServerRelay.candidate:type_name -> WebRTCIceCandidate
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	3,  // 19: ServerRoomJoined.peers:type_name -> Peer
+	3,  // 20: ServerPeerJoined.peer:type_name -> Peer
+	17, // 21: ServerRelay.description:type_name -> WebRTCSessionDescription
+	18, // 22: ServerRelay.candidate:type_name -> WebRTCIceCandidate
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_packets_proto_init() }
@@ -1376,11 +1504,11 @@ func file_packets_proto_init() {
 		(*ServerPacket_Relay)(nil),
 		(*ServerPacket_Error)(nil),
 	}
-	file_packets_proto_msgTypes[6].OneofWrappers = []any{
+	file_packets_proto_msgTypes[7].OneofWrappers = []any{
 		(*ClientRelay_Description)(nil),
 		(*ClientRelay_Candidate)(nil),
 	}
-	file_packets_proto_msgTypes[15].OneofWrappers = []any{
+	file_packets_proto_msgTypes[16].OneofWrappers = []any{
 		(*ServerRelay_Description)(nil),
 		(*ServerRelay_Candidate)(nil),
 	}
@@ -1390,7 +1518,7 @@ func file_packets_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_packets_proto_rawDesc), len(file_packets_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

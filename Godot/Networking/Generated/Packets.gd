@@ -708,6 +708,11 @@ class ClientPacket:
 		service.func_ref = Callable(self, "new_relay")
 		data[__relay.tag] = service
 		
+		__request_id = PBField.new("request_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __request_id
+		data[__request_id.tag] = service
+		
 	var data = {}
 	
 	enum PayloadCase {
@@ -799,6 +804,19 @@ class ClientPacket:
 		__relay.value = ClientRelay.new()
 		return __relay.value
 	
+	var __request_id: PBField
+	func has_request_id() -> bool:
+		if __request_id.value != null:
+			return true
+		return false
+	func get_request_id() -> int:
+		return __request_id.value
+	func clear_request_id() -> void:
+		data[10].state = PB_SERVICE_STATE.UNFILLED
+		__request_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_request_id(value : int) -> void:
+		__request_id.value = value
+	
 	func get_payload_case() -> int:
 		return _payload_case
 	func _to_string() -> String:
@@ -885,6 +903,11 @@ class ServerPacket:
 		service.field = __error
 		service.func_ref = Callable(self, "new_error")
 		data[__error.tag] = service
+		
+		__request_id = PBField.new("request_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 11, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __request_id
+		data[__request_id.tag] = service
 		
 	var data = {}
 	
@@ -1223,6 +1246,19 @@ class ServerPacket:
 		__error.value = ServerError.new()
 		return __error.value
 	
+	var __request_id: PBField
+	func has_request_id() -> bool:
+		if __request_id.value != null:
+			return true
+		return false
+	func get_request_id() -> int:
+		return __request_id.value
+	func clear_request_id() -> void:
+		data[11].state = PB_SERVICE_STATE.UNFILLED
+		__request_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_request_id(value : int) -> void:
+		__request_id.value = value
+	
 	func get_payload_case() -> int:
 		return _payload_case
 	func _to_string() -> String:
@@ -1305,6 +1341,69 @@ class Room:
 		__player_count.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_player_count(value : int) -> void:
 		__player_count.value = value
+	
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+		
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+		
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class Peer:
+	func _init():
+		var service
+		
+		__id = PBField.new("id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __id
+		data[__id.tag] = service
+		
+		__session_id = PBField.new("session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __session_id
+		data[__session_id.tag] = service
+		
+	var data = {}
+	
+	var __id: PBField
+	func has_id() -> bool:
+		if __id.value != null:
+			return true
+		return false
+	func get_id() -> int:
+		return __id.value
+	func clear_id() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_id(value : int) -> void:
+		__id.value = value
+	
+	var __session_id: PBField
+	func has_session_id() -> bool:
+		if __session_id.value != null:
+			return true
+		return false
+	func get_session_id() -> int:
+		return __session_id.value
+	func clear_session_id() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_session_id(value : int) -> void:
+		__session_id.value = value
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
@@ -1465,6 +1564,16 @@ class ClientRelay:
 		service.func_ref = Callable(self, "new_candidate")
 		data[__candidate.tag] = service
 		
+		__sender_session_id = PBField.new("sender_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __sender_session_id
+		data[__sender_session_id.tag] = service
+		
+		__destination_session_id = PBField.new("destination_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __destination_session_id
+		data[__destination_session_id.tag] = service
+		
 	var data = {}
 	
 	enum SignalCase {
@@ -1518,6 +1627,32 @@ class ClientRelay:
 		_signal_case = 3
 		__candidate.value = WebRTCIceCandidate.new()
 		return __candidate.value
+	
+	var __sender_session_id: PBField
+	func has_sender_session_id() -> bool:
+		if __sender_session_id.value != null:
+			return true
+		return false
+	func get_sender_session_id() -> int:
+		return __sender_session_id.value
+	func clear_sender_session_id() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__sender_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_sender_session_id(value : int) -> void:
+		__sender_session_id.value = value
+	
+	var __destination_session_id: PBField
+	func has_destination_session_id() -> bool:
+		if __destination_session_id.value != null:
+			return true
+		return false
+	func get_destination_session_id() -> int:
+		return __destination_session_id.value
+	func clear_destination_session_id() -> void:
+		data[5].state = PB_SERVICE_STATE.UNFILLED
+		__destination_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_destination_session_id(value : int) -> void:
+		__destination_session_id.value = value
 	
 	func get_signal_case() -> int:
 		return _signal_case
@@ -1734,11 +1869,17 @@ class ServerRoomJoined:
 		service.func_ref = Callable(self, "new_room")
 		data[__room.tag] = service
 		
-		var __peer_ids_default: Array[int] = []
-		__peer_ids = PBField.new("peer_ids", PB_DATA_TYPE.UINT32, PB_RULE.REPEATED, 2, true, __peer_ids_default)
+		var __peers_default: Array[Peer] = []
+		__peers = PBField.new("peers", PB_DATA_TYPE.MESSAGE, PB_RULE.REPEATED, 2, true, __peers_default)
 		service = PBServiceField.new()
-		service.field = __peer_ids
-		data[__peer_ids.tag] = service
+		service.field = __peers
+		service.func_ref = Callable(self, "add_peers")
+		data[__peers.tag] = service
+		
+		__session_id = PBField.new("session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __session_id
+		data[__session_id.tag] = service
 		
 	var data = {}
 	
@@ -1756,14 +1897,29 @@ class ServerRoomJoined:
 		__room.value = Room.new()
 		return __room.value
 	
-	var __peer_ids: PBField
-	func get_peer_ids() -> Array[int]:
-		return __peer_ids.value
-	func clear_peer_ids() -> void:
+	var __peers: PBField
+	func get_peers() -> Array[Peer]:
+		return __peers.value
+	func clear_peers() -> void:
 		data[2].state = PB_SERVICE_STATE.UNFILLED
-		__peer_ids.value.clear()
-	func add_peer_ids(value : int) -> void:
-		__peer_ids.value.append(value)
+		__peers.value.clear()
+	func add_peers() -> Peer:
+		var element = Peer.new()
+		__peers.value.append(element)
+		return element
+	
+	var __session_id: PBField
+	func has_session_id() -> bool:
+		if __session_id.value != null:
+			return true
+		return false
+	func get_session_id() -> int:
+		return __session_id.value
+	func clear_session_id() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_session_id(value : int) -> void:
+		__session_id.value = value
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
@@ -1817,25 +1973,27 @@ class ServerPeerJoined:
 	func _init():
 		var service
 		
-		__peer_id = PBField.new("peer_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__peer = PBField.new("peer", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
-		service.field = __peer_id
-		data[__peer_id.tag] = service
+		service.field = __peer
+		service.func_ref = Callable(self, "new_peer")
+		data[__peer.tag] = service
 		
 	var data = {}
 	
-	var __peer_id: PBField
-	func has_peer_id() -> bool:
-		if __peer_id.value != null:
+	var __peer: PBField
+	func has_peer() -> bool:
+		if __peer.value != null:
 			return true
 		return false
-	func get_peer_id() -> int:
-		return __peer_id.value
-	func clear_peer_id() -> void:
+	func get_peer() -> Peer:
+		return __peer.value
+	func clear_peer() -> void:
 		data[1].state = PB_SERVICE_STATE.UNFILLED
-		__peer_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_peer_id(value : int) -> void:
-		__peer_id.value = value
+		__peer.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_peer() -> Peer:
+		__peer.value = Peer.new()
+		return __peer.value
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
@@ -1924,6 +2082,16 @@ class ServerRelay:
 		service.func_ref = Callable(self, "new_candidate")
 		data[__candidate.tag] = service
 		
+		__sender_session_id = PBField.new("sender_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __sender_session_id
+		data[__sender_session_id.tag] = service
+		
+		__destination_session_id = PBField.new("destination_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __destination_session_id
+		data[__destination_session_id.tag] = service
+		
 	var data = {}
 	
 	enum SignalCase {
@@ -1977,6 +2145,32 @@ class ServerRelay:
 		_signal_case = 3
 		__candidate.value = WebRTCIceCandidate.new()
 		return __candidate.value
+	
+	var __sender_session_id: PBField
+	func has_sender_session_id() -> bool:
+		if __sender_session_id.value != null:
+			return true
+		return false
+	func get_sender_session_id() -> int:
+		return __sender_session_id.value
+	func clear_sender_session_id() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__sender_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_sender_session_id(value : int) -> void:
+		__sender_session_id.value = value
+	
+	var __destination_session_id: PBField
+	func has_destination_session_id() -> bool:
+		if __destination_session_id.value != null:
+			return true
+		return false
+	func get_destination_session_id() -> int:
+		return __destination_session_id.value
+	func clear_destination_session_id() -> void:
+		data[5].state = PB_SERVICE_STATE.UNFILLED
+		__destination_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_destination_session_id(value : int) -> void:
+		__destination_session_id.value = value
 	
 	func get_signal_case() -> int:
 		return _signal_case

@@ -9,6 +9,8 @@ import (
 
 const maxRoomPlayers = 16
 
+// Membership helpers run under Hub.mu, including notification queuing. A relay
+// therefore cannot overtake the peer-joined notification that makes it usable.
 type Room struct {
 	id      uint32
 	name    string
@@ -19,82 +21,78 @@ func (room *Room) packet() *protocol.Room {
 	return &protocol.Room{Id: room.id, Name: room.name, PlayerCount: uint32(len(room.clients))}
 }
 
-func (room *Room) peerIDs(except uint32) []uint32 {
-	ids := make([]uint32, 0, len(room.clients))
-	for id := range room.clients {
+func (room *Room) peers(except uint32) []*protocol.Peer {
+	peers := make([]*protocol.Peer, 0, len(room.clients))
+	for id, client := range room.clients {
 		if id != except {
-			ids = append(ids, id)
+			peers = append(peers, &protocol.Peer{Id: id, SessionId: client.sessionID})
 		}
 	}
-	return ids
+	return peers
 }
 
-func (h *Hub) createRoom(client *Client, requestedName string) {
+func (h *Hub) createRoom(client *Client, requestedName string) *protocol.ServerPacket {
 	name := strings.TrimSpace(requestedName)
 	if len(name) > 48 {
-		sendError(client, "room name is too long")
-		return
+		return errorPacket("room name is too long")
 	}
-	h.leaveRoom(client, false)
+	h.leaveRoom(client)
 	h.nextRoomID++
 	if name == "" {
 		name = fmt.Sprintf("Room %d", h.nextRoomID)
 	}
-	room := &Room{
-		id:      h.nextRoomID,
-		name:    name,
-		clients: map[uint32]*Client{client.id: client},
-	}
+	room := &Room{id: h.nextRoomID, name: name, clients: make(map[uint32]*Client)}
 	h.rooms[room.id] = room
-	client.roomID = room.id
-	info := room.packet()
-	h.broadcast(roomUpdatedPacket(info))
-	send(client, roomJoinedPacket(info, nil))
+	return h.enterRoom(client, room)
 }
 
-func (h *Hub) joinRoom(client *Client, roomID uint32) {
+func (h *Hub) joinRoom(client *Client, roomID uint32) *protocol.ServerPacket {
+	// Validate the destination before leaving: a rejected switch keeps the old room.
 	room := h.rooms[roomID]
 	if room == nil {
-		sendError(client, "room does not exist")
-		return
+		return errorPacket("room does not exist")
 	}
 	if client.roomID == roomID {
-		send(client, roomJoinedPacket(room.packet(), room.peerIDs(client.id)))
-		return
+		// Acknowledge without changing the session, which preserves the active mesh.
+		return roomJoinedPacket(room.packet(), room.peers(client.id), client.sessionID)
 	}
-	if len(room.clients) >= maxRoomPlayers {
-		sendError(client, "room is full")
-		return
-	}
-
-	h.leaveRoom(client, false)
-	peerIDs := room.peerIDs(0)
-	room.clients[client.id] = client
-	client.roomID = roomID
-	info := room.packet()
-	for _, peerID := range peerIDs {
-		send(room.clients[peerID], peerJoinedPacket(client.id))
-	}
-	send(client, roomJoinedPacket(info, peerIDs))
-	h.broadcast(roomUpdatedPacket(info))
+	//if len(room.clients) >= maxRoomPlayers {
+	//	return errorPacket("room is full")
+	//}
+	h.leaveRoom(client)
+	return h.enterRoom(client, room)
 }
 
-func (h *Hub) leaveRoom(client *Client, notifyClient bool) {
-	room := h.rooms[client.roomID]
-	if room != nil {
-		delete(room.clients, client.id)
-		client.roomID = 0
-		for _, peer := range room.clients {
-			send(peer, peerLeftPacket(client.id))
-		}
-		if len(room.clients) == 0 {
-			delete(h.rooms, room.id)
-			h.broadcast(roomRemovedPacket(room.id))
-		} else {
-			h.broadcast(roomUpdatedPacket(room.packet()))
-		}
+func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
+	peers := room.peers(0)
+	// Renew even when rejoining the same room; room and peer IDs alone cannot
+	// distinguish delayed signaling from the previous connection attempt.
+	h.nextSessionID++
+	client.sessionID = h.nextSessionID
+	client.roomID = room.id
+	room.clients[client.id] = client
+	for _, peer := range peers {
+		send(room.clients[peer.Id], peerJoinedPacket(client))
 	}
-	if notifyClient {
-		send(client, roomLeftPacket())
+	h.broadcast(roomUpdatedPacket(room.packet()))
+	return roomJoinedPacket(room.packet(), peers, client.sessionID)
+}
+
+func (h *Hub) leaveRoom(client *Client) {
+	room := h.rooms[client.roomID]
+	client.roomID = 0
+	client.sessionID = 0
+	if room == nil {
+		return
+	}
+	delete(room.clients, client.id)
+	for _, peer := range room.clients {
+		send(peer, peerLeftPacket(client.id))
+	}
+	if len(room.clients) == 0 {
+		delete(h.rooms, room.id)
+		h.broadcast(roomRemovedPacket(room.id))
+	} else {
+		h.broadcast(roomUpdatedPacket(room.packet()))
 	}
 }

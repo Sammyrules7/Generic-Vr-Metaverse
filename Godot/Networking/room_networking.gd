@@ -1,0 +1,178 @@
+class_name RoomNetworking
+extends RefCounted
+
+# This is session state, not a scene component. Supplying MultiplayerAPI lets
+# the game and isolated tests use it without attaching it to the scene tree.
+const Packets = preload("res://Networking/Generated/Packets.gd")
+const REQUEST_TIMEOUT_MS := 10000
+
+enum Operation { NONE, CREATE, JOIN, LEAVE }
+
+signal rooms_replaced(rooms: Array)
+signal room_updated(room: roomClass)
+signal room_removed(room_id: int)
+signal room_joined(room: roomClass)
+signal room_left
+signal operation_started(operation: Operation)
+signal operation_finished(operation: Operation, success: bool, reason: String)
+signal network_error(reason: String)
+signal packet_created(packet: Packets.ClientPacket)
+
+var multiplayer: MultiplayerAPI
+var connected := false
+var rooms: Dictionary[int, roomClass] = {}
+var current_room: roomClass
+var rtc_mesh: WebRTCMesh
+var pending_operation := Operation.NONE
+# Keep increasing across reconnects so an old reply cannot match a new command.
+var _request_id := 0
+var _deadline := 0
+
+
+func _init(multiplayer_api: MultiplayerAPI) -> void:
+	multiplayer = multiplayer_api
+
+
+func create_room(room_name := "") -> Error:
+	var packet := Packets.ClientPacket.new()
+	packet.new_room_create().set_name(room_name)
+	return _request(Operation.CREATE, packet)
+
+
+func join_room(room_id: int) -> Error:
+	var packet := Packets.ClientPacket.new()
+	packet.new_room_join().set_room_id(room_id)
+	return _request(Operation.JOIN, packet)
+
+
+func leave_room() -> Error:
+	var packet := Packets.ClientPacket.new()
+	packet.new_room_leave()
+	return _request(Operation.LEAVE, packet)
+
+
+func _request(operation: Operation, packet: Packets.ClientPacket) -> Error:
+	if not connected:
+		return ERR_UNAVAILABLE
+	if pending_operation != Operation.NONE:
+		# One membership change at a time keeps transitions and UI feedback unambiguous.
+		return ERR_BUSY
+	_request_id += 1
+	packet.set_request_id(_request_id)
+	pending_operation = operation
+	_deadline = Time.get_ticks_msec() + REQUEST_TIMEOUT_MS
+	operation_started.emit(operation)
+	# Sending only starts the operation; current_room changes on the server's reply.
+	packet_created.emit(packet)
+	return OK
+
+
+func request_expired() -> bool:
+	return pending_operation != Operation.NONE and Time.get_ticks_msec() >= _deadline
+
+
+func _finish_operation(success: bool, reason := "") -> void:
+	if pending_operation == Operation.NONE:
+		return
+	var operation := pending_operation
+	# Signal listeners may immediately issue another command.
+	pending_operation = Operation.NONE
+	_deadline = 0
+	operation_finished.emit(operation, success, reason)
+
+
+func reset(reason := "Disconnected from signaling server") -> void:
+	# The server removes membership on disconnect. A surviving P2P connection
+	# must not leave us appearing to be in a room the server no longer knows about.
+	connected = false
+	var was_in_room := current_room != null
+	_stop_mesh()
+	rooms.clear()
+	rooms_replaced.emit([])
+	if was_in_room:
+		room_left.emit()
+	_finish_operation(false, reason)
+
+
+func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
+	var is_reply := packet.get_request_id() != 0
+	if is_reply and (pending_operation == Operation.NONE or packet.get_request_id() != _request_id):
+		return
+	match packet.get_payload_case():
+		Packets.ServerPacket.PayloadCase.ROOM_LIST:
+			rooms.clear()
+			for room_packet in packet.get_room_list().get_rooms():
+				var room := _decode_room(room_packet)
+				rooms[room.id] = room
+			rooms_replaced.emit(rooms.values())
+		Packets.ServerPacket.PayloadCase.ROOM_UPDATED:
+			var room := _decode_room(packet.get_room_updated().get_room())
+			rooms[room.id] = room
+			if current_room != null and current_room.id == room.id:
+				current_room = room
+			room_updated.emit(room)
+		Packets.ServerPacket.PayloadCase.ROOM_REMOVED:
+			var room_id := packet.get_room_removed().get_room_id()
+			rooms.erase(room_id)
+			room_removed.emit(room_id)
+		Packets.ServerPacket.PayloadCase.ROOM_JOINED:
+			var reason := _enter_room(packet.get_room_joined(), local_id)
+			if not reason.is_empty():
+				_finish_operation(false, reason)
+				leave_room()
+				return
+		Packets.ServerPacket.PayloadCase.ROOM_LEFT:
+			var was_in_room := current_room != null
+			_stop_mesh()
+			if was_in_room:
+				room_left.emit()
+		Packets.ServerPacket.PayloadCase.PEER_JOINED:
+			if rtc_mesh != null:
+				rtc_mesh.add_peer(packet.get_peer_joined().get_peer(), false)
+		Packets.ServerPacket.PayloadCase.PEER_LEFT:
+			if rtc_mesh != null:
+				rtc_mesh.remove_peer(packet.get_peer_left().get_peer_id())
+		Packets.ServerPacket.PayloadCase.RELAY:
+			if rtc_mesh != null:
+				rtc_mesh.receive_relay(packet.get_relay())
+		Packets.ServerPacket.PayloadCase.ERROR:
+			_finish_operation(false, packet.get_error().get_reason())
+			return
+	if is_reply:
+		_finish_operation(true)
+
+
+func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
+	# A duplicate join acknowledges the existing session; don't respawn players
+	# or renegotiate connections that are already working.
+	if rtc_mesh != null and rtc_mesh.session_id == joined.get_session_id():
+		return ""
+	_stop_mesh()
+	current_room = _decode_room(joined.get_room())
+	rtc_mesh = WebRTCMesh.new()
+	rtc_mesh.packet_created.connect(packet_created.emit)
+	rtc_mesh.connection_error.connect(network_error.emit)
+	var result := rtc_mesh.start(local_id, joined.get_session_id())
+	if result != OK:
+		_stop_mesh()
+		room_left.emit()
+		return "Could not create WebRTC mesh: %s" % error_string(result)
+	multiplayer.multiplayer_peer = rtc_mesh.multiplayer_peer
+	# Only the newcomer offers. Existing members wait, avoiding simultaneous offers.
+	for peer in joined.get_peers():
+		rtc_mesh.add_peer(peer, true)
+	room_joined.emit(current_room)
+	return ""
+
+
+func _stop_mesh() -> void:
+	if rtc_mesh != null:
+		rtc_mesh.close()
+		rtc_mesh = null
+	if not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	current_room = null
+
+
+func _decode_room(packet: Packets.Room) -> roomClass:
+	return roomClass.new(packet.get_id(), packet.get_name(), packet.get_player_count())

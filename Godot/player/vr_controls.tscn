@@ -1,16 +1,11 @@
-[gd_scene format=3 uid="uid://vxxwgpbct06d"]
+[gd_scene format=3]
 
 [ext_resource type="PackedScene" uid="uid://b4kad2kuba1yn" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/left_hand_low.tscn" id="1_1gflb"]
-[ext_resource type="Script" path="res://player/vr_player.gd" id="1_wb0hk"]
+[ext_resource type="Script" path="res://player/vr_controls.gd" id="1_wb0hk"]
 [ext_resource type="PackedScene" uid="uid://l2n30mpbkdyw" path="res://addons/godot-xr-tools/hands/scenes/lowpoly/right_hand_low.tscn" id="2_wb0hk"]
 
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_rvawm"]
-
-[node name="Player" type="CharacterBody3D" unique_id=750944741 node_paths=PackedStringArray("left_controller", "right_controller")]
+[node name="Controls" type="Node3D"]
 script = ExtResource("1_wb0hk")
-left_controller = NodePath("Origin/LeftHand")
-right_controller = NodePath("Origin/RightHand")
-speed = 5.0
 
 [node name="Origin" type="XROrigin3D" parent="." unique_id=121001570]
 
@@ -32,6 +27,3 @@ pose = &"grip"
 
 [node name="RightHand" parent="Origin/RightHand" unique_id=1508850518 instance=ExtResource("2_wb0hk")]
 
-[node name="Collider" type="CollisionShape3D" parent="." unique_id=20463221]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-shape = SubResource("CapsuleShape3D_rvawm")

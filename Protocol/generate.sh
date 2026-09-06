@@ -28,7 +28,7 @@ run_protoc \
 
 (
 	cd "$repo_dir/Godot"
-	"$(command -v godot4 || command -v godot)" --headless --path . \
+	"$(command -v godot4 || command -v godot)" --headless --xr-mode off --path . \
 		-s addons/godobuf/godobuf_cmdln.gd \
 		--input="$repo_dir/Protocol/packets.proto" \
 		--output="$repo_dir/Godot/Networking/Generated/Packets.gd"
