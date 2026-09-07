@@ -15,7 +15,7 @@ func _initialize() -> void:
 
 
 func run() -> void:
-	var scene := load("res://observatory/preview.tscn").instantiate() as Node3D
+	var scene := load("res://worlds/starlight_observatory/preview.tscn").instantiate() as Node3D
 	root.add_child(scene)
 	current_scene = scene
 	var player := scene.get_node("Players/PreviewPlayer") as CharacterBody3D

@@ -34,6 +34,7 @@ func _run() -> void:
 	var ui = game.get_node("roomSelector")
 	var registry := load(WorldCatalog.REGISTRY_PATH) as WorldRegistry
 	check(registry != null and not registry.worlds.is_empty(), "Bundled world registry did not load")
+	check(WorldCatalog.WORLDS.size() == 4 and WorldCatalog.WORLDS.has("moon_garden") and WorldCatalog.WORLDS.has("moonlit_grotto") and WorldCatalog.WORLDS.has("starlight_observatory"), "Bundled worlds are missing from the registry")
 	ui._select_world(registry.worlds[0].id)
 	for index in range(registry.worlds.size()):
 		var definition: WorldDefinition = registry.worlds[index]
@@ -130,6 +131,10 @@ func _run() -> void:
 	# The same allowlisted scene must load for every room member.
 	var spawn: Marker3D = game.load_world("moon_garden")
 	check(spawn.get_parent().name == "World" and game.get_node("World/Floor") != null, "World choice did not load")
+	spawn = game.load_world("starlight_observatory")
+	check(spawn.get_parent().name == "World" and game.get_node("World/StarGlobe") != null, "Starlight Observatory did not load from the registry")
+	spawn = game.load_world("moonlit_grotto")
+	check(spawn.get_parent().name == "World" and game.get_node("World/Waterfall curtain") != null, "Moonlit Grotto did not load from the registry")
 	# Mid-operation disconnect must clear pending actions and preserve entered fields.
 	ui.get_node("%CreateRoom").pressed.emit()
 	Networking.last_disconnect_reason = "Disconnected from signaling server"

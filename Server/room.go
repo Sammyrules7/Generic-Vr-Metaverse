@@ -9,6 +9,13 @@ import (
 
 const maxRoomPlayers = 16
 
+var supportedWorlds = map[string]struct{}{
+	"floating_island":       {},
+	"moon_garden":           {},
+	"moonlit_grotto":        {},
+	"starlight_observatory": {},
+}
+
 // Membership helpers run under Hub.mu, including notification queuing. A relay
 // therefore cannot overtake the peer-joined notification that makes it usable.
 type Room struct {
@@ -37,7 +44,7 @@ func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ..
 	if len(requestedWorld) > 0 && requestedWorld[0] != "" {
 		worldID = requestedWorld[0]
 	}
-	if worldID != "floating_island" && worldID != "moon_garden" {
+	if _, supported := supportedWorlds[worldID]; !supported {
 		return errorPacket("unknown world")
 	}
 	name := strings.TrimSpace(requestedName)

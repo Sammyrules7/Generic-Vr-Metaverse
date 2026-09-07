@@ -146,8 +146,8 @@ func motes(node_name: String, at: Vector3, volume: Vector3, color: Color, count:
 func _initialize() -> void:
 	world = Node3D.new()
 	world.name = "World"
-	world.set_script(load("res://observatory/world.gd"))
-	var architecture := load("res://observatory/assets/observatory.glb").instantiate() as Node3D
+	world.set_script(load("res://worlds/starlight_observatory/world.gd"))
+	var architecture := load("res://worlds/starlight_observatory/assets/observatory.glb").instantiate() as Node3D
 	architecture.name = "Architecture"
 	own(architecture, world)
 	var spawn := Marker3D.new()
@@ -160,7 +160,7 @@ func _initialize() -> void:
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_material := ShaderMaterial.new()
-	sky_material.shader = load("res://observatory/shaders/starlight.gdshader")
+	sky_material.shader = load("res://worlds/starlight_observatory/shaders/starlight.gdshader")
 	sky.sky_material = sky_material
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -196,7 +196,7 @@ func _initialize() -> void:
 	clouds.mesh = cloud_plane
 	clouds.position.y = -5.5
 	var cloud_material := ShaderMaterial.new()
-	cloud_material.shader = load("res://observatory/shaders/cloud_sea.gdshader")
+	cloud_material.shader = load("res://worlds/starlight_observatory/shaders/cloud_sea.gdshader")
 	clouds.material_override = cloud_material
 	clouds.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	own(clouds, world)
@@ -219,7 +219,7 @@ func _initialize() -> void:
 	var globe := Node3D.new()
 	globe.name = "StarGlobe"
 	globe.position = Vector3(0, 2.15, 0)
-	globe.set_script(load("res://observatory/globe.gd"))
+	globe.set_script(load("res://worlds/starlight_observatory/globe.gd"))
 	own(globe, world)
 	var orbits := Node3D.new()
 	orbits.name = "Orbits"
@@ -281,7 +281,7 @@ func _initialize() -> void:
 	var packed := PackedScene.new()
 	var error := packed.pack(world)
 	if error == OK:
-		error = ResourceSaver.save(packed, "res://observatory/observatory.tscn")
+		error = ResourceSaver.save(packed, "res://worlds/starlight_observatory/observatory.tscn")
 	world.free()
 	print("Observatory scene saved: ", error_string(error))
 	quit(error)

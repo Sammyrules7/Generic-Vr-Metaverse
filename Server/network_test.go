@@ -283,6 +283,30 @@ func TestWorldSelectionAndCapacity(t *testing.T) {
 	}
 }
 
+func TestStarlightObservatoryIsSupported(t *testing.T) {
+	h := newHub()
+	host := testClient(h)
+	h.handle(host, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomCreate{
+		RoomCreate: &protocol.ClientRoomCreate{Name: "Stargazers", WorldId: "starlight_observatory"},
+	}})
+	room := h.rooms[host.roomID]
+	if room == nil || room.worldID != "starlight_observatory" {
+		t.Fatal("starlight observatory room was not created")
+	}
+}
+
+func TestMoonlitGrottoIsSupported(t *testing.T) {
+	h := newHub()
+	host := testClient(h)
+	h.handle(host, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomCreate{
+		RoomCreate: &protocol.ClientRoomCreate{Name: "Grotto", WorldId: "moonlit_grotto"},
+	}})
+	room := h.rooms[host.roomID]
+	if room == nil || room.worldID != "moonlit_grotto" {
+		t.Fatal("moonlit grotto room was not created")
+	}
+}
+
 func TestSignalingDisconnectIsNotExplicitPeerLeave(t *testing.T) {
 	h := newHub()
 	a, b, c := testClient(h), testClient(h), testClient(h)

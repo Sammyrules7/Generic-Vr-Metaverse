@@ -30,9 +30,12 @@ A vr metaverse platform built on top of Godot
 
 ## Home worlds
 
-- Floating island: the original default world in `Godot/Main.tscn`.
-- [Starlight Observatory](Godot/observatory/README.md): a moonlit social terrace
-  with an interactive star globe. Open `Godot/observatory/preview.tscn` and press
+- Floating Island: the original grassy home world.
+- Moon Garden: an open courtyard with trees and benches.
+- [Moonlit Grotto](Godot/worlds/moonlit_grotto/README.md): a waterfall sanctuary
+  with a lagoon, quartz shrine, and glowcap mushrooms.
+- [Starlight Observatory](Godot/worlds/starlight_observatory/README.md): a moonlit social terrace
+  with an interactive star globe. Open `Godot/worlds/starlight_observatory/preview.tscn` and press
   **F6** to explore offline, or use `Godot/MainObservatory.tscn` with the room service.
 
 ## Networking checks

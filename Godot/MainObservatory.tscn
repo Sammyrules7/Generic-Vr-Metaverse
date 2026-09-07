@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="PackedScene" path="res://observatory/observatory.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://worlds/starlight_observatory/observatory.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://UI/room_selector.tscn" id="2"]
 
 [node name="Main" type="Node3D"]

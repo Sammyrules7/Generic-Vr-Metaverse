@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://jdwonkx5o3kx"]
 
 [ext_resource type="Script" uid="uid://cxk1b4t76a64h" path="res://player/network_player.gd" id="1"]
+[ext_resource type="Script" path="res://player/movement/character_motor.gd" id="2_motor"]
 
 [sub_resource type="CapsuleShape3D" id="Collider"]
 
@@ -22,6 +23,9 @@ script = ExtResource("1")
 [node name="Collider" type="CollisionShape3D" parent="." unique_id=1382636623]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("Collider")
+
+[node name="Motor" type="Node" parent="."]
+script = ExtResource("2_motor")
 
 [node name="Avatar" type="Node3D" parent="." unique_id=1874303836]
 

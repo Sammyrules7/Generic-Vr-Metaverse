@@ -2,10 +2,14 @@
 
 [ext_resource type="Script" path="res://worlds/world_registry.gd" id="registry"]
 [ext_resource type="Script" path="res://worlds/world_definition.gd" id="definition"]
-[ext_resource type="PackedScene" path="res://floating_island/floating_island.tscn" id="island_scene"]
-[ext_resource type="PackedScene" path="res://worlds/moon_garden.tscn" id="garden_scene"]
+[ext_resource type="PackedScene" path="res://worlds/floating_island/floating_island.tscn" id="island_scene"]
+[ext_resource type="PackedScene" path="res://worlds/moon_garden/moon_garden.tscn" id="garden_scene"]
+[ext_resource type="PackedScene" path="res://worlds/moonlit_grotto/moonlit_grotto.tscn" id="grotto_scene"]
+[ext_resource type="PackedScene" path="res://worlds/starlight_observatory/observatory.tscn" id="observatory_scene"]
 [ext_resource type="Texture2D" path="res://worlds/previews/floating_island.png" id="island_preview"]
 [ext_resource type="Texture2D" path="res://worlds/previews/moon_garden.png" id="garden_preview"]
+[ext_resource type="Texture2D" path="res://worlds/previews/moonlit_grotto.png" id="grotto_preview"]
+[ext_resource type="Texture2D" path="res://worlds/previews/starlight_observatory.png" id="observatory_preview"]
 
 [sub_resource type="Resource" id="island"]
 script = ExtResource("definition")
@@ -23,6 +27,22 @@ description = "Open courtyard with trees and benches."
 scene = ExtResource("garden_scene")
 preview = ExtResource("garden_preview")
 
+[sub_resource type="Resource" id="observatory"]
+script = ExtResource("definition")
+id = "starlight_observatory"
+title = "Starlight Observatory"
+description = "Moonlit alpine terrace with a brass observatory and interactive star globe."
+scene = ExtResource("observatory_scene")
+preview = ExtResource("observatory_preview")
+
+[sub_resource type="Resource" id="grotto"]
+script = ExtResource("definition")
+id = "moonlit_grotto"
+title = "Moonlit Grotto"
+description = "Rocky island sanctuary with a waterfall, lagoon, quartz shrine, and glowcap mushrooms."
+scene = ExtResource("grotto_scene")
+preview = ExtResource("grotto_preview")
+
 [resource]
 script = ExtResource("registry")
-worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden")])
+worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden"), SubResource("grotto"), SubResource("observatory")])

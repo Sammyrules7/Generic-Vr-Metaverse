@@ -9,7 +9,7 @@ from pathlib import Path
 from mathutils import Vector
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "Godot/observatory/assets"
+OUT = ROOT / "Godot/worlds/starlight_observatory/assets"
 random.seed(29)
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)

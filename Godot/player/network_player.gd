@@ -6,13 +6,9 @@ extends CharacterBody3D
 const DESKTOP_CONTROLS = preload("res://player/desktop_controls.tscn")
 const VR_CONTROLS = preload("res://player/vr_controls.tscn")
 
-@export var speed := 5.0
-@export var acceleration := 100.0
-@export var jump_height := 1.0
-
 var use_vr := false
 var controls: PlayerControls
-var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+@onready var motor: CharacterMotor = $Motor
 
 
 func _ready() -> void:
@@ -22,24 +18,11 @@ func _ready() -> void:
 	if is_multiplayer_authority():
 		controls = (VR_CONTROLS if use_vr else DESKTOP_CONTROLS).instantiate()
 		add_child(controls)
+		motor.input_source = controls
 	else:
 		# Remote poses are supplied by their owner; don't simulate collisions twice.
 		$Collider.disabled = true
-
-
-func _physics_process(delta: float) -> void:
-	if controls == null:
-		return
-	controls.update(delta)
-	velocity.x = move_toward(velocity.x, controls.movement.x * speed, acceleration * delta)
-	velocity.z = move_toward(velocity.z, controls.movement.z * speed, acceleration * delta)
-	if is_on_floor():
-		velocity.y = 0
-	else:
-		velocity.y -= gravity * delta
-	if controls.consume_jump() and is_on_floor():
-		velocity.y = sqrt(2 * jump_height * gravity)
-	move_and_slide()
+		motor.set_physics_process(false)
 
 
 func apply_pose(body_pose: Transform3D, head_pose: Transform3D, left_pose: Transform3D, right_pose: Transform3D) -> void:
