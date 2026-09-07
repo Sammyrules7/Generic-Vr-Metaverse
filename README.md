@@ -28,6 +28,13 @@ A vr metaverse platform built on top of Godot
 - Golang
 - Kubernetes
 
+## Home worlds
+
+- Floating island: the original default world in `Godot/Main.tscn`.
+- [Starlight Observatory](Godot/observatory/README.md): a moonlit social terrace
+  with an interactive star globe. Open `Godot/observatory/preview.tscn` and press
+  **F6** to explore offline, or use `Godot/MainObservatory.tscn` with the room service.
+
 ## Networking checks
 
 The Go server manages rooms and forwards Protobuf WebRTC signaling over
