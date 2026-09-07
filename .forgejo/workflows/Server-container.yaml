@@ -18,8 +18,13 @@ jobs:
     container:
       image: docker.io/moby/buildkit:rootless
     steps:
+      # The BuildKit image intentionally has no Node.js runtime, so fetch the
+      # public source archive directly instead of using a JavaScript action.
       - name: Checkout
-        uses: actions/checkout@v4
+        run: |
+          wget -qO- \
+            "${FORGEJO_SERVER_URL}/Sammy/Generic-Vr-Platform/archive/${FORGEJO_SHA}.tar.gz" \
+            | tar -xz --strip-components=1
 
       - name: Authenticate to Forgejo packages
         env:
