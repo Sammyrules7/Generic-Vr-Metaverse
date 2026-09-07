@@ -16,9 +16,9 @@ jobs:
     name: Build and publish
     runs-on: default
     container:
-      image: docker.io/moby/buildkit:rootless
+      image: gcr.io/kaniko-project/executor:v1.23.2-debug
     steps:
-      # The BuildKit image intentionally has no Node.js runtime, so fetch the
+      # The builder image intentionally has no Node.js runtime, so fetch the
       # public source archive directly instead of using a JavaScript action.
       - name: Checkout
         run: |
@@ -31,14 +31,14 @@ jobs:
           REGISTRY_USER: ${{ forgejo.actor }}
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
-          mkdir -p "$HOME/.docker"
+          mkdir -p /kaniko/.docker
           AUTH="$(printf '%s:%s' "$REGISTRY_USER" "$REGISTRY_TOKEN" | base64 | tr -d '\n')"
-          printf '{"auths":{"forgejo.maio-tech.com":{"auth":"%s"}}}\n' "$AUTH" > "$HOME/.docker/config.json"
+          printf '{"auths":{"forgejo.maio-tech.com":{"auth":"%s"}}}\n' "$AUTH" > /kaniko/.docker/config.json
 
       - name: Build and push
         run: |
-          buildctl-daemonless.sh build \
-            --frontend dockerfile.v0 \
-            --local context=Server \
-            --local dockerfile=Server \
-            --output "type=image,name=${IMAGE}:latest,${IMAGE}:${FORGEJO_SHA},push=true"
+          /kaniko/executor \
+            --context "$PWD/Server" \
+            --dockerfile "$PWD/Server/Dockerfile" \
+            --destination "${IMAGE}:latest" \
+            --destination "${IMAGE}:${FORGEJO_SHA}"
