@@ -3,17 +3,22 @@ extends Node
 # The autoload keeps transport alive across world changes. Room state and player
 # replication have separate owners so neither depends on the current scene.
 const Packets = preload("res://Networking/Generated/Packets.gd")
+const SERVER_URL := "ws://localhost:8080/ws"
 
 signal signaling_connected
 signal signaling_disconnected
 signal network_error(reason: String)
 
 var ws := WebSocketPeer.new()
-var ws_url := "ws://localhost:8080/ws"
+# Mutable for isolated transport tests; production uses the build-time constant.
+var ws_url := SERVER_URL
 var client_id := 0
 var room_networking: RoomNetworking
 var player_replication: PlayerReplication
 var reconnect_at := 0
+var connect_deadline := 0
+var connection_message := "Connecting to the room server…"
+var last_disconnect_reason := ""
 
 
 func _ready() -> void:
@@ -34,13 +39,18 @@ func _process(_delta: float) -> void:
 		ws.close(-1)
 		disconnect_reason = "Room request timed out"
 	var previous_state := ws.get_ready_state()
+	if client_id == 0 and previous_state != WebSocketPeer.STATE_CLOSED and Time.get_ticks_msec() >= connect_deadline:
+		ws.close(-1)
+		disconnect_reason = "The server did not respond in time"
 	ws.poll()
 	while ws.get_available_packet_count() > 0:
 		_handle_packet(ws.get_packet())
 	# close(-1) can close the socket before poll(); client_id catches that case.
 	if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED and (previous_state != WebSocketPeer.STATE_CLOSED or client_id != 0):
 		client_id = 0
-		room_networking.reset(disconnect_reason)
+		last_disconnect_reason = disconnect_reason
+		connection_message = "Server offline · Retrying automatically"
+		room_networking.signaling_lost(disconnect_reason)
 		signaling_disconnected.emit()
 		reconnect_at = Time.get_ticks_msec() + 2000
 	if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED and Time.get_ticks_msec() >= reconnect_at:
@@ -48,10 +58,12 @@ func _process(_delta: float) -> void:
 
 
 func _connect_websocket() -> void:
+	connect_deadline = Time.get_ticks_msec() + 8000
 	reconnect_at = Time.get_ticks_msec() + 2000
 	ws = WebSocketPeer.new()
 	var result := ws.connect_to_url(ws_url)
 	if result != OK:
+		connection_message = "Server unavailable · Retrying automatically"
 		network_error.emit("Could not connect to signaling server: %s" % error_string(result))
 		signaling_disconnected.emit()
 
@@ -65,6 +77,8 @@ func _handle_packet(bytes: PackedByteArray) -> void:
 		Packets.ServerPacket.PayloadCase.CONNECTED:
 			# An open socket alone is not ready: WebRTC needs the server-assigned ID.
 			client_id = packet.get_connected().get_client_id()
+			connection_message = "Connected · Rooms update live"
+			last_disconnect_reason = ""
 			room_networking.connected = true
 			signaling_connected.emit()
 		Packets.ServerPacket.PayloadCase.ERROR:
@@ -77,8 +91,12 @@ func _handle_packet(bytes: PackedByteArray) -> void:
 
 
 func _send(packet: Packets.ClientPacket) -> void:
+	if packet.get_payload_case() == Packets.ClientPacket.PayloadCase.RELAY and (room_networking.detached_session or not room_networking.connected):
+		# Late ICE callbacks cannot revive signaling or terminate healthy data channels.
+		return
 	if ws.get_ready_state() != WebSocketPeer.STATE_OPEN or client_id == 0:
-		room_networking.reset("Not connected to signaling server")
+		room_networking.signaling_lost("Not connected to signaling server")
+		signaling_disconnected.emit()
 		network_error.emit("Not connected to signaling server")
 		return
 	var result := ws.send(packet.to_bytes(), WebSocketPeer.WRITE_MODE_BINARY)
@@ -86,3 +104,19 @@ func _send(packet: Packets.ClientPacket) -> void:
 		# Losing an ordered room/signaling packet requires a fresh session.
 		ws.close(-1)
 		network_error.emit("Could not send signaling packet: %s" % error_string(result))
+
+
+func retry_connection(url: String) -> Error:
+	url = url.strip_edges()
+	if not (url.begins_with("ws://") or url.begins_with("wss://")) or url.length() < 8:
+		return ERR_INVALID_PARAMETER
+	if room_networking.current_room != null or room_networking.pending_operation != RoomNetworking.Operation.NONE:
+		return ERR_BUSY
+	ws.close(-1)
+	client_id = 0
+	room_networking.reset()
+	ws_url = url
+	connection_message = "Connecting to the room server…"
+	signaling_disconnected.emit()
+	_connect_websocket()
+	return OK

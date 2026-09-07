@@ -1301,6 +1301,11 @@ class Room:
 		service.field = __player_count
 		data[__player_count.tag] = service
 		
+		__world_id = PBField.new("world_id", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __world_id
+		data[__world_id.tag] = service
+
 	var data = {}
 	
 	var __id: PBField
@@ -1342,6 +1347,19 @@ class Room:
 	func set_player_count(value : int) -> void:
 		__player_count.value = value
 	
+	var __world_id: PBField
+	func has_world_id() -> bool:
+		if __world_id.value != null:
+			return true
+		return false
+	func get_world_id() -> String:
+		return __world_id.value
+	func clear_world_id() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__world_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_world_id(value : String) -> void:
+		__world_id.value = value
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
 		
@@ -1435,6 +1453,11 @@ class ClientRoomCreate:
 		service.field = __name
 		data[__name.tag] = service
 		
+		__world_id = PBField.new("world_id", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __world_id
+		data[__world_id.tag] = service
+
 	var data = {}
 	
 	var __name: PBField
@@ -1450,6 +1473,19 @@ class ClientRoomCreate:
 	func set_name(value : String) -> void:
 		__name.value = value
 	
+	var __world_id: PBField
+	func has_world_id() -> bool:
+		if __world_id.value != null:
+			return true
+		return false
+	func get_world_id() -> String:
+		return __world_id.value
+	func clear_world_id() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__world_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_world_id(value : String) -> void:
+		__world_id.value = value
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
 		
@@ -2025,6 +2061,11 @@ class ServerPeerLeft:
 		service.field = __peer_id
 		data[__peer_id.tag] = service
 		
+		__signaling_disconnected = PBField.new("signaling_disconnected", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
+		service = PBServiceField.new()
+		service.field = __signaling_disconnected
+		data[__signaling_disconnected.tag] = service
+
 	var data = {}
 	
 	var __peer_id: PBField
@@ -2040,6 +2081,19 @@ class ServerPeerLeft:
 	func set_peer_id(value : int) -> void:
 		__peer_id.value = value
 	
+	var __signaling_disconnected: PBField
+	func has_signaling_disconnected() -> bool:
+		if __signaling_disconnected.value != null:
+			return true
+		return false
+	func get_signaling_disconnected() -> bool:
+		return __signaling_disconnected.value
+	func clear_signaling_disconnected() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__signaling_disconnected.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
+	func set_signaling_disconnected(value : bool) -> void:
+		__signaling_disconnected.value = value
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
 		

@@ -18,12 +18,12 @@ func _ready() -> void:
 	$Origin/RightHand.button_pressed.connect(_button_pressed)
 
 
-func _exit_tree() -> void:
-	# The rig is scene-owned; returning to the lobby must restore ordinary rendering.
-	get_viewport().use_xr = false
-
-
 func update(delta: float) -> void:
+	if not input_enabled:
+		movement = Vector3.ZERO
+		jump_requested = false
+		pinching = false
+		return
 	var look: Vector2 = $Origin/RightHand.get_vector2("primary")
 	if $Origin/RightHand.get_is_active() and absf(look.x) > 0.1:
 		# Turn around the user's tracked position, not the room origin, so moving
@@ -43,7 +43,7 @@ func update(delta: float) -> void:
 
 
 func _button_pressed(button: String) -> void:
-	if button == "ax_button":
+	if input_enabled and button == "ax_button":
 		jump_requested = true
 
 

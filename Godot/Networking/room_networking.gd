@@ -20,6 +20,9 @@ signal packet_created(packet: Packets.ClientPacket)
 
 var multiplayer: MultiplayerAPI
 var connected := false
+# A new signaling connection has a new identity. Its directory may be used again,
+# but it must never replace or feed signaling into the surviving P2P session.
+var detached_session := false
 var rooms: Dictionary[int, roomClass] = {}
 var current_room: roomClass
 var rtc_mesh: WebRTCMesh
@@ -33,9 +36,11 @@ func _init(multiplayer_api: MultiplayerAPI) -> void:
 	multiplayer = multiplayer_api
 
 
-func create_room(room_name := "") -> Error:
+func create_room(room_name := "", world_id := "floating_island") -> Error:
 	var packet := Packets.ClientPacket.new()
-	packet.new_room_create().set_name(room_name)
+	var request := packet.new_room_create()
+	request.set_name(room_name)
+	request.set_world_id(world_id)
 	return _request(Operation.CREATE, packet)
 
 
@@ -46,12 +51,23 @@ func join_room(room_id: int) -> Error:
 
 
 func leave_room() -> Error:
+	if current_room != null and (not connected or detached_session):
+		if pending_operation != Operation.NONE:
+			return ERR_BUSY
+		pending_operation = Operation.LEAVE
+		operation_started.emit(Operation.LEAVE)
+		_stop_mesh()
+		room_left.emit()
+		_finish_operation(true)
+		return OK
 	var packet := Packets.ClientPacket.new()
 	packet.new_room_leave()
 	return _request(Operation.LEAVE, packet)
 
 
 func _request(operation: Operation, packet: Packets.ClientPacket) -> Error:
+	if detached_session:
+		return ERR_UNAVAILABLE
 	if not connected:
 		return ERR_UNAVAILABLE
 	if pending_operation != Operation.NONE:
@@ -81,9 +97,22 @@ func _finish_operation(success: bool, reason := "") -> void:
 	operation_finished.emit(operation, success, reason)
 
 
-func reset(reason := "Disconnected from signaling server") -> void:
-	# The server removes membership on disconnect. A surviving P2P connection
-	# must not leave us appearing to be in a room the server no longer knows about.
+func signaling_lost(reason := "Control plane disconnected") -> void:
+	connected = false
+	detached_session = current_room != null
+	rooms.clear()
+	rooms_replaced.emit([])
+	# Explicit leave remains an explicit leave even if its acknowledgment is lost.
+	if pending_operation == Operation.LEAVE:
+		_stop_mesh()
+		room_left.emit()
+		_finish_operation(true)
+	else:
+		_finish_operation(false, reason)
+
+
+func reset(reason := "Session reset") -> void:
+	# Explicit full teardown, for application shutdown or isolated tests.
 	connected = false
 	var was_in_room := current_room != null
 	_stop_mesh()
@@ -95,6 +124,8 @@ func reset(reason := "Disconnected from signaling server") -> void:
 
 
 func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
+	if detached_session and packet.get_payload_case() not in [Packets.ServerPacket.PayloadCase.ROOM_LIST, Packets.ServerPacket.PayloadCase.ROOM_UPDATED, Packets.ServerPacket.PayloadCase.ROOM_REMOVED]:
+		return
 	var is_reply := packet.get_request_id() != 0
 	if is_reply and (pending_operation == Operation.NONE or packet.get_request_id() != _request_id):
 		return
@@ -108,7 +139,7 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 		Packets.ServerPacket.PayloadCase.ROOM_UPDATED:
 			var room := _decode_room(packet.get_room_updated().get_room())
 			rooms[room.id] = room
-			if current_room != null and current_room.id == room.id:
+			if not detached_session and current_room != null and current_room.id == room.id:
 				current_room = room
 			room_updated.emit(room)
 		Packets.ServerPacket.PayloadCase.ROOM_REMOVED:
@@ -131,7 +162,11 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 				rtc_mesh.add_peer(packet.get_peer_joined().get_peer(), false)
 		Packets.ServerPacket.PayloadCase.PEER_LEFT:
 			if rtc_mesh != null:
-				rtc_mesh.remove_peer(packet.get_peer_left().get_peer_id())
+				var departure := packet.get_peer_left()
+				if departure.get_signaling_disconnected():
+					rtc_mesh.suspend_peer_signaling(departure.get_peer_id())
+				else:
+					rtc_mesh.remove_peer(departure.get_peer_id())
 		Packets.ServerPacket.PayloadCase.RELAY:
 			if rtc_mesh != null:
 				rtc_mesh.receive_relay(packet.get_relay())
@@ -166,6 +201,7 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 
 
 func _stop_mesh() -> void:
+	detached_session = false
 	if rtc_mesh != null:
 		rtc_mesh.close()
 		rtc_mesh = null
@@ -175,4 +211,4 @@ func _stop_mesh() -> void:
 
 
 func _decode_room(packet: Packets.Room) -> roomClass:
-	return roomClass.new(packet.get_id(), packet.get_name(), packet.get_player_count())
+	return roomClass.new(packet.get_id(), packet.get_name(), packet.get_player_count(), packet.get_world_id())

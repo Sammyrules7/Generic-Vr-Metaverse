@@ -235,3 +235,86 @@ func TestRejoinInvalidatesBothRelayEndpoints(t *testing.T) {
 		t.Fatal("current sessions could not relay after rejoining")
 	}
 }
+
+func TestWorldSelectionAndCapacity(t *testing.T) {
+	h := newHub()
+	host := testClient(h)
+	h.handle(host, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomCreate{
+		RoomCreate: &protocol.ClientRoomCreate{Name: "  Moon friends  ", WorldId: "moon_garden"},
+	}})
+	roomID := host.roomID
+	room := h.rooms[roomID]
+	if room == nil || room.packet().WorldId != "moon_garden" || room.name != "Moon friends" {
+		t.Fatal("room did not retain world and normalized name")
+	}
+	// Validate the destination before leaving the current room.
+	h.handle(host, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomCreate{
+		RoomCreate: &protocol.ClientRoomCreate{WorldId: "res://untrusted.tscn"},
+	}})
+	if host.roomID != roomID {
+		t.Fatal("unknown world removed existing membership")
+	}
+	got := packets(t, host)
+	if got[len(got)-1].GetError() == nil {
+		t.Fatal("unknown world was not rejected")
+	}
+	for i := 1; i < maxRoomPlayers; i++ {
+		member := testClient(h)
+		join(h, member, roomID)
+		replies := packets(t, member)
+		joined := replies[len(replies)-1].GetRoomJoined()
+		if joined == nil || joined.Room.WorldId != "moon_garden" {
+			t.Fatal("joining client did not receive the room world")
+		}
+	}
+	extra := testClient(h)
+	create(h, extra)
+	originalRoom := extra.roomID
+	packets(t, extra)
+	join(h, extra, roomID)
+	got = packets(t, extra)
+	if extra.roomID != originalRoom || len(room.clients) != maxRoomPlayers || got[len(got)-1].GetError() == nil {
+		t.Fatal("full room should reject entry and preserve previous membership")
+	}
+	legacy := testClient(h)
+	create(h, legacy)
+	if h.rooms[legacy.roomID].worldID != "floating_island" {
+		t.Fatal("omitted world must select the default world")
+	}
+}
+
+func TestSignalingDisconnectIsNotExplicitPeerLeave(t *testing.T) {
+	h := newHub()
+	a, b, c := testClient(h), testClient(h), testClient(h)
+	create(h, a)
+	join(h, b, a.roomID)
+	join(h, c, a.roomID)
+	packets(t, a)
+	h.removeClient(b)
+	got := packets(t, a)
+	if len(got) < 1 || got[0].GetPeerLeft() == nil || !got[0].GetPeerLeft().SignalingDisconnected {
+		t.Fatal("signaling loss must be distinguished from leaving the P2P session")
+	}
+	h.handle(c, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomLeave{RoomLeave: &protocol.ClientRoomLeave{}}})
+	got = packets(t, a)
+	if len(got) < 1 || got[0].GetPeerLeft() == nil || got[0].GetPeerLeft().SignalingDisconnected {
+		t.Fatal("explicit leave must still remove the peer")
+	}
+}
+
+func TestLateCandidateAfterSignalingDisconnect(t *testing.T) {
+	h := newHub()
+	a, b := testClient(h), testClient(h)
+	create(h, a)
+	join(h, b, a.roomID)
+	oldSession := b.sessionID
+	h.removeClient(b)
+	packets(t, a)
+	h.handle(a, &protocol.ClientPacket{Payload: &protocol.ClientPacket_Relay{Relay: &protocol.ClientRelay{
+		DestinationId: b.id, SenderSessionId: a.sessionID, DestinationSessionId: oldSession,
+		Signal: &protocol.ClientRelay_Candidate{Candidate: &protocol.WebRTCIceCandidate{Candidate: "late"}},
+	}}})
+	if len(packets(t, a)) != 0 {
+		t.Fatal("in-flight candidate for a disconnected peer should be discarded quietly")
+	}
+}

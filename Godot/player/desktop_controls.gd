@@ -12,6 +12,9 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not input_enabled:
+		return
+	mouse_captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	# Let UI buttons consume clicks before we decide to recapture the mouse.
 	if event is InputEventMouseMotion and mouse_captured:
 		_look(event.relative * 0.001)
@@ -23,6 +26,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func update(delta: float) -> void:
+	if not input_enabled:
+		movement = Vector3.ZERO
+		jump_requested = false
+		return
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_backwards")
 	movement = body.transform.basis * Vector3(input.x, 0, input.y)
 	jump_requested = Input.is_action_just_pressed("jump")

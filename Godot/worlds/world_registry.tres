@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="WorldRegistry" format=3]
+
+[ext_resource type="Script" path="res://worlds/world_registry.gd" id="registry"]
+[ext_resource type="Script" path="res://worlds/world_definition.gd" id="definition"]
+[ext_resource type="PackedScene" path="res://floating_island/floating_island.tscn" id="island_scene"]
+[ext_resource type="PackedScene" path="res://worlds/moon_garden.tscn" id="garden_scene"]
+[ext_resource type="Texture2D" path="res://worlds/previews/floating_island.png" id="island_preview"]
+[ext_resource type="Texture2D" path="res://worlds/previews/moon_garden.png" id="garden_preview"]
+
+[sub_resource type="Resource" id="island"]
+script = ExtResource("definition")
+id = "floating_island"
+title = "Floating Island"
+description = "Grassy island with trees."
+scene = ExtResource("island_scene")
+preview = ExtResource("island_preview")
+
+[sub_resource type="Resource" id="garden"]
+script = ExtResource("definition")
+id = "moon_garden"
+title = "Moon Garden"
+description = "Open courtyard with trees and benches."
+scene = ExtResource("garden_scene")
+preview = ExtResource("garden_preview")
+
+[resource]
+script = ExtResource("registry")
+worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden")])

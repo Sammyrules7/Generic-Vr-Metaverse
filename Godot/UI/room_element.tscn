@@ -3,11 +3,11 @@
 [ext_resource type="Script" uid="uid://de31qm6dv3d2f" path="res://UI/room_element.gd" id="1_ixk2y"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y70hp"]
-bg_color = Color(0.15686275, 0.17254902, 0.20392157, 1)
-corner_radius_top_left = 5
-corner_radius_top_right = 5
-corner_radius_bottom_right = 5
-corner_radius_bottom_left = 5
+bg_color = Color(0.09, 0.16, 0.24, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [node name="MarginContainer" type="MarginContainer" unique_id=969957823]
 offset_left = 96.0
@@ -30,7 +30,8 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Err"
-horizontal_alignment = 1
+text_overrun_behavior = 3
+horizontal_alignment = 0
 
 [node name="PlayerCount" type="Label" parent="room" unique_id=182405666]
 layout_mode = 2
@@ -41,7 +42,7 @@ horizontal_alignment = 1
 [node name="Button" type="Button" parent="room" unique_id=1294733525]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(88, 64)
 theme_override_colors/icon_normal_color = Color(0.20784314, 0.23137255, 0.27058825, 1)
-text = "Join"
 text = "Join"

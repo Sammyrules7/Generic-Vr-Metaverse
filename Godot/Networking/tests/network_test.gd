@@ -3,14 +3,23 @@ extends Node
 const Network = preload("res://Networking/Networking.gd")
 const Packets = preload("res://Networking/Generated/Packets.gd")
 var failures: Array[String] = []
+var profile_existed := false
+var profile_backup := PackedByteArray()
 @onready var root := get_tree().root
 
 
 func quit(code := 0) -> void:
+	if profile_existed:
+		FileAccess.open("user://profile.cfg", FileAccess.WRITE).store_buffer(profile_backup)
+	else:
+		DirAccess.remove_absolute("user://profile.cfg")
 	get_tree().quit(code)
 
 
 func _ready() -> void:
+	profile_existed = FileAccess.file_exists("user://profile.cfg")
+	if profile_existed:
+		profile_backup = FileAccess.get_file_as_bytes("user://profile.cfg")
 	_run.call_deferred()
 
 
@@ -101,7 +110,7 @@ func _check_room_ui() -> bool:
 	busy = busy and ui.get_node("%CreateRoom").disabled
 	reply.set_request_id(sent[0].get_request_id())
 	state.handle_packet(reply, 2)
-	var recovered: bool = not ui.get_node("%CreateRoom").disabled and ui.get_node("%roomList/Placeholder").text == "Room rejected"
+	var recovered: bool = not ui.get_node("%CreateRoom").disabled and ui.get_node("%Status").text == "Room rejected"
 	ui.free()
 	network.room_networking = original
 	return _check(busy and recovered, "Room UI did not disable pending actions or recover after failure")
@@ -122,7 +131,7 @@ func _run() -> void:
 	var bm: PlayerManager = b.get_parent().get_node("PlayerManager")
 	if not await _wait_until(func(): return a.client_id > 0 and b.client_id > 0, "signaling handshake"):
 		return
-	a.room_networking.create_room("Networking regression test")
+	a.room_networking.create_room("Networking regression test", "moon_garden")
 	if not _check(a.room_networking.join_room(999) == ERR_BUSY, "Concurrent room command was accepted"):
 		return
 	if not await _idle(a):
@@ -132,6 +141,12 @@ func _run() -> void:
 	if not await _idle(b):
 		return
 	if not await _wait_until(func(): return am.players.get_child_count() == 2 and bm.players.get_child_count() == 2, "WebRTC and player spawning"):
+		return
+	if not _check(a.room_networking.current_room.world_id == "moon_garden" and b.room_networking.current_room.world_id == "moon_garden", "Peers received different world choices"):
+		return
+	if not await _wait_until(func(): return am.players.get_node(str(b.client_id)).get_node_or_null("NameTag") != null, "display name replication"):
+		return
+	if not _check(am.players.get_node(str(b.client_id)).get_node("NameTag").text == PlayerProfile.display_name, "Remote name does not match chosen identity"):
 		return
 	if not _check(am.local_player.controls != null and (am.players.get_node(str(b.client_id)) as NetworkPlayer).controls == null, "Remote player instantiated local controls"):
 		return
@@ -201,17 +216,21 @@ func _run() -> void:
 		return remote.global_position.is_equal_approx(Vector3(3, 4, 5)) and remote.get_node("Avatar/Head").position.is_equal_approx(Vector3(0.1, 1.8, 0.2)) and remote.get_node("Avatar/LeftHand").position.is_equal_approx(hand.position), "shared player pose replication"):
 		return
 	# A new room resets scene-owned players as well as the old mesh.
+	if not await _check_control_plane_survival(a, b):
+		return
 	a.room_networking.create_room("Another room")
 	if not await _idle(a):
 		return
 	if not await _wait_until(func(): return bm.players.get_child_count() == 1, "room switch cleanup"):
 		return
 	var previous_id: int = b.client_id
+	var previous_mesh: WebRTCMesh = b.room_networking.rtc_mesh
+	var previous_player: NetworkPlayer = bm.local_player
 	b.room_networking.join_room(a.room_networking.current_room.id)
 	b.ws.close(-1)
 	if not await _wait_until(func(): return b.client_id == 0, "disconnect cleanup"):
 		return
-	if not _check(b.room_networking.current_room == null and b.room_networking.rooms.is_empty() and bm.local_player == null and b.room_networking.pending_operation == RoomNetworking.Operation.NONE and failures.size() == 1, "Disconnect retained state or failed to finish its pending operation"):
+	if not _check(b.room_networking.current_room != null and b.room_networking.rooms.is_empty() and bm.local_player == previous_player and b.room_networking.rtc_mesh == previous_mesh and b.room_networking.pending_operation == RoomNetworking.Operation.NONE and failures.size() == 1, "Disconnect destroyed the live session or failed to finish its pending operation"):
 		return
 	failures.clear()
 	if not await _wait_until(func(): return b.client_id > 0 and b.client_id != previous_id, "automatic reconnect"):
@@ -220,12 +239,80 @@ func _run() -> void:
 	b.ws.close(-1)
 	if not await _wait_until(func(): return a.client_id == 0 and b.client_id == 0, "test cleanup"):
 		return
+	a.room_networking.reset()
+	b.room_networking.reset()
 	a.get_parent().free()
 	b.get_parent().free()
 	if not await _check_game_scene():
 		return
 	print("Networking and player integration checks passed")
 	quit()
+
+
+func _check_control_plane_survival(a: Node, b: Node) -> bool:
+	var am: PlayerManager = a.get_parent().get_node("PlayerManager")
+	var bm: PlayerManager = b.get_parent().get_node("PlayerManager")
+	var a_id: int = a.client_id
+	var b_id: int = b.client_id
+	var a_mesh: WebRTCMesh = a.room_networking.rtc_mesh
+	var b_mesh: WebRTCMesh = b.room_networking.rtc_mesh
+	var a_player := am.local_player
+	var b_player := bm.local_player
+	b_player.set_physics_process(false)
+	# The other side still has signaling and receives the server's peer-loss message.
+	b.ws.close(-1)
+	if not await _wait_until(func(): return b.client_id == 0, "one-sided signaling loss"):
+		return false
+	b.set_process(false)
+	for frame in range(30):
+		await get_tree().physics_frame
+	if not _check(am.players.get_node_or_null(str(b_id)) != null and bm.local_player == b_player, "One-sided signaling loss removed a connected peer"):
+		return false
+	a_player.global_position = Vector3(6, 7, 8)
+	if not await _wait_until(func():
+		var remote := bm.players.get_node_or_null(str(a_id)) as NetworkPlayer
+		return remote != null and remote.global_position.is_equal_approx(Vector3(6, 7, 8)), "poses after one-sided signaling loss"):
+		return false
+	# Both control-plane sockets are gone; P2P packets must still flow.
+	a.ws.close(-1)
+	if not await _wait_until(func(): return a.client_id == 0, "both control-plane sockets down"):
+		return false
+	a.set_process(false)
+	b_player.global_position = Vector3(9, 10, 11)
+	if not await _wait_until(func():
+		var remote := am.players.get_node_or_null(str(b_id)) as NetworkPlayer
+		return remote != null and remote.global_position.is_equal_approx(Vector3(9, 10, 11)), "poses without the control plane"):
+		return false
+	a.set_process(true)
+	b.set_process(true)
+	if not await _wait_until(func(): return a.client_id > 0 and b.client_id > 0, "control plane reconnect"):
+		return false
+	if not _check(a.room_networking.rtc_mesh == a_mesh and b.room_networking.rtc_mesh == b_mesh and am.local_player == a_player and bm.local_player == b_player and a.multiplayer.get_unique_id() == a_id and b.multiplayer.get_unique_id() == b_id, "Signaling reconnect replaced the established P2P identity"):
+		return false
+	# Fresh directory IDs may collide after a restart. They cannot rewrite this room.
+	var original_name: String = a.room_networking.current_room.room_name
+	var update := Packets.ServerPacket.new()
+	var room := update.new_room_updated().new_room()
+	room.set_id(a.room_networking.current_room.id)
+	room.set_name("Unrelated new directory room")
+	a.room_networking.handle_packet(update, a.client_id)
+	if not _check(a.room_networking.current_room.room_name == original_name, "Fresh directory metadata replaced the surviving room"):
+		return false
+	# Late ICE callbacks from the old session must not go to a new server identity.
+	var late_packet := Packets.ClientPacket.new()
+	late_packet.new_relay().set_destination_id(a_id)
+	b._send(late_packet)
+	b.room_networking.leave_room()
+	if not await _wait_until(func(): return am.players.get_child_count() == 1 and bm.local_player == null, "explicit leave from detached session"):
+		return false
+	a.room_networking.leave_room()
+	a.room_networking.create_room("New signaling session", "moon_garden")
+	if not await _idle(a):
+		return false
+	b.room_networking.join_room(a.room_networking.current_room.id)
+	if not await _idle(b):
+		return false
+	return await _wait_until(func(): return am.players.get_child_count() == 2 and bm.players.get_child_count() == 2, "joining again after explicit leave")
 
 
 func _check_game_scene() -> bool:
@@ -235,6 +322,7 @@ func _check_game_scene() -> bool:
 	root.add_child(game)
 	if not await _wait_until(func(): return network.client_id > 0, "game signaling"):
 		return false
+	game.get_node("roomSelector")._select_world("floating_island")
 	game.get_node("roomSelector/%CreateRoom").pressed.emit()
 	var manager: PlayerManager = game.get_node("PlayerManager")
 	if not await _wait_until(func(): return manager.local_player != null and manager.local_player.is_on_floor(), "game player landing"):

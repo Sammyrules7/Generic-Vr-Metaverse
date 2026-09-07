@@ -1,0 +1,46 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/godot-xr-tools/objects/viewport_2d_in_3d.gd" id="1"]
+[ext_resource type="Script" path="res://addons/godot-xr-tools/objects/viewport_2d_in_3d_body.gd" id="2"]
+
+[sub_resource type="QuadMesh" id="quad"]
+resource_local_to_scene = true
+size = Vector2(2.24, 1.6)
+
+[sub_resource type="StandardMaterial3D" id="material"]
+shading_mode = 0
+cull_mode = 2
+
+[sub_resource type="BoxShape3D" id="shape"]
+resource_local_to_scene = true
+size = Vector3(2.24, 1.6, 0.02)
+
+[node name="LobbyPanel" type="Node3D"]
+script = ExtResource("1")
+screen_size = Vector2(2.24, 1.6)
+viewport_size = Vector2(1120, 800)
+unshaded = true
+collision_layer = 4194304
+
+[node name="Viewport" type="SubViewport" parent="."]
+disable_3d = true
+transparent_bg = false
+gui_embed_subwindows = true
+handle_input_locally = true
+size = Vector2i(1120, 800)
+render_target_update_mode = 4
+
+[node name="Screen" type="MeshInstance3D" parent="."]
+mesh = SubResource("quad")
+surface_material_override/0 = SubResource("material")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_layer = 4194304
+collision_mask = 0
+script = ExtResource("2")
+screen_size = Vector2(2.24, 1.6)
+viewport_size = Vector2(1120, 800)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+position = Vector3(0, 0, -0.01)
+shape = SubResource("shape")

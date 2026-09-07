@@ -23,7 +23,11 @@ Networking="*uid://ljq8p7wlh6di"
 
 [display]
 
-window/stretch/aspect="ignore"
+window/size/viewport_width=1120
+window/size/viewport_height=800
+window/size/window_width_override=1120
+window/size/window_height_override=800
+window/stretch/aspect="expand"
 
 [input]
 

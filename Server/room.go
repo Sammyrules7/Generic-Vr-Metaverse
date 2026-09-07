@@ -14,11 +14,12 @@ const maxRoomPlayers = 16
 type Room struct {
 	id      uint32
 	name    string
+	worldID string
 	clients map[uint32]*Client
 }
 
 func (room *Room) packet() *protocol.Room {
-	return &protocol.Room{Id: room.id, Name: room.name, PlayerCount: uint32(len(room.clients))}
+	return &protocol.Room{Id: room.id, Name: room.name, WorldId: room.worldID, PlayerCount: uint32(len(room.clients))}
 }
 
 func (room *Room) peers(except uint32) []*protocol.Peer {
@@ -31,7 +32,14 @@ func (room *Room) peers(except uint32) []*protocol.Peer {
 	return peers
 }
 
-func (h *Hub) createRoom(client *Client, requestedName string) *protocol.ServerPacket {
+func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ...string) *protocol.ServerPacket {
+	worldID := "floating_island"
+	if len(requestedWorld) > 0 && requestedWorld[0] != "" {
+		worldID = requestedWorld[0]
+	}
+	if worldID != "floating_island" && worldID != "moon_garden" {
+		return errorPacket("unknown world")
+	}
 	name := strings.TrimSpace(requestedName)
 	if len(name) > 48 {
 		return errorPacket("room name is too long")
@@ -41,7 +49,7 @@ func (h *Hub) createRoom(client *Client, requestedName string) *protocol.ServerP
 	if name == "" {
 		name = fmt.Sprintf("Room %d", h.nextRoomID)
 	}
-	room := &Room{id: h.nextRoomID, name: name, clients: make(map[uint32]*Client)}
+	room := &Room{id: h.nextRoomID, name: name, worldID: worldID, clients: make(map[uint32]*Client)}
 	h.rooms[room.id] = room
 	return h.enterRoom(client, room)
 }
@@ -56,9 +64,9 @@ func (h *Hub) joinRoom(client *Client, roomID uint32) *protocol.ServerPacket {
 		// Acknowledge without changing the session, which preserves the active mesh.
 		return roomJoinedPacket(room.packet(), room.peers(client.id), client.sessionID)
 	}
-	//if len(room.clients) >= maxRoomPlayers {
-	//	return errorPacket("room is full")
-	//}
+	if len(room.clients) >= maxRoomPlayers {
+		return errorPacket("room is full")
+	}
 	h.leaveRoom(client)
 	return h.enterRoom(client, room)
 }
@@ -78,7 +86,7 @@ func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
 	return roomJoinedPacket(room.packet(), peers, client.sessionID)
 }
 
-func (h *Hub) leaveRoom(client *Client) {
+func (h *Hub) leaveRoom(client *Client, signalingDisconnected ...bool) {
 	room := h.rooms[client.roomID]
 	client.roomID = 0
 	client.sessionID = 0
@@ -87,7 +95,7 @@ func (h *Hub) leaveRoom(client *Client) {
 	}
 	delete(room.clients, client.id)
 	for _, peer := range room.clients {
-		send(peer, peerLeftPacket(client.id))
+		send(peer, peerLeftPacket(client.id, signalingDisconnected...))
 	}
 	if len(room.clients) == 0 {
 		delete(h.rooms, room.id)

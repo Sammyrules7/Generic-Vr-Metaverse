@@ -18,6 +18,13 @@ func (h *Hub) relay(sender *Client, relay *protocol.ClientRelay) {
 	if relay.SenderSessionId != sender.sessionID {
 		return
 	}
+	// A candidate can cross the peer-loss notification in flight. Discard it
+	// when the recipient disconnected or changed sessions; healthy P2P traffic
+	// must not turn a control-plane race into a fatal application error.
+	knownClient := h.clients[relay.DestinationId]
+	if knownClient == nil || knownClient.sessionID != relay.DestinationSessionId {
+		return
+	}
 	destination := room.clients[relay.DestinationId]
 	if destination == nil {
 		sendError(sender, "relay destination is not in your room")

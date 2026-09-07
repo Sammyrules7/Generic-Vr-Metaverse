@@ -49,3 +49,17 @@ func apply_pose(body_pose: Transform3D, head_pose: Transform3D, left_pose: Trans
 	$Avatar/Head.transform = head_pose
 	$Avatar/LeftHand.transform = left_pose
 	$Avatar/RightHand.transform = right_pose
+
+
+func set_display_name(display_name: String) -> void:
+	var label := get_node_or_null("NameTag") as Label3D
+	if label == null:
+		label = Label3D.new()
+		label.name = "NameTag"
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.font_size = 48
+		label.pixel_size = 0.004
+		label.position.y = 2.15
+		add_child(label)
+	label.text = display_name if not display_name.is_empty() else "Explorer"
+	label.visible = not is_multiplayer_authority()

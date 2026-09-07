@@ -33,6 +33,7 @@ message Room {
   uint32 id = 1;
   string name = 2;
   uint32 player_count = 3;
+  string world_id = 4;
 }
 
 // A session changes every time a client enters a room, including rejoining it.
@@ -41,7 +42,7 @@ message Peer {
   uint32 session_id = 2;
 }
 
-message ClientRoomCreate { string name = 1; }
+message ClientRoomCreate { string name = 1; string world_id = 2; }
 message ClientRoomJoin { uint32 room_id = 1; }
 message ClientRoomLeave {}
 
@@ -68,7 +69,11 @@ message ServerRoomJoined {
 
 message ServerRoomLeft {}
 message ServerPeerJoined { Peer peer = 1; }
-message ServerPeerLeft { uint32 peer_id = 1; }
+message ServerPeerLeft {
+  uint32 peer_id = 1;
+  // Loss of signaling is not an instruction to close an established P2P link.
+  bool signaling_disconnected = 2;
+}
 
 message ServerRelay {
   uint32 sender_id = 1;

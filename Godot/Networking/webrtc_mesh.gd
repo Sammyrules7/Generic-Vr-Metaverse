@@ -12,6 +12,7 @@ var multiplayer_peer: WebRTCMultiplayerPeer
 var session_id: int
 # Peer IDs survive room changes; session IDs identify a particular membership.
 var peer_sessions: Dictionary[int, int] = {}
+var signaling_unavailable: Dictionary[int, bool] = {}
 # ICE callbacks can precede SDP processing. Keep candidates until the remote
 # description is applied; removing the entry also marks that peer as ready.
 var queued_candidates: Dictionary[int, Array] = {}
@@ -28,6 +29,7 @@ func close() -> void:
 		multiplayer_peer.close()
 	queued_candidates.clear()
 	peer_sessions.clear()
+	signaling_unavailable.clear()
 	multiplayer_peer = null
 
 
@@ -64,6 +66,12 @@ func remove_peer(peer_id: int) -> void:
 		multiplayer_peer.remove_peer(peer_id)
 	queued_candidates.erase(peer_id)
 	peer_sessions.erase(peer_id)
+	signaling_unavailable.erase(peer_id)
+
+
+func suspend_peer_signaling(peer_id: int) -> void:
+	# The data channel stays active, but the directory cannot deliver further ICE.
+	signaling_unavailable[peer_id] = true
 
 
 func _get_connection(peer_id: int) -> WebRTCPeerConnection:
@@ -110,7 +118,7 @@ func receive_relay(relay: Packets.ServerRelay) -> void:
 
 func _description_created(type: String, sdp: String, peer_id: int, peer_session: int) -> void:
 	# A callback from an old connection must not signal the replacement for that ID.
-	if peer_sessions.get(peer_id) != peer_session:
+	if signaling_unavailable.has(peer_id) or peer_sessions.get(peer_id) != peer_session:
 		return
 	var connection := _get_connection(peer_id)
 	if connection == null:
@@ -130,7 +138,7 @@ func _description_created(type: String, sdp: String, peer_id: int, peer_session:
 
 
 func _candidate_created(media: String, index: int, candidate: String, peer_id: int, peer_session: int) -> void:
-	if peer_sessions.get(peer_id) != peer_session or _get_connection(peer_id) == null:
+	if signaling_unavailable.has(peer_id) or peer_sessions.get(peer_id) != peer_session or _get_connection(peer_id) == null:
 		return
 	var packet := Packets.ClientPacket.new()
 	var relay = packet.new_relay()

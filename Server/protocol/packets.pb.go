@@ -367,6 +367,7 @@ type Room struct {
 	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	PlayerCount   uint32                 `protobuf:"varint,3,opt,name=player_count,json=playerCount,proto3" json:"player_count,omitempty"`
+	WorldId       string                 `protobuf:"bytes,4,opt,name=world_id,json=worldId,proto3" json:"world_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -420,6 +421,13 @@ func (x *Room) GetPlayerCount() uint32 {
 		return x.PlayerCount
 	}
 	return 0
+}
+
+func (x *Room) GetWorldId() string {
+	if x != nil {
+		return x.WorldId
+	}
+	return ""
 }
 
 // A session changes every time a client enters a room, including rejoining it.
@@ -478,6 +486,7 @@ func (x *Peer) GetSessionId() uint32 {
 type ClientRoomCreate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	WorldId       string                 `protobuf:"bytes,2,opt,name=world_id,json=worldId,proto3" json:"world_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -515,6 +524,13 @@ func (*ClientRoomCreate) Descriptor() ([]byte, []int) {
 func (x *ClientRoomCreate) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *ClientRoomCreate) GetWorldId() string {
+	if x != nil {
+		return x.WorldId
 	}
 	return ""
 }
@@ -1022,10 +1038,12 @@ func (x *ServerPeerJoined) GetPeer() *Peer {
 }
 
 type ServerPeerLeft struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PeerId        uint32                 `protobuf:"varint,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	PeerId uint32                 `protobuf:"varint,1,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	// Loss of signaling is not an instruction to close an established P2P link.
+	SignalingDisconnected bool `protobuf:"varint,2,opt,name=signaling_disconnected,json=signalingDisconnected,proto3" json:"signaling_disconnected,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ServerPeerLeft) Reset() {
@@ -1063,6 +1081,13 @@ func (x *ServerPeerLeft) GetPeerId() uint32 {
 		return x.PeerId
 	}
 	return 0
+}
+
+func (x *ServerPeerLeft) GetSignalingDisconnected() bool {
+	if x != nil {
+		return x.SignalingDisconnected
+	}
+	return false
 }
 
 type ServerRelay struct {
@@ -1359,17 +1384,19 @@ const file_packets_proto_rawDesc = "" +
 	" \x01(\v2\f.ServerErrorH\x00R\x05error\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\v \x01(\rR\trequestIdB\t\n" +
-	"\apayload\"M\n" +
+	"\apayload\"h\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
-	"\fplayer_count\x18\x03 \x01(\rR\vplayerCount\"5\n" +
+	"\fplayer_count\x18\x03 \x01(\rR\vplayerCount\x12\x19\n" +
+	"\bworld_id\x18\x04 \x01(\tR\aworldId\"5\n" +
 	"\x04Peer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\rR\tsessionId\"&\n" +
+	"session_id\x18\x02 \x01(\rR\tsessionId\"A\n" +
 	"\x10ClientRoomCreate\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\")\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
+	"\bworld_id\x18\x02 \x01(\tR\aworldId\")\n" +
 	"\x0eClientRoomJoin\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\rR\x06roomId\"\x11\n" +
 	"\x0fClientRoomLeave\"\x94\x02\n" +
@@ -1395,9 +1422,10 @@ const file_packets_proto_rawDesc = "" +
 	"session_id\x18\x03 \x01(\rR\tsessionId\"\x10\n" +
 	"\x0eServerRoomLeft\"-\n" +
 	"\x10ServerPeerJoined\x12\x19\n" +
-	"\x04peer\x18\x01 \x01(\v2\x05.PeerR\x04peer\")\n" +
+	"\x04peer\x18\x01 \x01(\v2\x05.PeerR\x04peer\"`\n" +
 	"\x0eServerPeerLeft\x12\x17\n" +
-	"\apeer_id\x18\x01 \x01(\rR\x06peerId\"\x8a\x02\n" +
+	"\apeer_id\x18\x01 \x01(\rR\x06peerId\x125\n" +
+	"\x16signaling_disconnected\x18\x02 \x01(\bR\x15signalingDisconnected\"\x8a\x02\n" +
 	"\vServerRelay\x12\x1b\n" +
 	"\tsender_id\x18\x01 \x01(\rR\bsenderId\x12=\n" +
 	"\vdescription\x18\x02 \x01(\v2\x19.WebRTCSessionDescriptionH\x00R\vdescription\x123\n" +

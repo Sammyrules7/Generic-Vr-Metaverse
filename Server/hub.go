@@ -51,7 +51,7 @@ func (h *Hub) removeClient(client *Client) {
 		fmt.Printf("Error could not find client %d in hub clients array upon removal.\n", client.id)
 		return
 	}
-	h.leaveRoom(client)
+	h.leaveRoom(client, true)
 	delete(h.clients, client.id)
 }
 
@@ -64,7 +64,7 @@ func (h *Hub) handle(client *Client, packet *protocol.ClientPacket) {
 	var reply *protocol.ServerPacket
 	switch payload := packet.Payload.(type) {
 	case *protocol.ClientPacket_RoomCreate:
-		reply = h.createRoom(client, payload.RoomCreate.Name)
+		reply = h.createRoom(client, payload.RoomCreate.Name, payload.RoomCreate.WorldId)
 	case *protocol.ClientPacket_RoomJoin:
 		reply = h.joinRoom(client, payload.RoomJoin.RoomId)
 	case *protocol.ClientPacket_RoomLeave:

@@ -77,8 +77,9 @@ func peerJoinedPacket(client *Client) *protocol.ServerPacket {
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_PeerJoined{PeerJoined: &protocol.ServerPeerJoined{Peer: &protocol.Peer{Id: client.id, SessionId: client.sessionID}}}}
 }
 
-func peerLeftPacket(id uint32) *protocol.ServerPacket {
-	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_PeerLeft{PeerLeft: &protocol.ServerPeerLeft{PeerId: id}}}
+func peerLeftPacket(id uint32, signalingDisconnected ...bool) *protocol.ServerPacket {
+	lostSignaling := len(signalingDisconnected) > 0 && signalingDisconnected[0]
+	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_PeerLeft{PeerLeft: &protocol.ServerPeerLeft{PeerId: id, SignalingDisconnected: lostSignaling}}}
 }
 
 func relayPacket(relay *protocol.ServerRelay) *protocol.ServerPacket {

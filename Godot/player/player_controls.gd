@@ -4,6 +4,7 @@ extends Node3D
 var body: CharacterBody3D
 # World-space desired movement, including stick magnitude. NetworkPlayer applies
 # speed, acceleration, gravity, and jumping identically for both input modes.
+var input_enabled := true
 var movement := Vector3.ZERO
 var jump_requested := false
 var head: Node3D

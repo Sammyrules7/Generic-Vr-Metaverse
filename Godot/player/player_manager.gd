@@ -22,6 +22,7 @@ func _ready() -> void:
 	room_networking.room_joined.connect(_room_joined)
 	room_networking.room_left.connect(_clear_players)
 	replication.player_announced.connect(_spawn_remote)
+	replication.name_received.connect(_set_player_name)
 	replication.player_removed.connect(_remove_remote)
 	replication.pose_received.connect(_apply_pose)
 	if room_networking.current_room != null:
@@ -36,6 +37,8 @@ func _exit_tree() -> void:
 
 func _room_joined(_room: roomClass) -> void:
 	_clear_players()
+	if get_parent().has_method("load_world"):
+		spawn_point = get_parent().load_world(_room.world_id)
 	var xr := XRServer.find_interface("OpenXR")
 	var use_vr: bool = xr != null and xr.is_initialized()
 	local_player = _spawn(multiplayer.get_unique_id(), use_vr, spawn_point.global_transform)
@@ -85,3 +88,9 @@ func _clear_players() -> void:
 	if is_instance_valid(players):
 		for player in players.get_children():
 			player.free()
+
+
+func _set_player_name(peer_id: int, display_name: String) -> void:
+	var player := players.get_node_or_null(str(peer_id)) as NetworkPlayer
+	if player != null:
+		player.set_display_name(display_name)
