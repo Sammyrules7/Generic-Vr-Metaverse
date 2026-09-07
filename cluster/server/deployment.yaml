@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  labels:
+    app.kubernetes.io/name: vr-platform-server
+    app.kubernetes.io/part-of: vr-platform
+spec:
+  # Room membership is held in memory, so keep one replica until shared state
+  # or session affinity is implemented.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vr-platform-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vr-platform-server
+        app.kubernetes.io/part-of: vr-platform
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: server
+          image: forgejo.maio-tech.com/sammy/generic-vr-platform-server:latest
+          imagePullPolicy: Always
+          ports:
+            - name: websocket
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: websocket
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: websocket
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true

@@ -1,0 +1,39 @@
+name: Build server container
+
+on:
+  push:
+    branches: [main, Multiplayer]
+    paths:
+      - Server/**
+      - .forgejo/workflows/Server-container.yaml
+  workflow_dispatch:
+
+env:
+  IMAGE: forgejo.maio-tech.com/sammy/generic-vr-platform-server
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: default
+    container:
+      image: docker.io/moby/buildkit:rootless
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Forgejo packages
+        env:
+          REGISTRY_USER: ${{ forgejo.actor }}
+          REGISTRY_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          mkdir -p "$HOME/.docker"
+          AUTH="$(printf '%s:%s' "$REGISTRY_USER" "$REGISTRY_TOKEN" | base64 | tr -d '\n')"
+          printf '{"auths":{"forgejo.maio-tech.com":{"auth":"%s"}}}\n' "$AUTH" > "$HOME/.docker/config.json"
+
+      - name: Build and push
+        run: |
+          buildctl-daemonless.sh build \
+            --frontend dockerfile.v0 \
+            --local context=Server \
+            --local dockerfile=Server \
+            --output "type=image,name=${IMAGE}:latest,${IMAGE}:${FORGEJO_SHA},push=true"
