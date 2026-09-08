@@ -1,10 +1,10 @@
 # Player movement
 
-Both player scenes compose a `CharacterBody3D`, an `Input` adapter, and a
-`Motor` node. `MovementInput` is the small shared adapter contract; there is no
-player inheritance hierarchy. The motor owns acceleration, braking, gravity,
-jumping, and `move_and_slide()`. Configure speed, acceleration, deceleration,
-and jump height on the scene's Motor node.
+`network_player.tscn` composes a `CharacterBody3D`, a device-specific controls
+adapter, and a `Motor` node. `MovementInput` is the small shared adapter
+contract; there is no player inheritance hierarchy. The motor owns
+acceleration, braking, gravity, jumping, and `move_and_slide()`. Configure
+speed, acceleration, deceleration, and jump height on the Motor node.
 
 Adapters sample before each motor step and supply a world-space horizontal
 movement vector (length 0–1) and a consumed-once jump request. A new device
@@ -32,11 +32,11 @@ godot --headless --editor --path Godot --import --quit
 godot --headless --path Godot --xr-mode off --script res://tests/movement_test.gd
 ```
 
-The suite instantiates both production player scenes and exercises real Jolt
-floor, wall, and ceiling collisions, acceleration, braking, diagonal speed,
-jump height and landing. Adapter checks cover desktop input/look and simulated
-XR tracker input/disconnection, pinch hysteresis, head-pivot turning, room-scale
-following, and one-shot jump consumption. It returns nonzero on failure.
+The suite exercises the production motor and both controls scripts against real
+Jolt floor collisions, including acceleration, braking, diagonal speed, jump
+height, and landing. Adapter checks cover desktop input/look, XR deadzones and
+stick direction, pinch hysteresis, head-pivot turning, room-scale following,
+and one-shot jump consumption. It returns nonzero on failure.
 
 Headless tests do not validate physical headset comfort or runtime tracking.
 On a headset, check stick directions, turn pivot with an offset head, room-scale

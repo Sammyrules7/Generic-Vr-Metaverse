@@ -44,6 +44,9 @@ jobs:
       - name: Run Headless Import
         run: godot --headless --editor --quit --path ${{ env.PROJECT_PATH }}
 
+      - name: Test player movement
+        run: godot --headless --path ${{ env.PROJECT_PATH }} --xr-mode off --script res://tests/movement_test.gd
+
       # --- LINUX BUILD ---
       - name: Build Linux Release
         run: |

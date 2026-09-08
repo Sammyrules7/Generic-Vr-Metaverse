@@ -1,6 +1,7 @@
 extends PlayerControls
 
-@export var camera_sensitivity := 1.75
+@export var mouse_sensitivity := 0.00175
+@export var look_speed := 1.75
 var mouse_captured := false
 
 
@@ -17,7 +18,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	mouse_captured = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	# Let UI buttons consume clicks before we decide to recapture the mouse.
 	if event is InputEventMouseMotion and mouse_captured:
-		_look(event.relative * 0.001)
+		apply_look(event.relative * mouse_sensitivity)
 	if event.is_action_pressed("exit"):
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		mouse_captured = false
@@ -31,9 +32,9 @@ func update(delta: float) -> void:
 		jump_requested = false
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_backwards")
-	movement = body.transform.basis * Vector3(input.x, 0, input.y)
+	movement = planar_direction(input, body.global_basis)
 	jump_requested = Input.is_action_just_pressed("jump")
-	_look(Input.get_vector("look_left", "look_right", "look_up", "look_down") * delta)
+	apply_look(Input.get_vector("look_left", "look_right", "look_up", "look_down") * look_speed * delta)
 
 
 func _capture_mouse() -> void:
@@ -41,6 +42,10 @@ func _capture_mouse() -> void:
 	mouse_captured = true
 
 
-func _look(amount: Vector2) -> void:
-	body.rotation.y -= amount.x * camera_sensitivity
-	head.rotation.x = clampf(head.rotation.x - amount.y * camera_sensitivity, -1.5, 1.5)
+func apply_look(radians: Vector2) -> void:
+	body.rotate_y(-radians.x)
+	head.rotation.x = clampf(head.rotation.x - radians.y, -1.5, 1.5)
+
+
+func _exit_tree() -> void:
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
