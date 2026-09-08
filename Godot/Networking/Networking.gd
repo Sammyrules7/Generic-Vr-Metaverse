@@ -3,15 +3,17 @@ extends Node
 # The autoload keeps transport alive across world changes. Room state and player
 # replication have separate owners so neither depends on the current scene.
 const Packets = preload("res://Networking/Generated/Packets.gd")
-const SERVER_URL := "ws://localhost:8080/ws"
+const SERVER_URL_SETTING := "network/signaling/server_url"
+const DEFAULT_SERVER_URL := "ws://localhost:8080/ws"
 
 signal signaling_connected
 signal signaling_disconnected
 signal network_error(reason: String)
 
 var ws := WebSocketPeer.new()
-# Mutable for isolated transport tests; production uses the build-time constant.
-var ws_url := SERVER_URL
+# Release CI embeds this setting; local development defaults to the local server.
+# Mutable so transport tests can use an isolated endpoint.
+var ws_url: String = _configured_server_url()
 var client_id := 0
 var room_networking: RoomNetworking
 var player_replication: PlayerReplication
@@ -19,6 +21,13 @@ var reconnect_at := 0
 var connect_deadline := 0
 var connection_message := "Connecting to the room server…"
 var last_disconnect_reason := ""
+
+
+func _configured_server_url() -> String:
+	var override_url := OS.get_environment("VR_PLATFORM_SERVER_URL").strip_edges()
+	if not override_url.is_empty():
+		return override_url
+	return ProjectSettings.get_setting(SERVER_URL_SETTING, DEFAULT_SERVER_URL)
 
 
 func _ready() -> void:

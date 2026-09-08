@@ -160,8 +160,19 @@ func TestQueueOverflowDisconnects(t *testing.T) {
 	hub.addClient(c) // The handshake fills the queue before a writer starts.
 	go readPump(c)
 	defer c.disconnect()
-	if c.sendPacket([]byte("overflow")) {
-		t.Fatal("full queue accepted a packet")
+	// Room replies and broadcasts enqueue while holding hub.mu. Exercise that
+	// production path: closing a slow socket must not reacquire the same lock.
+	finished := make(chan struct{})
+	go func() {
+		hub.handle(c, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomJoin{
+			RoomJoin: &protocol.ClientRoomJoin{RoomId: 999},
+		}})
+		close(finished)
+	}()
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("queue overflow blocked the hub")
 	}
 	select {
 	case <-c.closed:

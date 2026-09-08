@@ -96,6 +96,10 @@ JoinPublic={
 ]
 }
 
+[network]
+
+signaling/server_url="ws://localhost:8080/ws"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

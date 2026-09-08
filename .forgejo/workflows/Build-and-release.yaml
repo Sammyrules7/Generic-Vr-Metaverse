@@ -47,6 +47,11 @@ jobs:
       - name: Test player movement
         run: godot --headless --path ${{ env.PROJECT_PATH }} --xr-mode off --script res://tests/movement_test.gd
 
+      - name: Configure release signaling endpoint
+        env:
+          VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: godot --headless --xr-mode off --path ${{ env.PROJECT_PATH }} --script res://tools/configure_release.gd
+
       # --- LINUX BUILD ---
       - name: Build Linux Release
         run: |

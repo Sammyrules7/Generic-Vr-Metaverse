@@ -31,7 +31,10 @@ func initClient(wsConn *websocket.Conn) {
 }
 
 func readPump(client *Client) {
-	defer client.disconnect()
+	defer func() {
+		client.disconnect()
+		hub.removeClient(client)
+	}()
 	for {
 		messageType, packet, err := client.conn.ReadMessage()
 		if err != nil {
@@ -72,7 +75,6 @@ func (client *Client) disconnect() {
 	client.close.Do(func() {
 		close(client.closed)
 		client.conn.Close()
-		hub.removeClient(client)
 		fmt.Printf("Client %d exited\n", client.id)
 	})
 }

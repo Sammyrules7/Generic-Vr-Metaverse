@@ -106,11 +106,35 @@ editable. It retries every two seconds, with an eight-second connection/handshak
 timeout. In an active room, control-plane loss displays a notice in desktop or
 VR without opening the menu, pausing movement, or removing players. Existing
 P2P connections keep running; **Leave room** still works while offline.
-The server address is configured in
-`SERVER_URL` in `Godot/Networking/Networking.gd`, with no address field in the UI.
-Previously saved server-address preferences are ignored. For standalone headsets,
-set that constant to a reachable server address before building; `localhost`
-refers to the headset itself.
+The server address uses the project setting `network/signaling/server_url`, with
+no address field in the UI. Local development defaults to `ws://localhost:8080/ws`.
+Edit this setting in `Godot/project.godot` (or Godot's Project Settings), or override
+it for a single desktop/editor run without changing files:
+
+```sh
+VR_PLATFORM_SERVER_URL=ws://192.168.1.10:8080/ws godot --xr-mode off --path Godot
+```
+
+The environment variable takes precedence over the project setting. Previously
+saved server-address preferences are ignored.
+
+The Go server listens on `:8080` by default. To use another local port, run
+`VR_PLATFORM_LISTEN_ADDR=127.0.0.1:18080 go run .` from `Server`, then launch
+the client with `VR_PLATFORM_SERVER_URL=ws://127.0.0.1:18080/ws`.
+
+Set the Forgejo repository Actions variable `VR_PLATFORM_SERVER_URL` to your
+externally reachable WebSocket endpoint (including its path, normally `/ws`).
+Release CI embeds it into all platform exports and fails if it is missing,
+malformed, or uses a loopback address. For manual exports, run this first:
+
+```sh
+VR_PLATFORM_SERVER_URL=wss://your-server.example/ws godot --headless --xr-mode off --path Godot --script res://tools/configure_release.gd
+```
+
+This writes the endpoint to `Godot/project.godot`. Remove that setting to restore
+the localhost development default. Standalone headsets need a reachable address;
+`localhost` refers to the headset itself. External routing and TLS setup are
+described in [cluster/README.md](cluster/README.md).
 
 The server distinguishes signaling disconnection from explicit peer departure.
 Only explicit departure or the actual WebRTC transport disconnect removes a
