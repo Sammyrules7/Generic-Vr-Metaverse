@@ -8,6 +8,7 @@ spec:
       namespace: ingress
   hostnames:
     - api.vr.maio-tech.com
+    - vr-api-origin.svc.maio-tech.com
   rules:
     - matches:
         - path:

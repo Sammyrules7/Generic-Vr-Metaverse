@@ -1,5 +1,6 @@
 const APP_HOST = "app.vr.maio-tech.com";
 const HOME_HOST = "vr.maio-tech.com";
+const API_HOST = "api.vr.maio-tech.com";
 const PREVIEW_PREFIX = "/previews/";
 
 export default {
@@ -9,6 +10,10 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (url.hostname === API_HOST) {
+      const upstream = new URL(url.pathname + url.search, env.API_ORIGIN_URL);
+      return fetch(new Request(upstream, request));
+    }
     if (url.hostname === HOME_HOST) return Response.redirect(`https://${APP_HOST}/`, 302);
 
     try {

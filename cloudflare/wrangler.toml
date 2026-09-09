@@ -7,7 +7,9 @@ preview_urls = true
 routes = [
   { pattern = "app.vr.maio-tech.com", custom_domain = true },
   { pattern = "vr.maio-tech.com", custom_domain = true },
+  { pattern = "api.vr.maio-tech.com", custom_domain = true },
 ]
 
 [vars]
 ORIGIN_URL = "https://vr-builds-origin.svc.maio-tech.com"
+API_ORIGIN_URL = "https://vr-api-origin.svc.maio-tech.com"
