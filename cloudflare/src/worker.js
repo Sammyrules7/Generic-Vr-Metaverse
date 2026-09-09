@@ -1,0 +1,129 @@
+const APP_HOST = "app.vr.maio-tech.com";
+const HOME_HOST = "vr.maio-tech.com";
+const PREVIEW_PREFIX = "/previews/";
+
+export default {
+  async fetch(request, env, context) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+    }
+
+    const url = new URL(request.url);
+    if (url.hostname === HOME_HOST) return Response.redirect(`https://${APP_HOST}/`, 302);
+
+    try {
+      const target = await resolveTarget(url.pathname, env.ORIGIN_URL);
+      if (!target) return notFound();
+
+      const cache = caches.default;
+      const cacheKey = new Request(request.url, request);
+      const cacheable = target.preview && request.method === "GET" && !request.headers.has("range");
+      if (cacheable) {
+        const cached = await cache.match(cacheKey);
+        if (cached) return withBrowserRevalidation(cached);
+      }
+
+      const originResponse = await fetch(`${env.ORIGIN_URL}/${target.key}`, {
+        headers: copyOriginHeaders(request.headers),
+      });
+      if (!originResponse.ok) {
+        return originResponse.status === 404
+          ? notFound()
+          : new Response("Build origin unavailable", { status: 502 });
+      }
+
+      const headers = new Headers(originResponse.headers);
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set(
+        "Cache-Control",
+        target.preview
+          ? "public, max-age=0, must-revalidate"
+          : "public, max-age=0, must-revalidate",
+      );
+      const response = new Response(request.method === "HEAD" ? null : originResponse.body, {
+        status: originResponse.status,
+        headers,
+      });
+
+      if (cacheable && originResponse.status === 200) {
+        const cached = response.clone();
+        cached.headers.set("Cache-Control", "public, max-age=3600");
+        context.waitUntil(cache.put(cacheKey, cached));
+      }
+      return response;
+    } catch (error) {
+      console.error(error);
+      return new Response("Unable to load this web build", { status: 500 });
+    }
+  },
+};
+
+async function resolveTarget(pathname, origin) {
+  if (pathname.startsWith(PREVIEW_PREFIX)) {
+    const parts = pathname.slice(PREVIEW_PREFIX.length).split("/");
+    if (parts.length < 2) return null;
+    const branch = parts.shift();
+    const commit = parts.shift();
+    if (!isSlug(branch) || !isCommit(commit)) return null;
+
+    const activeCommit = await fetchPointer(origin, `branches/${branch}/commit.txt`);
+    if (activeCommit !== commit) return null;
+    return {
+      key: `branches/${branch}/assets/${normalizeAssetPath(parts.join("/"))}`,
+      preview: true,
+    };
+  }
+
+  const commit = await fetchPointer(origin, "channels/main/commit.txt");
+  if (!isCommit(commit)) return null;
+  return { key: `channels/main/assets/${normalizeAssetPath(pathname)}`, preview: false };
+}
+
+async function fetchPointer(origin, key) {
+  const response = await fetch(`${origin}/${key}`, {
+    cf: { cacheEverything: true, cacheTtl: 30 },
+  });
+  return response.ok ? (await response.text()).trim() : null;
+}
+
+function normalizeAssetPath(pathname) {
+  let path;
+  try {
+    path = decodeURIComponent(pathname).replace(/^\/+/, "");
+  } catch {
+    return "index.html";
+  }
+  if (!path || path.endsWith("/")) path += "index.html";
+  if (path.split("/").some((part) => part === ".." || part === ".")) return "index.html";
+  return path;
+}
+
+function copyOriginHeaders(headers) {
+  const copied = new Headers();
+  for (const name of ["range"]) {
+    const value = headers.get(name);
+    if (value) copied.set(name, value);
+  }
+  return copied;
+}
+
+function withBrowserRevalidation(response) {
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "public, max-age=0, must-revalidate");
+  return new Response(response.body, { status: response.status, headers });
+}
+
+function notFound() {
+  return new Response("Web build not found", {
+    status: 404,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+function isSlug(value) {
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value ?? "");
+}
+
+function isCommit(value) {
+  return /^[0-9a-f]{40}$/.test(value ?? "");
+}

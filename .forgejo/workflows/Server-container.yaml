@@ -5,6 +5,7 @@ on:
     branches: [main, Multiplayer]
     paths:
       - Server/**
+      - cluster/server/**
       - .forgejo/workflows/Server-container.yaml
   workflow_dispatch:
 

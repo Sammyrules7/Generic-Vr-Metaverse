@@ -4,3 +4,4 @@ namespace: vr-platform
 resources:
   - deployment.yaml
   - service.yaml
+  - httproute.yaml

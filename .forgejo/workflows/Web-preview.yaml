@@ -1,0 +1,121 @@
+name: Web preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to build (blank uses the selected ref)
+        required: false
+        type: string
+      publish_main:
+        description: Publish this build at app.vr.maio-tech.com
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PROJECT_PATH: Godot
+  EXPORT_DIR: ${{ github.workspace }}/build/web
+  GARAGE_BUCKET: vr-platform-web
+  GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
+  AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
+  AWS_DEFAULT_REGION: garage
+  CLOUDFLARE_ACCOUNT_ID: a92ab2f2ab0059485a5a45d61783b5da
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+jobs:
+  web-preview:
+    name: Build and publish web preview
+    runs-on: default
+    container:
+      image: barichello/godot-ci:4.7
+    steps:
+      - name: Install deployment tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends awscli ca-certificates nodejs npm
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          lfs: true
+
+      - name: Describe build
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.ref || github.ref_name }}
+          REQUESTED_MAIN: ${{ inputs.publish_main }}
+        run: |
+          commit="$(git rev-parse HEAD)"
+          branch="$REQUESTED_REF"
+          slug="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63)"
+          if [ -z "$slug" ]; then slug="commit"; fi
+          publish_main=false
+          if [ "$REQUESTED_MAIN" = "true" ] || [ "$branch" = "main" ]; then publish_main=true; fi
+          printf 'BUILD_COMMIT=%s\nBUILD_BRANCH=%s\nBUILD_SLUG=%s\nPUBLISH_MAIN=%s\n' "$commit" "$branch" "$slug" "$publish_main" >> "$GITHUB_ENV"
+
+      - name: Cache Godot imports
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PROJECT_PATH }}/.godot
+          key: godot-web-assets-${{ hashFiles('**/project.godot') }}
+          restore-keys: godot-web-assets-
+
+      - name: Import project
+        run: godot --headless --editor --quit --path "$PROJECT_PATH"
+
+      - name: Test player movement
+        run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/movement_test.gd
+
+      - name: Test server address configuration
+        run: godot --headless --xr-mode off --path "$PROJECT_PATH" res://Networking/tests/server_config_test.tscn
+
+      - name: Configure main signaling backend
+        env:
+          VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tools/configure_release.gd
+
+      - name: Export web client
+        run: |
+          mkdir -p "$EXPORT_DIR"
+          godot --headless --verbose --path "$PROJECT_PATH" --export-release "Web - Preview" "$EXPORT_DIR/index.html"
+          find "$EXPORT_DIR" -maxdepth 1 -type f -printf '%s %f\n' | sort -nr
+
+      - name: Replace branch build in Garage
+        shell: bash
+        run: |
+          prefix="s3://$GARAGE_BUCKET/branches/$BUILD_SLUG"
+          aws --endpoint-url "$GARAGE_ENDPOINT" s3 sync "$EXPORT_DIR/" "$prefix/assets/" --delete
+          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp "$EXPORT_DIR/" "$prefix/assets/" --recursive --exclude "*" --include "*.wasm" --content-type application/wasm
+          printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
+          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp /tmp/commit.txt "$prefix/commit.txt" --content-type text/plain --cache-control no-cache
+
+      - name: Publish main channel
+        if: env.PUBLISH_MAIN == 'true'
+        shell: bash
+        run: |
+          prefix="s3://$GARAGE_BUCKET/channels/main"
+          aws --endpoint-url "$GARAGE_ENDPOINT" s3 sync "$EXPORT_DIR/" "$prefix/assets/" --delete
+          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp "$EXPORT_DIR/" "$prefix/assets/" --recursive --exclude "*" --include "*.wasm" --content-type application/wasm
+          printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
+          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp /tmp/commit.txt "$prefix/commit.txt" --content-type text/plain --cache-control no-cache
+
+      - name: Deploy Cloudflare build router
+        working-directory: cloudflare
+        run: npx --yes wrangler@4 deploy
+
+      - name: Publish links
+        shell: bash
+        run: |
+          preview_url="https://app.vr.maio-tech.com/previews/$BUILD_SLUG/$BUILD_COMMIT/"
+          {
+            echo "## Web build published"
+            echo
+            echo "- Preview: $preview_url"
+            if [ "$PUBLISH_MAIN" = "true" ]; then echo "- Main: https://app.vr.maio-tech.com/"; fi
+            echo "- Backend: ${{ vars.VR_PLATFORM_SERVER_URL }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$preview_url"

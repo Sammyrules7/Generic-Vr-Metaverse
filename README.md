@@ -14,6 +14,39 @@ A vr metaverse platform built on top of Godot
 - On [SideQuest](https://sidequestvr.com/app/61045/)
 - [Latest ci build](https://forgejo.maio-tech.com/Sammy/Vr-Platform/actions/runs/latest)
 
+## Web builds
+
+Web clients are published on demand from Forgejo's **Web preview** workflow.
+Each build connects to the same signaling backend as the native releases and is
+addressed by its branch and commit:
+
+```text
+https://app.vr.maio-tech.com/previews/<branch>/<full-commit>/
+```
+
+Publishing the `main` channel also makes that build available at
+`https://app.vr.maio-tech.com/`. `https://vr.maio-tech.com/` redirects to the
+current main web build. Web artifacts live in the `vr-platform-web` Garage
+bucket and are served through the `vr-platform-web` Cloudflare Worker. The
+Worker supplies the public domains and edge caching while Garage avoids the
+25 MiB per-file limit imposed by Cloudflare static-asset deployments.
+
+Only the latest build for each branch is retained. Publishing that branch again
+atomically replaces its assets and commit marker, so its previous commit URL
+stops resolving. Deleting a branch triggers the **Remove deleted branch web
+preview** workflow. The main channel is stored separately and is never removed
+by branch cleanup.
+
+To publish, open **Actions**, choose **Web preview**, select **Run workflow**,
+and optionally enter another branch, tag, or commit. Enable **Publish main**
+only when that build should replace the public web client. A build requested for
+`main` publishes the main channel automatically. The repository needs the
+`GARAGE_ACCESS_KEY_ID`, `GARAGE_SECRET_ACCESS_KEY`, and
+`CLOUDFLARE_API_TOKEN` Actions secrets plus the existing
+`VR_PLATFORM_SERVER_URL` Actions variable.
+
+The production signaling endpoint is `wss://api.vr.maio-tech.com/ws`.
+
 ## Roadmap
 - [x] Implement Basic Setup with ci/cd
 - [ ] Implement Networking

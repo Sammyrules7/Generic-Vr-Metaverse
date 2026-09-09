@@ -39,7 +39,7 @@ func _room_joined(_room: roomClass) -> void:
 	_clear_players()
 	if get_parent().has_method("load_world"):
 		spawn_point = get_parent().load_world(_room.world_id)
-	var xr := XRServer.find_interface("OpenXR")
+	var xr := XRServer.primary_interface
 	var use_vr: bool = xr != null and xr.is_initialized()
 	local_player = _spawn(multiplayer.get_unique_id(), use_vr, spawn_point.global_transform)
 	replication.set_local_player(local_player)

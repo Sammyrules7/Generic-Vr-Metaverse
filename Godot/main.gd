@@ -12,38 +12,49 @@ var control_plane_notice: Label3D
 
 func _ready() -> void:
 	ui = $roomSelector
-	var xr := XRServer.find_interface("OpenXR")
-	xr_active = xr != null and (xr.is_initialized() or xr.initialize())
-	if xr_active:
-		get_viewport().use_xr = true
-		lobby_origin = XROrigin3D.new()
-		lobby_origin.name = "LobbyOrigin"
-		add_child(lobby_origin)
-		lobby_camera = XRCamera3D.new()
-		lobby_camera.position.y = 1.7
-		lobby_origin.add_child(lobby_camera)
-		for hand: String in ["left_hand", "right_hand"]:
-			var controller := XRController3D.new()
-			controller.tracker = hand
-			controller.pose = "grip"
-			lobby_origin.add_child(controller)
-			_attach_pointer(controller)
-		panel = load("res://UI/vr_panel.tscn").instantiate()
-		panel.name = "LobbyPanel"
-		panel.viewport_size = Vector2(1120, 800)
-		panel.screen_size = Vector2(2.24, 1.6)
-		panel.unshaded = true
-		add_child(panel)
-		ui.reparent(panel.get_node("Viewport"))
-		ui.vr_mode = true
-		panel.pointer_event.connect(ui.get_node("Navigation").pointer_event)
-		ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		_position_panel(lobby_camera)
+	$StartXR.xr_started.connect(_enable_xr_lobby)
+	$StartXR.xr_ended.connect(_disable_xr_lobby)
 	ui.menu_changed.connect(_menu_changed)
 	ui.control_plane_warning_changed.connect(_control_plane_warning_changed)
 	Networking.room_networking.room_joined.connect(_joined)
 	Networking.room_networking.room_left.connect(_left)
 	_menu_changed(true)
+
+
+func _enable_xr_lobby() -> void:
+	if xr_active:
+		return
+	xr_active = true
+	get_viewport().use_xr = true
+	lobby_origin = XROrigin3D.new()
+	lobby_origin.name = "LobbyOrigin"
+	add_child(lobby_origin)
+	lobby_camera = XRCamera3D.new()
+	lobby_camera.position.y = 1.7
+	lobby_origin.add_child(lobby_camera)
+	for hand: String in ["left_hand", "right_hand"]:
+		var controller := XRController3D.new()
+		controller.tracker = hand
+		controller.pose = "grip"
+		lobby_origin.add_child(controller)
+		_attach_pointer(controller)
+	panel = load("res://UI/vr_panel.tscn").instantiate()
+	panel.name = "LobbyPanel"
+	panel.viewport_size = Vector2(1120, 800)
+	panel.screen_size = Vector2(2.24, 1.6)
+	panel.unshaded = true
+	add_child(panel)
+	ui.reparent(panel.get_node("Viewport"))
+	ui.vr_mode = true
+	panel.pointer_event.connect(ui.get_node("Navigation").pointer_event)
+	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_position_panel(lobby_camera)
+	_menu_changed(ui.menu_open)
+
+
+func _disable_xr_lobby() -> void:
+	xr_active = false
+	get_viewport().use_xr = false
 
 
 func load_world(world_id: String) -> Marker3D:
