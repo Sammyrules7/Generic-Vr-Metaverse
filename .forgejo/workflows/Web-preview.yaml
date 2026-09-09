@@ -1,6 +1,9 @@
 name: Web preview
 
 on:
+  push:
+    branches:
+      - Multiplayer
   workflow_dispatch:
     inputs:
       ref:
