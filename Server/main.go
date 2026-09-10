@@ -4,12 +4,38 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
 
-var wsUpgrader = websocket.Upgrader{}
+var wsUpgrader = websocket.Upgrader{CheckOrigin: checkWebSocketOrigin}
+
+func checkWebSocketOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// Native Godot clients do not send a browser Origin header.
+		return true
+	}
+
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme != "https" {
+		return false
+	}
+
+	allowed := os.Getenv("VR_PLATFORM_ALLOWED_ORIGINS")
+	if allowed == "" {
+		allowed = "app.vr.maio-tech.com,vr.maio-tech.com"
+	}
+	for _, host := range strings.Split(allowed, ",") {
+		if strings.EqualFold(parsed.Hostname(), strings.TrimSpace(host)) {
+			return true
+		}
+	}
+	return false
+}
 
 func main() {
 

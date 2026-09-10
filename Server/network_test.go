@@ -32,6 +32,28 @@ func packets(t *testing.T, c *Client) []*protocol.ServerPacket {
 	return result
 }
 
+func TestWebSocketOriginPolicy(t *testing.T) {
+	t.Setenv("VR_PLATFORM_ALLOWED_ORIGINS", "app.vr.maio-tech.com")
+	for _, test := range []struct {
+		origin string
+		want   bool
+	}{
+		{"", true},
+		{"https://app.vr.maio-tech.com", true},
+		{"https://app.vr.maio-tech.com:443", true},
+		{"http://app.vr.maio-tech.com", false},
+		{"https://example.com", false},
+	} {
+		r := httptest.NewRequest(http.MethodGet, "http://internal/ws", nil)
+		if test.origin != "" {
+			r.Header.Set("Origin", test.origin)
+		}
+		if got := checkWebSocketOrigin(r); got != test.want {
+			t.Errorf("origin %q: got %v, want %v", test.origin, got, test.want)
+		}
+	}
+}
+
 func create(h *Hub, c *Client) {
 	h.handle(c, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomCreate{RoomCreate: &protocol.ClientRoomCreate{}}})
 }
