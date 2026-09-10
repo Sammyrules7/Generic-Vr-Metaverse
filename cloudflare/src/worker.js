@@ -17,6 +17,18 @@ export default {
     if (url.hostname === HOME_HOST) return Response.redirect(`https://${APP_HOST}/`, 302);
 
     try {
+      const branchRoot = url.pathname.match(/^\/previews\/([^/]+)\/?$/);
+      if (branchRoot) {
+        const branch = branchRoot[1];
+        if (!isSlug(branch)) return notFound();
+        const commit = await fetchPointer(env.ORIGIN_URL, `branches/${branch}/commit.txt`);
+        if (!isCommit(commit)) return notFound();
+        return Response.redirect(
+          `${url.origin}/previews/${branch}/${commit}/${url.search}`,
+          302,
+        );
+      }
+
       const target = await resolveTarget(url.pathname, env.ORIGIN_URL);
       if (!target) return notFound();
 
