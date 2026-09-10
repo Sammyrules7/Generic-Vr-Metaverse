@@ -115,7 +115,6 @@ jobs:
           aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp /tmp/commit.txt "$prefix/commit.txt" --content-type text/plain --cache-control no-cache
 
       - name: Deploy Cloudflare build router
-        working-directory: cloudflare
         run: npx --yes wrangler@4 deploy
 
       - name: Publish links
