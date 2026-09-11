@@ -5,7 +5,7 @@ extends PlayerControls
 @export var pinch_threshold := 0.02
 @export var release_threshold := 0.035
 
-var tracker: XRHandTracker
+var trackers: Dictionary[String, XRHandTracker]
 var pinching := false
 
 
@@ -19,8 +19,10 @@ func _ready() -> void:
 	$Origin/RightHand.button_pressed.connect(_button_pressed)
 	# XR Tools renders hand meshes as top-level nodes. Update them after the
 	# character motor so they include this tick's locomotion transform.
-	$Origin/LeftHand/LeftHand.process_physics_priority = 1
-	$Origin/RightHand/RightHand.process_physics_priority = 1
+	for path: NodePath in [^"Origin/LeftHand/LeftHand", ^"Origin/RightHand/RightHand"]:
+		var hand_mesh := get_node_or_null(path)
+		if hand_mesh != null:
+			hand_mesh.process_physics_priority = 1
 
 
 func update(delta: float) -> void:
@@ -65,18 +67,22 @@ func select_movement(stick: Vector2, hand_valid: bool, pinch_distance: float) ->
 
 
 func _hand_pinch() -> Vector2:
-	if tracker == null:
-		tracker = XRServer.get_tracker("/user/hand_tracker/left") as XRHandTracker
-	if tracker == null or not tracker.has_tracking_data:
-		return Vector2.ZERO
 	var thumb_joint := XRHandTracker.HAND_JOINT_THUMB_TIP
-	var index_joint := XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP
+	var middle_joint := XRHandTracker.HAND_JOINT_MIDDLE_FINGER_TIP
 	var valid_flag := XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID
-	if (tracker.get_hand_joint_flags(thumb_joint) & valid_flag) == 0 or (tracker.get_hand_joint_flags(index_joint) & valid_flag) == 0:
-		return Vector2.ZERO
-	var thumb := tracker.get_hand_joint_transform(thumb_joint).origin
-	var index := tracker.get_hand_joint_transform(index_joint).origin
-	return Vector2(1.0, thumb.distance_to(index))
+	var closest := INF
+	for hand: String in ["left", "right"]:
+		if not trackers.has(hand):
+			trackers[hand] = XRServer.get_tracker("/user/hand_tracker/" + hand) as XRHandTracker
+		var tracker := trackers[hand]
+		if tracker == null or not tracker.has_tracking_data:
+			continue
+		if (tracker.get_hand_joint_flags(thumb_joint) & valid_flag) == 0 or (tracker.get_hand_joint_flags(middle_joint) & valid_flag) == 0:
+			continue
+		var thumb := tracker.get_hand_joint_transform(thumb_joint).origin
+		var middle := tracker.get_hand_joint_transform(middle_joint).origin
+		closest = minf(closest, thumb.distance_to(middle))
+	return Vector2(1.0, closest) if closest < INF else Vector2.ZERO
 
 
 func rotate_around_head(angle: float) -> void:

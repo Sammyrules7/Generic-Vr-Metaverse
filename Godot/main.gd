@@ -125,6 +125,7 @@ func _attach_pointer(controller: XRController3D) -> void:
 	pointer.distance = 4.0
 	pointer.suppress_radius = 0.06
 	aim.add_child(pointer)
+	pointer.enabled = false
 	pointers.append(pointer)
 	controller.button_pressed.connect(_controller_button_pressed)
 
@@ -150,12 +151,22 @@ func _menu_changed(open: bool) -> void:
 	if xr_active:
 		panel.visible = open
 		panel.enabled = open
-		for pointer in pointers:
-			if is_instance_valid(pointer):
-				pointer.enabled = open and pointer.get_parent().get_is_active()
+		_update_pointers()
 		if open:
 			var camera: Node3D = player.controls.head if is_instance_valid(player) else lobby_camera
 			_position_panel(camera)
+
+
+func _update_pointers() -> void:
+	for index in range(pointers.size() - 1, -1, -1):
+		var pointer := pointers[index]
+		if not is_instance_valid(pointer):
+			pointers.remove_at(index)
+			continue
+		var controller := pointer.get_parent() as XRController3D
+		var in_lobby := controller.get_parent() == lobby_origin
+		var correct_rig := in_lobby == (Networking.room_networking.current_room == null)
+		pointer.enabled = ui.menu_open and panel.visible and correct_rig and controller.get_is_active()
 
 
 func _process(delta: float) -> void:
@@ -164,14 +175,9 @@ func _process(delta: float) -> void:
 	var stick := Vector2.ZERO
 	var point := Vector2(-1, -1)
 	var body = panel.get_node("StaticBody3D")
-	for index in range(pointers.size() - 1, -1, -1):
-		var pointer := pointers[index]
-		if not is_instance_valid(pointer):
-			pointers.remove_at(index)
-			continue
+	_update_pointers()
+	for pointer in pointers:
 		var controller := pointer.get_parent() as XRController3D
-		var in_lobby := controller.get_parent() == lobby_origin
-		pointer.enabled = ui.menu_open and controller.get_is_active() and (in_lobby == (Networking.room_networking.current_room == null))
 		var ray := pointer.get_node("RayCast") as RayCast3D
 		var input := controller.get_vector2("primary")
 		if pointer.enabled and ray.is_colliding() and ray.get_collider() == body and input.length_squared() > stick.length_squared():
