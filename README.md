@@ -30,6 +30,8 @@ current main web build. Web artifacts live in the `vr-platform-web` Garage
 bucket and are served through the `vr-platform-web` Cloudflare Worker. The
 Worker supplies the public domains and edge caching while Garage avoids the
 25 MiB per-file limit imposed by Cloudflare static-asset deployments.
+The Web preset uses Godot's threaded export, and the Worker adds the required
+`Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` response headers.
 
 Only the latest build for each branch is retained. Publishing that branch again
 atomically replaces its assets and commit marker, so its previous commit URL

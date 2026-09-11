@@ -39,6 +39,7 @@ export default {
 
       const headers = new Headers(originResponse.headers);
       headers.set("X-Content-Type-Options", "nosniff");
+      setCrossOriginIsolationHeaders(headers);
       headers.set(
         "Cache-Control",
         target.preview
@@ -120,7 +121,15 @@ function copyOriginHeaders(headers) {
 function withBrowserRevalidation(response) {
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", "public, max-age=0, must-revalidate");
+  setCrossOriginIsolationHeaders(headers);
   return new Response(response.body, { status: response.status, headers });
+}
+
+function setCrossOriginIsolationHeaders(headers) {
+  // SharedArrayBuffer, and therefore Godot's threaded Web export, is only
+  // available to pages served in a cross-origin isolated browsing context.
+  headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  headers.set("Cross-Origin-Embedder-Policy", "require-corp");
 }
 
 function notFound() {
