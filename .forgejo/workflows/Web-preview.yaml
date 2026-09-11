@@ -152,6 +152,9 @@ jobs:
       - name: Deploy Cloudflare build router
         run: wrangler deploy
 
+      - name: Deploy Cloudflare build router
+        run: npx --yes wrangler@4 deploy
+
       - name: Publish links
         shell: bash
         run: |
