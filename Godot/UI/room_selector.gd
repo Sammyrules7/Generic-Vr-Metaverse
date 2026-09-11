@@ -45,12 +45,14 @@ func _ready() -> void:
 	%LobbyInputDevice.item_selected.connect(_lobby_input_device_selected)
 	%LobbyVoiceVolume.value_changed.connect(_voice_volume_changed)
 	%OpenVoiceSettings.pressed.connect(func():
+		_request_microphone_permission()
 		_populate_input_devices()
 		_set_voice_settings_open(true)
 	)
 	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
 	Networking.voice_chat.local_speaking_changed.connect(_local_speaking_changed)
 	Networking.voice_chat.input_devices_changed.connect(func(_devices): _populate_input_devices())
+	Networking.voice_chat.input_ready_changed.connect(_microphone_ready_changed)
 	%DisplayName.focus_exited.connect(_remember_preferences)
 	%PreviousWorld.pressed.connect(func(): _step_world(-1))
 	%NextWorld.pressed.connect(func(): _step_world(1))
@@ -169,6 +171,8 @@ func _microphone_toggled(enabled: bool) -> void:
 	Networking.voice_chat.set_muted(not enabled)
 	PlayerProfile.save()
 	_local_speaking_changed(false)
+	if enabled:
+		_request_microphone_permission()
 
 
 func _push_to_talk_toggled(enabled: bool) -> void:
@@ -221,6 +225,24 @@ func _local_speaking_changed(active: bool) -> void:
 	%VoiceActivity.add_theme_color_override("font_color", Color("#72d69c") if active else Color("#a0bdd4"))
 
 
+func _request_microphone_permission() -> bool:
+	if not OS.has_feature("web") or not PlayerProfile.microphone_enabled:
+		return true
+	if Networking.voice_chat.is_input_ready():
+		return true
+	# A declined prompt disables voice but must never prevent joining a room.
+	if Networking.voice_chat.has_requested_input_permission():
+		return true
+	Networking.voice_chat.prepare_microphone()
+	_set_status("Choose microphone access, then press Create or Join again. You can continue if you decline.")
+	return false
+
+
+func _microphone_ready_changed(ready: bool) -> void:
+	if ready:
+		_set_status("Microphone ready. Press Create or Join again.")
+
+
 func _voice_volume_changed(value: float) -> void:
 	PlayerProfile.voice_volume = value / 100.0
 	%VoiceVolume.set_value_no_signal(value)
@@ -246,6 +268,11 @@ func _create_room() -> void:
 		_show_error("No world selected.")
 		return
 	if not _save_identity():
+		return
+	# WebXR must begin directly from a user gesture, while microphone permission
+	# can interrupt an active immersive session. Acquire permission on an earlier
+	# click, then let the player's next click start WebXR and create the room.
+	if not _request_microphone_permission():
 		return
 	var room_name: String = %RoomName.text.strip_edges()
 	if room_name.is_empty():
@@ -297,7 +324,7 @@ func _add_room(room: roomClass) -> void:
 	var element = ROOM_ELEMENT.instantiate()
 	element.room = room
 	element.join_requested.connect(func(room_id: int):
-		if _save_identity():
+		if _save_identity() and _request_microphone_permission():
 			_check_request(room_networking.join_room(room_id))
 	)
 	%roomList.add_child(element)

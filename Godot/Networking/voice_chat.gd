@@ -19,6 +19,7 @@ signal peer_speaking_changed(peer_id: int, active: bool)
 signal muted_changed(muted: bool)
 signal input_device_changed(device: String)
 signal input_devices_changed(devices: PackedStringArray)
+signal input_ready_changed(ready: bool)
 signal output_volume_changed(volume: float)
 
 var room_networking: RoomNetworking
@@ -43,6 +44,8 @@ var peer_anchors: Dictionary[int, Node3D] = {}
 var peer_activity_deadlines: Dictionary[int, int] = {}
 var local_speaking := false
 var silence_frames := 0
+var input_ready := false
+var input_permission_requested := false
 
 
 func _ready() -> void:
@@ -112,6 +115,14 @@ func refresh_input_devices() -> void:
 	input_devices_changed.emit(get_input_devices())
 
 
+func is_input_ready() -> bool:
+	return input_ready
+
+
+func has_requested_input_permission() -> bool:
+	return input_permission_requested
+
+
 func set_peer_anchor(peer_id: int, anchor: Node3D) -> void:
 	remove_peer_anchor(peer_id)
 	peer_anchors[peer_id] = anchor
@@ -123,8 +134,15 @@ func remove_peer_anchor(peer_id: int) -> void:
 
 
 func _start_voice(_room: roomClass) -> void:
+	prepare_microphone()
+
+
+func prepare_microphone() -> bool:
+	if DisplayServer.get_name() == "headless":
+		return false
+	input_permission_requested = true
 	if microphone != null:
-		return
+		return input_ready
 	if OS.has_feature("android"):
 		OS.request_permission("RECORD_AUDIO")
 	capture_bus = AudioServer.bus_count
@@ -146,6 +164,7 @@ func _start_voice(_room: roomClass) -> void:
 	# twice after the prompt so the menu gains the real device list without reload.
 	get_tree().create_timer(1.0).timeout.connect(refresh_input_devices)
 	get_tree().create_timer(3.0).timeout.connect(refresh_input_devices)
+	return input_ready
 
 
 func _stop_voice() -> void:
@@ -159,6 +178,9 @@ func _stop_voice() -> void:
 		AudioServer.remove_bus(capture_bus)
 	capture_bus = -1
 	capture = null
+	if input_ready:
+		input_ready = false
+		input_ready_changed.emit(false)
 	worker_mutex.lock()
 	voice_generation += 1
 	silence_frames = 0
@@ -170,6 +192,9 @@ func _stop_voice() -> void:
 
 
 func _process(_delta: float) -> void:
+	if capture != null and not input_ready and capture.get_frames_available() > 0:
+		input_ready = true
+		input_ready_changed.emit(true)
 	if capture != null and not muted:
 		# Bound work during a hitch: old speech is less useful than current speech.
 		while capture.get_frames_available() >= capture_frames:
