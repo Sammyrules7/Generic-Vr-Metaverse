@@ -13,7 +13,9 @@ static func read_registry(registry: WorldRegistry) -> Dictionary:
 		push_error("World registry could not be loaded: " + REGISTRY_PATH)
 		return entries
 	for world: WorldDefinition in registry.worlds:
-		if world == null or world.id.strip_edges().is_empty() or world.title.strip_edges().is_empty() or not FileAccess.file_exists(world.scene_path):
+		# Exported resources are remapped inside the .pck and may not pass an
+		# existence probe. The registry is the allowlist; loading reports errors.
+		if world == null or world.id.strip_edges().is_empty() or world.title.strip_edges().is_empty() or world.scene_path.is_empty():
 			push_warning("Skipping incomplete world registry entry.")
 			continue
 		if entries.has(world.id):
