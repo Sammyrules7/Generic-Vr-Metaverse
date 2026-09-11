@@ -17,18 +17,6 @@ export default {
     if (url.hostname === HOME_HOST) return Response.redirect(`https://${APP_HOST}/`, 302);
 
     try {
-      const branchRoot = url.pathname.match(/^\/previews\/([^/]+)\/?$/);
-      if (branchRoot) {
-        const branch = branchRoot[1];
-        if (!isSlug(branch)) return notFound();
-        const commit = await fetchPointer(env.ORIGIN_URL, `branches/${branch}/commit.txt`);
-        if (!isCommit(commit)) return notFound();
-        return Response.redirect(
-          `${url.origin}/previews/${branch}/${commit}/${url.search}`,
-          302,
-        );
-      }
-
       const target = await resolveTarget(url.pathname, env.ORIGIN_URL);
       if (!target) return notFound();
 
@@ -78,13 +66,18 @@ export default {
 async function resolveTarget(pathname, origin) {
   if (pathname.startsWith(PREVIEW_PREFIX)) {
     const parts = pathname.slice(PREVIEW_PREFIX.length).split("/");
-    if (parts.length < 2) return null;
     const branch = parts.shift();
-    const commit = parts.shift();
-    if (!isSlug(branch) || !isCommit(commit)) return null;
+    if (!isSlug(branch)) return null;
 
     const activeCommit = await fetchPointer(origin, `branches/${branch}/commit.txt`);
-    if (activeCommit !== commit) return null;
+    if (!isCommit(activeCommit)) return null;
+
+    // A 40-character second segment selects a specific commit. All other
+    // paths resolve directly against the branch's latest published assets.
+    if (isCommit(parts[0])) {
+      const commit = parts.shift();
+      if (activeCommit !== commit) return null;
+    }
     return {
       key: `branches/${branch}/assets/${normalizeAssetPath(parts.join("/"))}`,
       preview: true,
