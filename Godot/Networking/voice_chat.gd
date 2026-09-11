@@ -18,6 +18,7 @@ signal local_speaking_changed(active: bool)
 signal peer_speaking_changed(peer_id: int, active: bool)
 signal muted_changed(muted: bool)
 signal input_device_changed(device: String)
+signal input_devices_changed(devices: PackedStringArray)
 signal output_volume_changed(volume: float)
 
 var room_networking: RoomNetworking
@@ -107,6 +108,10 @@ func get_input_devices() -> PackedStringArray:
 	return AudioServer.get_input_device_list()
 
 
+func refresh_input_devices() -> void:
+	input_devices_changed.emit(get_input_devices())
+
+
 func set_peer_anchor(peer_id: int, anchor: Node3D) -> void:
 	remove_peer_anchor(peer_id)
 	peer_anchors[peer_id] = anchor
@@ -133,9 +138,14 @@ func _start_voice(_room: roomClass) -> void:
 	microphone = AudioStreamPlayer.new()
 	microphone.name = "Microphone"
 	microphone.stream = AudioStreamMicrophone.new()
+	microphone.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	microphone.bus = AudioServer.get_bus_name(capture_bus)
 	add_child(microphone)
 	microphone.play()
+	# Browsers hide device names until microphone permission is granted. Refresh
+	# twice after the prompt so the menu gains the real device list without reload.
+	get_tree().create_timer(1.0).timeout.connect(refresh_input_devices)
+	get_tree().create_timer(3.0).timeout.connect(refresh_input_devices)
 
 
 func _stop_voice() -> void:
@@ -277,6 +287,7 @@ func _push_audio(peer_id: int, frames: PackedVector2Array) -> void:
 		speaker = AudioStreamPlayer3D.new()
 		speaker.name = "Speaker%d" % peer_id
 		speaker.stream = stream
+		speaker.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 		speaker.volume_db = linear_to_db(output_volume)
 		speaker.unit_size = 2.0
 		speaker.max_distance = 40.0
