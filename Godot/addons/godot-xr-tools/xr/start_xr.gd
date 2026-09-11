@@ -238,8 +238,8 @@ func _on_webxr_session_supported(session_mode: String, supported: bool) -> void:
 		xr_failed_to_initialize.emit()
 		return
 
-	# WebXR supported - show canvas on web browser to enter WebVR
-	$EnterWebXR.visible = true
+	# WebXR is entered from the room screen's create action, preserving the
+	# browser-required user gesture without a second overlay button.
 
 
 # Called when the WebXR session has started successfully
@@ -249,8 +249,7 @@ func _on_webxr_session_started() -> void:
 	# Set the XR frame rate
 	_set_xr_frame_rate()
 
-	# Hide the canvas and switch the viewport to XR
-	$EnterWebXR.visible = false
+	# Switch the viewport to XR
 	get_xr_viewport().transparent_bg = enable_passthrough
 	get_xr_viewport().use_xr = true
 
@@ -263,8 +262,7 @@ func _on_webxr_session_started() -> void:
 func _on_webxr_session_ended() -> void:
 	print("WebXR: Session ended")
 
-	# Show the canvas and switch the viewport to non-XR
-	$EnterWebXR.visible = true
+	# Switch the viewport to non-XR
 	get_xr_viewport().transparent_bg = false
 	get_xr_viewport().use_xr = false
 
@@ -276,11 +274,12 @@ func _on_webxr_session_ended() -> void:
 # Called when the immersive VR session fails to start
 func _on_webxr_session_failed(message: String) -> void:
 	OS.alert("Unable to enter VR: " + message)
-	$EnterWebXR.visible = true
 
 
-# Handle the Enter VR button on the WebXR browser
-func _on_enter_webxr_button_pressed() -> void:
+## Starts WebXR from an application-owned user gesture.
+func start_webxr() -> void:
+	if not xr_interface is WebXRInterface or xr_interface.is_initialized():
+		return
 	# Configure the WebXR interface
 	xr_interface.session_mode = 'immersive-ar' if enable_passthrough else 'immersive-vr'
 	xr_interface.requested_reference_space_types = 'bounded-floor, local-floor, local'

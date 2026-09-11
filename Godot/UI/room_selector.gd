@@ -2,6 +2,7 @@ extends Control
 
 signal menu_changed(open: bool)
 signal control_plane_warning_changed(message: String)
+signal xr_requested
 
 const ROOM_ELEMENT := preload("res://UI/room_element.tscn")
 var room_networking: RoomNetworking
@@ -16,6 +17,8 @@ var control_plane_warning := ""
 
 func _ready() -> void:
 	_apply_theme()
+	get_viewport().size_changed.connect(_fit_ui)
+	_fit_ui()
 	PlayerProfile.restore()
 	%DisplayName.text = PlayerProfile.display_name
 	%DisplayName.focus_exited.connect(_remember_preferences)
@@ -85,6 +88,13 @@ func _apply_theme() -> void:
 	%WorldPreviewFrame.add_theme_stylebox_override("panel", preview_frame)
 
 
+func _fit_ui() -> void:
+	# Keep the full lobby visible in narrow Quest browser windows while retaining
+	# the authored size in the fixed-resolution in-headset viewport.
+	var available := get_viewport_rect().size
+	theme.default_base_scale = clampf(minf(available.x / 1120.0, available.y / 800.0), 0.65, 1.0)
+
+
 func _select_world(id: String) -> void:
 	var ids := WorldCatalog.WORLDS.keys()
 	%PreviousWorld.disabled = ids.size() <= 1
@@ -146,6 +156,10 @@ func _create_room() -> void:
 	if room_name.to_utf8_buffer().size() > 48:
 		_show_error("Please shorten the room name; emoji and some letters use more of the limit.")
 		return
+	%CreateRoom.text = "Creating room…"
+	%CreateRoom.disabled = true
+	# WebXR initialization must happen directly inside a user gesture.
+	xr_requested.emit()
 	_check_request(room_networking.create_room(room_name, PlayerProfile.world_id))
 
 
@@ -245,6 +259,7 @@ func _input(event: InputEvent) -> void:
 func _check_request(result: Error) -> void:
 	if result != OK:
 		_show_error(error_string(result))
+		_update_controls()
 
 
 func _operation_started(operation: RoomNetworking.Operation) -> void:
@@ -267,6 +282,7 @@ func _available() -> bool:
 
 func _update_controls() -> void:
 	var available := _available()
+	%CreateRoom.text = "Creating room…" if room_networking.pending_operation == RoomNetworking.Operation.CREATE else "Create room"
 	%Connection.visible = not room_networking.connected
 	%Connection.text = Networking.connection_message
 	%Connection.add_theme_color_override("font_color", Color("#a0bdd4") if room_networking.connected else Color("#f5bc79"))

@@ -48,7 +48,7 @@ func _run() -> void:
 	var custom_world := WorldDefinition.new()
 	custom_world.id = "custom_world"
 	custom_world.title = "Custom world"
-	custom_world.scene = registry.worlds[0].scene
+	custom_world.scene_path = registry.worlds[0].scene_path
 	custom_registry.worlds.append(custom_world)
 	var custom_lookup := WorldCatalog.read_registry(custom_registry)
 	check(custom_lookup.has("custom_world") and custom_lookup.custom_world.preview == null, "Custom world without a preview should be usable")
@@ -114,7 +114,7 @@ func _run() -> void:
 	game.add_child(pointer)
 	var target: Node3D = panel.get_node("StaticBody3D")
 	var center: Vector2 = ui.get_node("%DisplayName").get_global_rect().get_center()
-	var point: Vector3 = panel.to_global(Vector3((center.x / 1120.0 - 0.5) * 2.24, (0.5 - center.y / 800.0) * 1.6, 0))
+	var point: Vector3 = panel.to_global(Vector3((center.x / 1120.0 - 0.5) * panel.screen_size.x, (0.5 - center.y / 800.0) * panel.screen_size.y, 0))
 	XRToolsPointerEvent.entered(pointer, target, point)
 	XRToolsPointerEvent.pressed(pointer, target, point)
 	XRToolsPointerEvent.released(pointer, target, point)
@@ -126,14 +126,20 @@ func _run() -> void:
 	ui._type_key("y")
 	check(ui.get_node("%DisplayName").text == "xy", "VR keyboard kept a stale selection")
 	check(ui.get_node("%Keyboard").visible, "VR keyboard did not open")
+	state.current_room = roomClass.new(20, "Menu test", 1)
+	ui.set_menu_open(false)
+	game._controller_button_pressed("menu_button")
+	check(ui.menu_open, "Controller menu button did not open the room menu")
+	state.current_room = null
+	ui.set_menu_open(true)
 	await _capture("/tmp/lobby-keyboard.png")
 	ui._set_keyboard_visible(false)
 	# The same allowlisted scene must load for every room member.
-	var spawn: Marker3D = game.load_world("moon_garden")
+	var spawn: Marker3D = await game.load_world("moon_garden")
 	check(spawn.get_parent().name == "World" and game.get_node("World/Floor") != null, "World choice did not load")
-	spawn = game.load_world("starlight_observatory")
+	spawn = await game.load_world("starlight_observatory")
 	check(spawn.get_parent().name == "World" and game.get_node("World/StarGlobe") != null, "Starlight Observatory did not load from the registry")
-	spawn = game.load_world("moonlit_grotto")
+	spawn = await game.load_world("moonlit_grotto")
 	check(spawn.get_parent().name == "World" and game.get_node("World/Waterfall curtain") != null, "Moonlit Grotto did not load from the registry")
 	# Mid-operation disconnect must clear pending actions and preserve entered fields.
 	ui.get_node("%CreateRoom").pressed.emit()

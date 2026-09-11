@@ -12,6 +12,7 @@ var control_plane_notice: Label3D
 
 func _ready() -> void:
 	ui = $roomSelector
+	ui.xr_requested.connect($StartXR.start_webxr)
 	$StartXR.xr_started.connect(_enable_xr_lobby)
 	$StartXR.xr_ended.connect(_disable_xr_lobby)
 	ui.menu_changed.connect(_menu_changed)
@@ -41,11 +42,12 @@ func _enable_xr_lobby() -> void:
 	panel = load("res://UI/vr_panel.tscn").instantiate()
 	panel.name = "LobbyPanel"
 	panel.viewport_size = Vector2(1120, 800)
-	panel.screen_size = Vector2(2.24, 1.6)
+	panel.screen_size = Vector2(1.4, 1.0)
 	panel.unshaded = true
 	add_child(panel)
 	ui.reparent(panel.get_node("Viewport"))
 	ui.vr_mode = true
+	ui._fit_ui()
 	panel.pointer_event.connect(ui.get_node("Navigation").pointer_event)
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_position_panel(lobby_camera)
@@ -60,16 +62,34 @@ func _disable_xr_lobby() -> void:
 func load_world(world_id: String) -> Marker3D:
 	# Room IDs resolve only to bundled scenes, never to arbitrary network paths.
 	var id := world_id if WorldCatalog.WORLDS.has(world_id) else "floating_island"
+	var path: String = WorldCatalog.WORLDS[id].scene_path
+	var error := ResourceLoader.load_threaded_request(path)
+	if error != OK:
+		push_error("Could not start loading world: " + path)
+		return null
+	var status := ResourceLoader.load_threaded_get_status(path)
+	while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		await get_tree().process_frame
+		status = ResourceLoader.load_threaded_get_status(path)
+	if status != ResourceLoader.THREAD_LOAD_LOADED:
+		push_error("Could not load world: " + path)
+		return null
+	var packed := ResourceLoader.load_threaded_get(path) as PackedScene
+	if packed == null:
+		push_error("Could not load world: " + path)
+		return null
 	var old_world := get_node_or_null("World")
 	if old_world != null:
 		old_world.free()
-	var world: Node3D = WorldCatalog.WORLDS[id].scene.instantiate()
+	var world: Node3D = packed.instantiate()
 	world.name = "World"
 	add_child(world)
 	return world.get_node("SpawnPoint")
 
 
 func _joined(_room: roomClass) -> void:
+	if $PlayerManager.local_player == null:
+		await $PlayerManager.local_player_spawned
 	if xr_active:
 		lobby_origin.current = false
 		lobby_camera.current = false
@@ -93,13 +113,25 @@ func _left() -> void:
 
 
 func _attach_pointer(controller: XRController3D) -> void:
+	# Grip poses are appropriate for hand meshes, but their axes and origin are
+	# not the pointing ray (especially with optical hand tracking).
+	var aim := XRController3D.new()
+	aim.name = controller.name + "Aim"
+	aim.tracker = controller.tracker
+	aim.pose = "aim"
+	controller.get_parent().add_child(aim)
 	var pointer: Node3D = POINTER.instantiate()
-	controller.add_child(pointer)
+	pointer.hand_offset_mode = 4
+	pointer.distance = 4.0
+	pointer.suppress_radius = 0.06
+	aim.add_child(pointer)
 	pointers.append(pointer)
-	controller.button_pressed.connect(func(action: String):
-		if action in ["by_button", "menu_button"] and Networking.room_networking.current_room != null:
-			ui.set_menu_open(not ui.menu_open)
-	)
+	controller.button_pressed.connect(_controller_button_pressed)
+
+
+func _controller_button_pressed(action: String) -> void:
+	if action in ["menu_button", "select_button", "by_button"] and Networking.room_networking.current_room != null:
+		ui.set_menu_open(not ui.menu_open)
 
 
 func _position_panel(camera: Node3D) -> void:
@@ -107,7 +139,7 @@ func _position_panel(camera: Node3D) -> void:
 	forward.y = 0
 	if forward.length_squared() < 0.001:
 		forward = Vector3.FORWARD
-	panel.global_position = camera.global_position + forward.normalized() * 2.0
+	panel.global_position = camera.global_position + forward.normalized() * 1.25
 	panel.look_at(panel.global_position + forward.normalized(), Vector3.UP)
 
 

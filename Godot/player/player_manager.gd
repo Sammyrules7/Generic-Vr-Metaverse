@@ -1,6 +1,8 @@
 class_name PlayerManager
 extends Node
 
+signal local_player_spawned
+
 # The world owns player instances and spawn locations. The persistent replication
 # endpoint owns RPCs, so packets can still arrive safely after this scene is freed.
 const PLAYER_SCENE = preload("res://player/network_player.tscn")
@@ -38,11 +40,14 @@ func _exit_tree() -> void:
 func _room_joined(_room: roomClass) -> void:
 	_clear_players()
 	if get_parent().has_method("load_world"):
-		spawn_point = get_parent().load_world(_room.world_id)
+		spawn_point = await get_parent().load_world(_room.world_id)
+	if spawn_point == null:
+		return
 	var xr := XRServer.primary_interface
 	var use_vr: bool = xr != null and xr.is_initialized()
 	local_player = _spawn(multiplayer.get_unique_id(), use_vr, spawn_point.global_transform)
 	replication.set_local_player(local_player)
+	local_player_spawned.emit()
 
 
 func _spawn(peer_id: int, use_vr: bool, initial_pose: Transform3D) -> NetworkPlayer:

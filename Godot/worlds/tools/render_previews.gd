@@ -20,7 +20,7 @@ func _render() -> void:
 		viewport.own_world_3d = true
 		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		add_child(viewport)
-		var world: Node3D = WorldCatalog.WORLDS[id].scene.instantiate()
+		var world: Node3D = load(WorldCatalog.WORLDS[id].scene_path).instantiate()
 		viewport.add_child(world)
 		var camera := Camera3D.new()
 		viewport.add_child(camera)

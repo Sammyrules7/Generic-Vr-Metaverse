@@ -17,6 +17,10 @@ func _ready() -> void:
 	get_viewport().use_xr = true
 	$Origin/HMDView.current = true
 	$Origin/RightHand.button_pressed.connect(_button_pressed)
+	# XR Tools renders hand meshes as top-level nodes. Update them after the
+	# character motor so they include this tick's locomotion transform.
+	$Origin/LeftHand/LeftHand.process_physics_priority = 1
+	$Origin/RightHand/RightHand.process_physics_priority = 1
 
 
 func update(delta: float) -> void:

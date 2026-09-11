@@ -69,7 +69,7 @@ The production signaling endpoint is `wss://api.vr.maio-tech.com/ws`.
   with a lagoon, quartz shrine, and glowcap mushrooms.
 - [Starlight Observatory](Godot/worlds/starlight_observatory/README.md): a moonlit social terrace
   with an interactive star globe. Open `Godot/worlds/starlight_observatory/preview.tscn` and press
-  **F6** to explore offline, or use `Godot/MainObservatory.tscn` with the room service.
+  **F6** to explore offline, or select it from the room screen.
 
 ## Networking checks
 
@@ -92,8 +92,9 @@ Room commands return `OK`, `ERR_BUSY`, or `ERR_UNAVAILABLE`. Accepted commands e
 Request IDs associate replies with commands. A ten-second timeout reconnects the
 signaling socket so an ambiguous operation cannot leave the client out of sync.
 
-`Main.tscn` owns `PlayerManager`, with direct references to its player container
-and spawn point. It spawns players on room entry and removes them on room exit.
+`Main.tscn` owns `PlayerManager`, with a direct reference to its player container.
+It loads the selected world in the background, then spawns players at that world's
+spawn point on room entry and removes them on room exit.
 Recreating the manager in an active room requests the existing peers' players.
 `PlayerReplication` is a small persistent RPC endpoint under `Networking`; it
 survives scene changes so late packets never target a freed player manager.
