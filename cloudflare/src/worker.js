@@ -10,6 +10,13 @@ export default {
     }
 
     const url = new URL(request.url);
+    const canonicalPreviewPath = url.hostname === APP_HOST
+      ? getCanonicalPreviewPath(url.pathname)
+      : null;
+    if (canonicalPreviewPath) {
+      url.pathname = canonicalPreviewPath;
+      return Response.redirect(url.toString(), 308);
+    }
     if (url.hostname === API_HOST) {
       const upstream = new URL(url.pathname + url.search, env.API_ORIGIN_URL);
       return fetch(new Request(upstream, request));
@@ -75,6 +82,20 @@ export default {
     }
   },
 };
+
+function getCanonicalPreviewPath(pathname) {
+  if (!pathname.startsWith(PREVIEW_PREFIX) || pathname.endsWith("/")) return null;
+
+  const parts = pathname.slice(PREVIEW_PREFIX.length).split("/");
+  if (!isSlug(parts[0])) return null;
+
+  // These are directory-style entry points. Without the slash, browsers resolve
+  // Godot's relative .wasm/.pck URLs from the parent preview directory.
+  if (parts.length === 1 || (parts.length === 2 && isCommit(parts[1]))) {
+    return `${pathname}/`;
+  }
+  return null;
+}
 
 async function resolveTarget(pathname, origin) {
   const parts = pathname.replace(/^\/+/, "").split("/");
