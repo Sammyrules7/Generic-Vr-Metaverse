@@ -63,15 +63,17 @@
         ndkVersions = [ "28.1.13356709" ];
       }).androidsdk;
 
-      godotTools = baseTools ++ (with pkgs; [
-        androidSdk
+      godotWebTools = baseTools ++ (with pkgs; [
         awscli2
-        butler
         fontconfig
         godot_4
         godot-export-templates-bin
-        jdk17
         wrangler
+      ]);
+
+      godotReleaseTools = godotWebTools ++ (with pkgs; [
+        androidSdk
+        jdk17
       ]);
 
       mkResolvedImage = { name, root, env ? [ ], entrypoint ? [ "/bin/bash" ] }:
@@ -87,13 +89,23 @@
 
       godotCiImage = mkResolvedImage {
         name = "vr-platform-godot-ci";
-        root = mkImageRoot "vr-platform-godot-ci-root" godotTools;
+        root = mkImageRoot "vr-platform-godot-ci-root" godotReleaseTools;
         env = [
           "ANDROID_HOME=${androidSdk}/libexec/android-sdk"
           "ANDROID_SDK_ROOT=${androidSdk}/libexec/android-sdk"
           "GODOT4_CONFIG_DIR=/tmp/godot-config"
           "GODOT4_DATA_DIR=/share/godot"
           "JAVA_HOME=${pkgs.jdk17}"
+          "PATH=/bin"
+        ];
+      };
+
+      godotWebCiImage = mkResolvedImage {
+        name = "vr-platform-godot-web-ci";
+        root = mkImageRoot "vr-platform-godot-web-ci-root" godotWebTools;
+        env = [
+          "GODOT4_CONFIG_DIR=/tmp/godot-config"
+          "GODOT4_DATA_DIR=/share/godot"
           "PATH=/bin"
         ];
       };
@@ -142,6 +154,7 @@
         server = server;
         server-image = serverImage;
         godot-ci-image = godotCiImage;
+        godot-web-ci-image = godotWebCiImage;
         publish-ci-image = publishCiImage;
         cleanup-ci-image = cleanupCiImage;
         builder-ci-image = builderCiImage;
@@ -152,6 +165,7 @@
         server = server;
         server-image = serverImage;
         godot-ci-image = godotCiImage;
+        godot-web-ci-image = godotWebCiImage;
         publish-ci-image = publishCiImage;
         cleanup-ci-image = cleanupCiImage;
         builder-ci-image = builderCiImage;
