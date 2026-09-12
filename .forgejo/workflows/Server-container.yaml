@@ -14,6 +14,7 @@ on:
 env:
   IMAGE: forgejo.maio-tech.com/sammy/generic-vr-platform-server
   HOME: /tmp/ci-home
+  XDG_CONFIG_HOME: /tmp/ci-home/.config
 
 jobs:
   publish:
@@ -48,6 +49,7 @@ jobs:
           rm -rf /homeless-shelter
 
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
+          rm -rf /homeless-shelter
           IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
           nix run .#attic-client -- push "$ATTIC_CACHE" "$IMAGE_PATH"
 
