@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - Multiplayer
+    paths:
+      - Godot/**
+      - .forgejo/workflows/Web-preview.yaml
   workflow_dispatch:
     inputs:
       ref:

@@ -13,9 +13,6 @@ on:
 
 env:
   IMAGE: forgejo.maio-tech.com/sammy/generic-vr-platform-server
-  HOME: /tmp/ci-home
-  XDG_CONFIG_HOME: /tmp/ci-home/.config
-  NIX_CONFIG: max-jobs = 1
 
 jobs:
   publish:
@@ -29,6 +26,8 @@ jobs:
 
       - name: Install Nix
         uses: https://github.com/cachix/install-nix-action@v31
+        with:
+          extra_nix_config: sandbox = true
 
       - name: Authenticate to Forgejo packages
         env:
@@ -45,12 +44,7 @@ jobs:
           ATTIC_CACHE: ${{ vars.ATTIC_CACHE }}
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
-          # The runner image uses this as root's passwd home. Nix requires the
-          # placeholder not to exist when Kubernetes cannot provide build sandboxes.
-          rm -rf /homeless-shelter
-
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
-          rm -rf /homeless-shelter
           IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
           nix run .#attic-client -- push "$ATTIC_CACHE" "$IMAGE_PATH"
 
