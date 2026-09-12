@@ -36,7 +36,7 @@ jobs:
     runs-on: default
     container:
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/8xpi66lj6spcgb9yfrx6k5j7b4chqa74-nix-image-vr-platform-godot-web-ci.tar
+      image: nix:0/nix/store/izvz5xqp48lpnnrm0fprkib17kkxkbp8-nix-image-vr-platform-godot-web-ci.tar
     steps:
       - name: Checkout
         uses: actions/checkout@v4

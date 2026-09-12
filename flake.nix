@@ -54,28 +54,6 @@
         zstd
       ];
 
-      # Godot's Gradle export expects a conventional Android SDK directory.
-      androidSdk = (pkgs.androidenv.composeAndroidPackages {
-        platformVersions = [ "35" ];
-        buildToolsVersions = [ "35.0.1" ];
-        includeCmake = false;
-        includeNDK = true;
-        ndkVersions = [ "28.1.13356709" ];
-      }).androidsdk;
-
-      godotWebTools = baseTools ++ (with pkgs; [
-        awscli2
-        fontconfig
-        godot_4
-        godot-export-templates-bin
-        wrangler
-      ]);
-
-      godotReleaseTools = godotWebTools ++ (with pkgs; [
-        androidSdk
-        jdk17
-      ]);
-
       mkResolvedImage = { name, root, env ? [ ], entrypoint ? [ "/bin/bash" ] }:
         pkgs.nix-snapshotter.buildImage {
           inherit name;
@@ -87,28 +65,9 @@
           };
         };
 
-      godotCiImage = mkResolvedImage {
-        name = "vr-platform-godot-ci";
-        root = mkImageRoot "vr-platform-godot-ci-root" godotReleaseTools;
-        env = [
-          "ANDROID_HOME=${androidSdk}/libexec/android-sdk"
-          "ANDROID_SDK_ROOT=${androidSdk}/libexec/android-sdk"
-          "GODOT4_CONFIG_DIR=/tmp/godot-config"
-          "GODOT4_DATA_DIR=/share/godot"
-          "JAVA_HOME=${pkgs.jdk17}"
-          "PATH=/bin"
-        ];
-      };
-
-      godotWebCiImage = mkResolvedImage {
-        name = "vr-platform-godot-web-ci";
-        root = mkImageRoot "vr-platform-godot-web-ci-root" godotWebTools;
-        env = [
-          "GODOT4_CONFIG_DIR=/tmp/godot-config"
-          "GODOT4_DATA_DIR=/share/godot"
-          "PATH=/bin"
-        ];
-      };
+      imageArgs = { inherit pkgs baseTools mkImageRoot mkResolvedImage; };
+      godotCiImage = import ./nix/images/godot-release-ci.nix imageArgs;
+      godotWebCiImage = import ./nix/images/godot-web-ci.nix imageArgs;
 
       publishCiImage = mkResolvedImage {
         name = "vr-platform-publish-ci";
