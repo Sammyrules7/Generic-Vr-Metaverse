@@ -16,14 +16,8 @@ jobs:
     name: Remove branch preview
     runs-on: default
     container:
-      image: debian:stable-slim
+      image: nix:0/nix/store/jhzz91cz00csvi3qmav99kjbklpxwgij-nix-image-vr-platform-cleanup-ci.tar
     steps:
-      - name: Install Garage client
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends awscli ca-certificates
-          rm -rf /var/lib/apt/lists/*
-
       - name: Remove branch build
         shell: bash
         env:

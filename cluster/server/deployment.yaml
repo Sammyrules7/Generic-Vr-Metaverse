@@ -26,8 +26,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: server
-          image: forgejo.maio-tech.com/sammy/generic-vr-platform-server:latest
-          imagePullPolicy: Always
+          image: nix:0/nix/store/yj27jajgk5lzm4rbqxc96z37053iai3x-nix-image-vr-platform-server.tar
+          imagePullPolicy: IfNotPresent
           ports:
             - name: websocket
               containerPort: 8080

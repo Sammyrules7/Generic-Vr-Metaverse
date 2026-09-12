@@ -35,22 +35,8 @@ jobs:
     name: Build and publish web preview
     runs-on: default
     container:
-      image: barichello/godot-ci:4.7
+      image: nix:0/nix/store/93p1czfjgh8bqm491fymms3kpx6yns15-nix-image-vr-platform-godot-ci.tar
     steps:
-      - name: Install deployment tools
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates npm curl unzip libfontconfig1
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          ./aws/install
-          rm -rf /var/lib/apt/lists/*
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 24
-
       - name: Checkout
         uses: actions/checkout@v4
         with:

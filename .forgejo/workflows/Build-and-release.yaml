@@ -17,15 +17,8 @@ jobs:
     name: 🛠️ Build
     runs-on: default
     container:
-      image: barichello/godot-ci:4.7
+      image: nix:0/nix/store/93p1czfjgh8bqm491fymms3kpx6yns15-nix-image-vr-platform-godot-ci.tar
     steps:
-      - name: Bootstrapping
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends wget xz-utils zstd libfontconfig1
-          wget -q https://nodejs.org/dist/v20.16.0/node-v20.16.0-linux-x64.tar.xz
-          tar -xJf node-v20.16.0-linux-x64.tar.xz --strip-components=1 -C /usr/local
-          rm node-v20.16.0-linux-x64.tar.xz && rm -rf /var/lib/apt/lists/*
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -118,19 +111,8 @@ jobs:
     if: github.ref_name == 'main'
     runs-on: default
     container:
-      image: debian:stable-slim
+      image: nix:0/nix/store/kxwixq902xarpbcpk1zvh4b6dr2fk541-nix-image-vr-platform-publish-ci.tar
     steps:
-      - name: Bootstrapping
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            ca-certificates \
-            curl \
-            unzip \
-            wget  \
-            nodejs \
-            file \
-            gzip
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -172,14 +154,6 @@ jobs:
         run: |
           cp .itch.toml ${{ env.EXPORT_DIR }}/linux/
           cp .itch.toml ${{ env.EXPORT_DIR }}/windows/
-
-      - name: Install Butler
-        run: |
-          mkdir -p ./.butler
-          wget -q -O butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
-          unzip -q butler.zip -d ./.butler
-          rm butler.zip
-          echo "${{ github.workspace }}/.butler" >> $GITHUB_PATH
 
       - name: Push Builds to Itch.io
         env:

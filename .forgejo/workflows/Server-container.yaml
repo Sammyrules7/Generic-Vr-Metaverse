@@ -11,9 +11,6 @@ on:
       - .forgejo/workflows/Server-container.yaml
   workflow_dispatch:
 
-env:
-  IMAGE: forgejo.maio-tech.com/sammy/generic-vr-platform-server
-
 jobs:
   publish:
     name: Build and publish
@@ -46,25 +43,37 @@ jobs:
           echo /nix/var/nix/profiles/default/bin >> "$GITHUB_PATH"
           echo NIX_REMOTE=daemon >> "$GITHUB_ENV"
 
-      - name: Authenticate to Forgejo packages
-        env:
-          REGISTRY_USER: ${{ forgejo.actor }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-        run: |
-          mkdir -p "$HOME/.docker"
-          AUTH="$(printf '%s:%s' "$REGISTRY_USER" "$REGISTRY_TOKEN" | base64 | tr -d '\n')"
-          printf '{"auths":{"forgejo.maio-tech.com":{"auth":"%s"}}}\n' "$AUTH" > "$HOME/.docker/config.json"
-
-      - name: Build, cache, and publish
+      - name: Build and cache Nix images
         env:
           ATTIC_SERVER: https://attic.maio-tech.com
           ATTIC_CACHE: main
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
-          IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
-          nix run .#attic-client -- push "$ATTIC_CACHE" "$IMAGE_PATH"
+          SERVER_IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
+          GODOT_IMAGE_PATH="$(nix build .#godot-ci-image --no-link --print-out-paths)"
+          PUBLISH_IMAGE_PATH="$(nix build .#publish-ci-image --no-link --print-out-paths)"
+          CLEANUP_IMAGE_PATH="$(nix build .#cleanup-ci-image --no-link --print-out-paths)"
 
-          nix run .#publish-server-image -- \
-            "${IMAGE}:latest" \
-            "${IMAGE}:${FORGEJO_SHA}"
+          nix run .#attic-client -- push "$ATTIC_CACHE" \
+            "$SERVER_IMAGE_PATH" \
+            "$GODOT_IMAGE_PATH" \
+            "$PUBLISH_IMAGE_PATH" \
+            "$CLEANUP_IMAGE_PATH"
+
+          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-server.tar|image: nix:0$SERVER_IMAGE_PATH|" cluster/server/deployment.yaml
+          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-godot-ci.tar|image: nix:0$GODOT_IMAGE_PATH|" \
+            .forgejo/workflows/Build-and-release.yaml \
+            .forgejo/workflows/Web-preview.yaml
+          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-publish-ci.tar|image: nix:0$PUBLISH_IMAGE_PATH|" \
+            .forgejo/workflows/Build-and-release.yaml
+          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-cleanup-ci.tar|image: nix:0$CLEANUP_IMAGE_PATH|" \
+            .forgejo/workflows/Web-preview-cleanup.yaml
+
+          if ! git diff --quiet; then
+            git config user.name "Forgejo Actions"
+            git config user.email "actions@forgejo.maio-tech.com"
+            git add cluster/server/deployment.yaml .forgejo/workflows/*.yaml
+            git commit -m "Update Nix image references [skip ci]"
+            git push origin "HEAD:${FORGEJO_REF_NAME}"
+          fi
