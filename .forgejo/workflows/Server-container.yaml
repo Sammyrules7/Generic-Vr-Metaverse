@@ -14,34 +14,14 @@ on:
 jobs:
   publish:
     name: Build and publish
-    runs-on: default
+    runs-on: nix
+    container:
+      image: nix:0/nix/store/kkiqql4ai45i72s6axnms9c4v06xaibz-nix-image-vr-platform-builder-ci.tar
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           lfs: true
-
-      - name: Install Nix
-        run: |
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
-            https://install.determinate.systems/nix/nix-installer-x86_64-linux \
-            --output /tmp/nix-installer
-          chmod +x /tmp/nix-installer
-          sudo /tmp/nix-installer install linux \
-            --no-confirm \
-            --init none \
-            --extra-conf 'trusted-users = root'
-
-          sudo setsid --fork /nix/var/nix/profiles/default/bin/nix-daemon \
-            </dev/null >/tmp/nix-daemon.log 2>&1
-          for attempt in $(seq 1 30); do
-            test -S /nix/var/nix/daemon-socket/socket && break
-            sleep 1
-          done
-          test -S /nix/var/nix/daemon-socket/socket
-
-          echo /nix/var/nix/profiles/default/bin >> "$GITHUB_PATH"
-          echo NIX_REMOTE=daemon >> "$GITHUB_ENV"
 
       - name: Build and cache Nix images
         env:
@@ -54,12 +34,14 @@ jobs:
           GODOT_IMAGE_PATH="$(nix build .#godot-ci-image --no-link --print-out-paths)"
           PUBLISH_IMAGE_PATH="$(nix build .#publish-ci-image --no-link --print-out-paths)"
           CLEANUP_IMAGE_PATH="$(nix build .#cleanup-ci-image --no-link --print-out-paths)"
+          BUILDER_IMAGE_PATH="$(nix build .#builder-ci-image --no-link --print-out-paths)"
 
           nix run .#attic-client -- push "$ATTIC_CACHE" \
             "$SERVER_IMAGE_PATH" \
             "$GODOT_IMAGE_PATH" \
             "$PUBLISH_IMAGE_PATH" \
-            "$CLEANUP_IMAGE_PATH"
+            "$CLEANUP_IMAGE_PATH" \
+            "$BUILDER_IMAGE_PATH"
 
           sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-server.tar|image: nix:0$SERVER_IMAGE_PATH|" cluster/server/deployment.yaml
           sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-godot-ci.tar|image: nix:0$GODOT_IMAGE_PATH|" \
@@ -69,6 +51,8 @@ jobs:
             .forgejo/workflows/Build-and-release.yaml
           sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-cleanup-ci.tar|image: nix:0$CLEANUP_IMAGE_PATH|" \
             .forgejo/workflows/Web-preview-cleanup.yaml
+          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-builder-ci.tar|image: nix:0$BUILDER_IMAGE_PATH|" \
+            .forgejo/workflows/Server-container.yaml
 
           if ! git diff --quiet; then
             git config user.name "Forgejo Actions"

@@ -110,6 +110,19 @@
         env = [ "PATH=/bin" ];
       };
 
+      builderCiImage = mkResolvedImage {
+        name = "vr-platform-builder-ci";
+        root = mkImageRoot "vr-platform-builder-ci-root" (baseTools ++ (with pkgs; [
+          attic-client
+          nix
+        ]));
+        env = [
+          "NIX_CONFIG=experimental-features = nix-command flakes"
+          "NIX_REMOTE=daemon"
+          "PATH=/bin"
+        ];
+      };
+
       serverImage = pkgs.nix-snapshotter.buildImage {
         name = "vr-platform-server";
         resolvedByNix = true;
@@ -131,6 +144,7 @@
         godot-ci-image = godotCiImage;
         publish-ci-image = publishCiImage;
         cleanup-ci-image = cleanupCiImage;
+        builder-ci-image = builderCiImage;
         attic-client = pkgs.attic-client;
       };
 
@@ -140,6 +154,7 @@
         godot-ci-image = godotCiImage;
         publish-ci-image = publishCiImage;
         cleanup-ci-image = cleanupCiImage;
+        builder-ci-image = builderCiImage;
       };
     };
 }
