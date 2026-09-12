@@ -6,6 +6,8 @@ on:
     paths:
       - Server/**
       - cluster/server/**
+      - flake.nix
+      - flake.lock
       - .forgejo/workflows/Server-container.yaml
   workflow_dispatch:
 
@@ -16,23 +18,29 @@ jobs:
   publish:
     name: Build and publish
     runs-on: default
-    container:
-      image: gcr.io/kaniko-project/executor:v1.23.2-debug
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Authenticate to Forgejo packages
         env:
           REGISTRY_USER: ${{ forgejo.actor }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
-          mkdir -p /kaniko/.docker
+          mkdir -p "$HOME/.docker"
           AUTH="$(printf '%s:%s' "$REGISTRY_USER" "$REGISTRY_TOKEN" | base64 | tr -d '\n')"
-          printf '{"auths":{"forgejo.maio-tech.com":{"auth":"%s"}}}\n' "$AUTH" > /kaniko/.docker/config.json
+          printf '{"auths":{"forgejo.maio-tech.com":{"auth":"%s"}}}\n' "$AUTH" > "$HOME/.docker/config.json"
 
-      - name: Build and push
+      - name: Build, cache, and publish
+        env:
+          ATTIC_SERVER: ${{ vars.ATTIC_SERVER }}
+          ATTIC_CACHE: ${{ vars.ATTIC_CACHE }}
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
-          /kaniko/executor \
-            --context "git://forgejo.maio-tech.com/Sammy/Generic-Vr-Platform.git#refs/heads/${FORGEJO_REF_NAME}#${FORGEJO_SHA}" \
-            --context-sub-path Server \
-            --dockerfile Dockerfile \
-            --destination "${IMAGE}:latest" \
-            --destination "${IMAGE}:${FORGEJO_SHA}"
+          nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
+          IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
+          nix run .#attic-client -- push "$ATTIC_CACHE" "$IMAGE_PATH"
+
+          nix run .#publish-server-image -- \
+            "${IMAGE}:latest" \
+            "${IMAGE}:${FORGEJO_SHA}"
