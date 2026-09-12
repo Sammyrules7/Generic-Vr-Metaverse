@@ -57,8 +57,8 @@ jobs:
 
       - name: Build, cache, and publish
         env:
-          ATTIC_SERVER: ${{ vars.ATTIC_SERVER }}
-          ATTIC_CACHE: ${{ vars.ATTIC_CACHE }}
+          ATTIC_SERVER: https://attic.maio-tech.com
+          ATTIC_CACHE: main
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
