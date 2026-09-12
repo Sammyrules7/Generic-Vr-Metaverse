@@ -29,6 +29,10 @@ window/size/window_width_override=1120
 window/size/window_height_override=800
 window/stretch/aspect="expand"
 
+[filesystem]
+
+import/blender/enabled=false
+
 [input]
 
 move_forward={
