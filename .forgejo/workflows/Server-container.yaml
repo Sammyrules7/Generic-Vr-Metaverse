@@ -18,9 +18,21 @@ jobs:
   publish:
     name: Build and publish
     runs-on: default
+    container:
+      image: docker.io/nixos/nix:latest
     steps:
+      - name: Bootstrap checkout dependencies
+        run: |
+          nix profile install nixpkgs#nodejs_24 nixpkgs#gitMinimal nixpkgs#git-lfs
+          mkdir -p /usr/local/bin
+          ln -s /root/.nix-profile/bin/node /usr/local/bin/node
+          ln -s /root/.nix-profile/bin/git /usr/local/bin/git
+          ln -s /root/.nix-profile/bin/git-lfs /usr/local/bin/git-lfs
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Authenticate to Forgejo packages
         env:
