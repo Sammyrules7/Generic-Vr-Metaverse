@@ -25,9 +25,7 @@ jobs:
           lfs: true
 
       - name: Install Nix
-        uses: https://github.com/cachix/install-nix-action@v31
-        with:
-          extra_nix_config: sandbox = true
+        uses: https://github.com/NixOS/nix-installer-action@v1
 
       - name: Authenticate to Forgejo packages
         env:
