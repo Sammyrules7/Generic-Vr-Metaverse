@@ -15,6 +15,7 @@ env:
   IMAGE: forgejo.maio-tech.com/sammy/generic-vr-platform-server
   HOME: /tmp/ci-home
   XDG_CONFIG_HOME: /tmp/ci-home/.config
+  NIX_CONFIG: max-jobs = 1
 
 jobs:
   publish:
