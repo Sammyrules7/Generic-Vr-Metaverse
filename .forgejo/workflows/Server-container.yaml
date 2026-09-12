@@ -43,6 +43,10 @@ jobs:
           ATTIC_CACHE: ${{ vars.ATTIC_CACHE }}
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
+          # The runner image uses this as root's passwd home. Nix requires the
+          # placeholder not to exist when Kubernetes cannot provide build sandboxes.
+          rm -rf /homeless-shelter
+
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
           IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
           nix run .#attic-client -- push "$ATTIC_CACHE" "$IMAGE_PATH"
