@@ -99,9 +99,9 @@
       serverImage = pkgs.nix-snapshotter.buildImage {
         name = "vr-platform-server";
         resolvedByNix = true;
-        copyToRoot = server;
+        copyToRoot = mkImageRoot "vr-platform-server-root" [ server ];
         config = {
-          entrypoint = [ "${server}/bin/vr-platform-server" ];
+          entrypoint = [ "/bin/server" ];
           user = "65532:65532";
           exposedPorts."8080/tcp" = { };
           labels."org.opencontainers.image.source" =
