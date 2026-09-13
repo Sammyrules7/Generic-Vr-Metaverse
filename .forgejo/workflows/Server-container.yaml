@@ -61,10 +61,11 @@ jobs:
           sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-builder-ci.tar|image: nix:0$BUILDER_IMAGE_PATH|" \
             .forgejo/workflows/Server-container.yaml
 
-          if ! git diff --quiet; then
+          generated_files="cluster/server/deployment.yaml .forgejo/workflows/Build-and-release.yaml .forgejo/workflows/Server-container.yaml .forgejo/workflows/Web-preview.yaml .forgejo/workflows/Web-preview-cleanup.yaml"
+          if ! git diff --quiet -- $generated_files; then
             git config user.name "Forgejo Actions"
             git config user.email "actions@forgejo.maio-tech.com"
-            git add cluster/server/deployment.yaml .forgejo/workflows/*.yaml
+            git add $generated_files
             git commit -m "Update Nix image references [skip ci]"
             git push origin "HEAD:${FORGEJO_REF_NAME}"
           fi
