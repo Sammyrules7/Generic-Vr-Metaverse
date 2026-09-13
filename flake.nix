@@ -46,6 +46,7 @@
         git-lfs
         gnugrep
         gnused
+        gnutar
         gzip
         nodejs_24
         openssh

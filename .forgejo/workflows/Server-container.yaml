@@ -16,7 +16,7 @@ jobs:
     name: Build and publish
     runs-on: nix
     container:
-      image: nix:0/nix/store/kkiqql4ai45i72s6axnms9c4v06xaibz-nix-image-vr-platform-builder-ci.tar
+      image: nix:0/nix/store/x7cksgns589jmyw0i82a4jviykzmi02v-nix-image-vr-platform-builder-ci.tar
     steps:
       - name: Checkout
         uses: actions/checkout@v4

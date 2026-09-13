@@ -7,6 +7,7 @@ mkResolvedImage {
     cacert
     coreutils
     gnused
+    gnutar
     s5cmd
   ]);
   env = [ "PATH=/bin" ];

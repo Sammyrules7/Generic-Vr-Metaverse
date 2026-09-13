@@ -16,7 +16,7 @@ jobs:
     name: Remove branch preview
     runs-on: default
     container:
-      image: nix:0/nix/store/7kmxrpz4fdsrk77ix1z57cwhmyycwb5k-nix-image-vr-platform-cleanup-ci.tar
+      image: nix:0/nix/store/2cmn2gmal5p9cza2fa8i3q2ssf3d4fzl-nix-image-vr-platform-cleanup-ci.tar
     steps:
       - name: Remove branch build
         shell: bash

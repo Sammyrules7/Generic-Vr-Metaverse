@@ -40,7 +40,7 @@ jobs:
       publish_main: ${{ steps.describe.outputs.publish_main }}
     container:
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/66qw0vmvf3x5cs4a1n3gdiny87bafnpf-nix-image-vr-platform-godot-web-ci.tar
+      image: nix:0/nix/store/f8zl9038j1wp3pdbfqighsyyf9pb4g6n-nix-image-vr-platform-godot-web-ci.tar
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
     runs-on: default
     container:
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/hagbs36m1drfrvp3mq1pdcpzy9pqfaqv-nix-image-vr-platform-web-publish-ci.tar
+      image: nix:0/nix/store/ivj1zgmkmlimym012awlxwjndhw9mhi0-nix-image-vr-platform-web-publish-ci.tar
     env:
       BUILD_COMMIT: ${{ needs.web-preview.outputs.commit }}
       BUILD_SLUG: ${{ needs.web-preview.outputs.slug }}
