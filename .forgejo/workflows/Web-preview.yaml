@@ -32,11 +32,15 @@ env:
 
 jobs:
   web-preview:
-    name: Build and publish web preview
+    name: Build web preview
     runs-on: default
+    outputs:
+      commit: ${{ steps.describe.outputs.commit }}
+      slug: ${{ steps.describe.outputs.slug }}
+      publish_main: ${{ steps.describe.outputs.publish_main }}
     container:
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/izvz5xqp48lpnnrm0fprkib17kkxkbp8-nix-image-vr-platform-godot-web-ci.tar
+      image: nix:0/nix/store/66qw0vmvf3x5cs4a1n3gdiny87bafnpf-nix-image-vr-platform-godot-web-ci.tar
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,6 +49,7 @@ jobs:
           lfs: true
 
       - name: Describe build
+        id: describe
         shell: bash
         env:
           REQUESTED_REF: ${{ inputs.ref || github.ref_name }}
@@ -57,6 +62,7 @@ jobs:
           publish_main=false
           if [ "$REQUESTED_MAIN" = "true" ] || [ "$branch" = "main" ]; then publish_main=true; fi
           printf 'BUILD_COMMIT=%s\nBUILD_BRANCH=%s\nBUILD_SLUG=%s\nPUBLISH_MAIN=%s\n' "$commit" "$branch" "$slug" "$publish_main" >> "$GITHUB_ENV"
+          printf 'commit=%s\nslug=%s\npublish_main=%s\n' "$commit" "$slug" "$publish_main" >> "$GITHUB_OUTPUT"
 
       - name: Cache Godot imports
         uses: actions/cache@v4
@@ -85,27 +91,54 @@ jobs:
           godot --headless --verbose --path "$PROJECT_PATH" --export-release "Web - Preview" "$EXPORT_DIR/index.html"
           find "$EXPORT_DIR" -maxdepth 1 -type f -printf '%s %f\n' | sort -nr
 
+      - name: Upload web client
+        uses: actions/upload-artifact@v3
+        with:
+          name: Web-Preview
+          path: ${{ env.EXPORT_DIR }}
+
+  publish-preview:
+    name: Publish web preview
+    needs: web-preview
+    runs-on: default
+    container:
+      # Updated automatically from the flake by Server-container.yaml.
+      image: nix:0/nix/store/hagbs36m1drfrvp3mq1pdcpzy9pqfaqv-nix-image-vr-platform-web-publish-ci.tar
+    env:
+      BUILD_COMMIT: ${{ needs.web-preview.outputs.commit }}
+      BUILD_SLUG: ${{ needs.web-preview.outputs.slug }}
+      PUBLISH_MAIN: ${{ needs.web-preview.outputs.publish_main }}
+    steps:
+      - name: Checkout deployment configuration
+        uses: actions/checkout@v4
+
+      - name: Download web client
+        uses: actions/download-artifact@v3
+        with:
+          name: Web-Preview
+          path: ${{ env.EXPORT_DIR }}
+
       - name: Replace branch build in Garage
         shell: bash
         run: |
           prefix="s3://$GARAGE_BUCKET/branches/$BUILD_SLUG"
-          aws --endpoint-url "$GARAGE_ENDPOINT" s3 sync "$EXPORT_DIR/" "$prefix/assets/" --delete
-          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp "$EXPORT_DIR/" "$prefix/assets/" --recursive --exclude "*" --include "*.wasm" --content-type application/wasm
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
           printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
-          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp /tmp/commit.txt "$prefix/commit.txt" --content-type text/plain --cache-control no-cache
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
 
       - name: Publish main channel
         if: env.PUBLISH_MAIN == 'true'
         shell: bash
         run: |
           prefix="s3://$GARAGE_BUCKET/channels/main"
-          aws --endpoint-url "$GARAGE_ENDPOINT" s3 sync "$EXPORT_DIR/" "$prefix/assets/" --delete
-          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp "$EXPORT_DIR/" "$prefix/assets/" --recursive --exclude "*" --include "*.wasm" --content-type application/wasm
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
           printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
-          aws --endpoint-url "$GARAGE_ENDPOINT" s3 cp /tmp/commit.txt "$prefix/commit.txt" --content-type text/plain --cache-control no-cache
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
 
       - name: Deploy Cloudflare build router
-        run: npx --yes wrangler@4 deploy
+        run: wrangler deploy
 
       - name: Publish links
         shell: bash

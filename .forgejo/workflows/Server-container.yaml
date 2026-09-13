@@ -33,6 +33,7 @@ jobs:
           SERVER_IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
           GODOT_IMAGE_PATH="$(nix build .#godot-ci-image --no-link --print-out-paths)"
           GODOT_WEB_IMAGE_PATH="$(nix build .#godot-web-ci-image --no-link --print-out-paths)"
+          WEB_PUBLISH_IMAGE_PATH="$(nix build .#web-publish-ci-image --no-link --print-out-paths)"
           PUBLISH_IMAGE_PATH="$(nix build .#publish-ci-image --no-link --print-out-paths)"
           CLEANUP_IMAGE_PATH="$(nix build .#cleanup-ci-image --no-link --print-out-paths)"
           BUILDER_IMAGE_PATH="$(nix build .#builder-ci-image --no-link --print-out-paths)"
@@ -41,6 +42,7 @@ jobs:
             "$SERVER_IMAGE_PATH" \
             "$GODOT_IMAGE_PATH" \
             "$GODOT_WEB_IMAGE_PATH" \
+            "$WEB_PUBLISH_IMAGE_PATH" \
             "$PUBLISH_IMAGE_PATH" \
             "$CLEANUP_IMAGE_PATH" \
             "$BUILDER_IMAGE_PATH"
@@ -49,6 +51,8 @@ jobs:
           sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-godot-ci.tar|image: nix:0$GODOT_IMAGE_PATH|" \
             .forgejo/workflows/Build-and-release.yaml
           sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-godot-web-ci.tar|image: nix:0$GODOT_WEB_IMAGE_PATH|" \
+            .forgejo/workflows/Web-preview.yaml
+          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-web-publish-ci.tar|image: nix:0$WEB_PUBLISH_IMAGE_PATH|" \
             .forgejo/workflows/Web-preview.yaml
           sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-publish-ci.tar|image: nix:0$PUBLISH_IMAGE_PATH|" \
             .forgejo/workflows/Build-and-release.yaml

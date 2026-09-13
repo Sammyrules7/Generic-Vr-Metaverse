@@ -14,11 +14,9 @@ in
 mkResolvedImage {
   name = "vr-platform-godot-web-ci";
   root = mkImageRoot "vr-platform-godot-web-ci-root" (baseTools ++ (with pkgs; [
-    awscli2
     exportTemplates
     fontconfig
     godot_4
-    wrangler
   ]));
   env = [
     "GODOT4_CONFIG_DIR=/tmp/godot-config"
