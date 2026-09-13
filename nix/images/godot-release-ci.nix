@@ -23,9 +23,10 @@ mkResolvedImage {
   env = [
     "ANDROID_HOME=${androidSdk}/libexec/android-sdk"
     "ANDROID_SDK_ROOT=${androidSdk}/libexec/android-sdk"
-    "GODOT4_CONFIG_DIR=/tmp/godot-config"
-    "GODOT4_DATA_DIR=/share/godot"
+    "FONTCONFIG_FILE=${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
     "JAVA_HOME=${pkgs.jdk17}"
     "PATH=/bin"
+    "XDG_CONFIG_HOME=/tmp/godot-config"
+    "XDG_DATA_HOME=/share"
   ];
 }

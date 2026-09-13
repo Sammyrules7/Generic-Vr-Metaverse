@@ -61,7 +61,12 @@
           resolvedByNix = true;
           copyToRoot = root;
           config = {
-            inherit entrypoint env;
+            inherit entrypoint;
+            env = [
+              "HOME=/tmp"
+              "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+            ] ++ env;
             workingDir = "/workspace";
           };
         };

@@ -17,7 +17,7 @@ jobs:
     name: 🛠️ Build
     runs-on: default
     container:
-      image: nix:0/nix/store/8knhi15jg3vdhzqjlnh7lsr17vsgidvs-nix-image-vr-platform-godot-ci.tar
+      image: nix:0/nix/store/87xj4fjc08nvn1ccr8ahyi1agx3j2gk8-nix-image-vr-platform-godot-ci.tar
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,7 +111,7 @@ jobs:
     if: github.ref_name == 'main'
     runs-on: default
     container:
-      image: nix:0/nix/store/skf9ry9a8ncjvgnrjvn9f4fybgd6mg2k-nix-image-vr-platform-publish-ci.tar
+      image: nix:0/nix/store/h2p0j8r2zq171ljhyj9phhvfk7zxghn9-nix-image-vr-platform-publish-ci.tar
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
