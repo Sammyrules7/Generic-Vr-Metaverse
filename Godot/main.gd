@@ -15,6 +15,8 @@ var _world_load_generation := 0
 
 
 func _ready() -> void:
+	# Avoid Godot's default grey clear color while the lobby or a world is loading.
+	RenderingServer.set_default_clear_color(Color("#09101a"))
 	ui = $roomSelector
 	ui.xr_requested.connect($StartXR.start_webxr)
 	$StartXR.xr_started.connect(_enable_xr_lobby)
@@ -67,7 +69,7 @@ func _enable_xr_lobby() -> void:
 func _disable_xr_lobby() -> void:
 	# Native OpenXR reports temporary focus loss (including its system menu)
 	# through xr_ended. Keep the rig and XR rendering alive in that case.
-	if $StartXR.xr_interface is OpenXRInterface and $StartXR.xr_interface.is_initialized():
+	if $StartXR.xr_interface != null and $StartXR.xr_interface.get_name() == "OpenXR" and $StartXR.xr_interface.is_initialized():
 		ui.set_menu_open(true)
 		return
 	xr_active = false
@@ -149,7 +151,7 @@ func _left() -> void:
 	var world := get_node_or_null("World")
 	if world != null:
 		world.free()
-	if $StartXR.xr_interface is WebXRInterface and $StartXR.xr_interface.is_initialized():
+	if $StartXR.xr_interface != null and $StartXR.xr_interface.get_name() == "WebXR" and $StartXR.xr_interface.is_initialized():
 		$StartXR.end_xr()
 		return
 	if xr_active:

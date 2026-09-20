@@ -490,16 +490,18 @@ func _on_connected() -> void:
 	_update_controls()
 
 
-func _set_status(message: String) -> void:
+func _set_status(message: String, is_error := false) -> void:
 	%Status.visible = not message.is_empty()
 	%SessionStatus.visible = not message.is_empty()
 	%Status.text = message
 	%SessionStatus.text = message
+	%Status.add_theme_color_override("font_color", Color("#f28b82") if is_error else Color("#a0bdd4"))
+	%SessionStatus.add_theme_color_override("font_color", Color("#f28b82") if is_error else Color("#a0bdd4"))
 
 
 func _show_error(reason: String) -> void:
 	disconnect_status = not room_networking.connected
-	_set_status(reason)
+	_set_status(reason, true)
 
 
 func _show_placeholder(message: String) -> void:

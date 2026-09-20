@@ -97,7 +97,7 @@ func _initialize() -> bool:
 ## End the XR experience
 func end_xr() -> void:
 	# For WebXR drop the interactive experience and go back to the web page
-	if xr_interface is WebXRInterface:
+	if xr_interface != null and xr_interface.get_name() == "WebXR":
 		if xr_interface.is_initialized():
 			xr_interface.uninitialize()
 		return
@@ -288,7 +288,7 @@ func _on_webxr_session_failed(message: String) -> void:
 
 ## Starts WebXR from an application-owned user gesture.
 func start_webxr() -> void:
-	if not xr_interface is WebXRInterface or not webxr_supported or xr_interface.is_initialized():
+	if xr_interface == null or xr_interface.get_name() != "WebXR" or not webxr_supported or xr_interface.is_initialized():
 		return
 	# Configure the WebXR interface
 	xr_interface.session_mode = 'immersive-ar' if enable_passthrough else 'immersive-vr'
