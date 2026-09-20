@@ -118,13 +118,23 @@ jobs:
           name: Web-Preview
           path: ${{ env.EXPORT_DIR }}
 
+      - name: Decompress web client for HTTP range requests
+        shell: bash
+        run: |
+          find "$EXPORT_DIR" -type f -print0 | while IFS= read -r -d '' asset; do
+            if gzip -t "$asset" 2>/dev/null; then
+              gzip -cd "$asset" > "$asset.uncompressed"
+              mv "$asset.uncompressed" "$asset"
+            fi
+          done
+
       - name: Replace branch build in Garage
         shell: bash
         run: |
           prefix="s3://$GARAGE_BUCKET/branches/$BUILD_SLUG"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$prefix/assets/"
           printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
           s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
 
@@ -133,9 +143,9 @@ jobs:
         shell: bash
         run: |
           prefix="s3://$GARAGE_BUCKET/channels/main"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$prefix/assets/"
           printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
           s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
 

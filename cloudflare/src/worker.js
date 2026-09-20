@@ -23,6 +23,10 @@ export default {
     try {
       const target = await resolveTarget(url.pathname, env.ORIGIN_URL);
       if (!target) return notFound();
+      if (target.previewRoot && !url.pathname.endsWith("/")) {
+        url.pathname += "/";
+        return Response.redirect(url.toString(), 301);
+      }
 
       const cache = caches.default;
       const cacheKey = new Request(request.url, request);
@@ -84,13 +88,18 @@ async function resolveTarget(pathname, origin) {
       return {
         key: `branches/${branch}/assets/${normalizeAssetPath(parts.join("/"))}`,
         preview: true,
+        previewRoot: parts.length === 0 || parts.every((part) => part === ""),
       };
     }
   }
 
   const commit = await fetchPointer(origin, "channels/main/commit.txt");
   if (!isCommit(commit)) return null;
-  return { key: `channels/main/assets/${normalizeAssetPath(pathname)}`, preview: false };
+  return {
+    key: `channels/main/assets/${normalizeAssetPath(pathname)}`,
+    preview: false,
+    previewRoot: false,
+  };
 }
 
 async function fetchPointer(origin, key) {
