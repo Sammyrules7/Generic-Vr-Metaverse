@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: server
-          image: nix:0/nix/store/5ycpbi5krgrc0hhwhykgx3jla4yzrzh0-nix-image-vr-platform-server.tar
+          image: nix:0/nix/store/9md4diqf1yyrmrr4nh91261w2qizzcjn-nix-image-vr-platform-server.tar
           imagePullPolicy: IfNotPresent
           ports:
             - name: websocket
