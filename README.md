@@ -19,7 +19,7 @@ A vr metaverse platform built on top of Godot
 ## Roadmap
 - [x] Implement Basic Setup with ci/cd
 - [ ] Implement Networking
-- [ ] Implement Voip
+- [x] Implement VoIP
 - [x] Implement basic ui
 - [ ] Implement .vrm avatar importer and switcher
 - [ ] Implement IK

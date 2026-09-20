@@ -64,6 +64,22 @@ func _run() -> void:
 	WorldCatalog.WORLDS = original_worlds
 	ui._select_world(registry.worlds[0].id)
 	check(ui.find_child("ServerAddress", true, false) == null, "Server address must not be exposed in the UI")
+	ui.get_node("%OpenVoiceSettings").pressed.emit()
+	check(ui.get_node("%VoiceSettings").visible and not ui.get_node("VBoxContainer").visible, "Main-menu voice settings did not replace the room menu")
+	check(ui.theme.has_stylebox("normal", "OptionButton") and ui.theme.has_stylebox("panel", "PopupMenu"), "Microphone selector does not use the menu theme")
+	ui.get_node("%LobbyInputGain").value = 125
+	check(is_equal_approx(PlayerProfile.input_gain, 1.25) and is_equal_approx(ui.get_node("%InputGain").value, 125.0), "Main-menu voice settings did not synchronize")
+	ui.get_node("%CloseVoiceSettings").pressed.emit()
+	check(not ui.get_node("%VoiceSettings").visible and ui.get_node("VBoxContainer").visible, "Main-menu voice settings did not return to the room menu")
+	ui.get_node("%MicrophoneEnabled").button_pressed = false
+	check(not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "Microphone control did not mute voice transmission")
+	ui.get_node("%VoiceVolume").value = 35
+	check(is_equal_approx(PlayerProfile.voice_volume, 0.35) and is_equal_approx(Networking.voice_chat.output_volume, 0.35), "Voice volume control did not update playback")
+	ui.get_node("%InputGain").value = 145
+	check(is_equal_approx(PlayerProfile.input_gain, 1.45) and is_equal_approx(Networking.voice_chat.input_gain, 1.45), "Microphone input level did not update")
+	ui.get_node("%PushToTalk").button_pressed = true
+	check(PlayerProfile.push_to_talk and Networking.voice_chat.push_to_talk, "Push-to-talk control did not update voice mode")
+	check(ui.get_node("%InputDevice").item_count > 0, "Microphone device selector is empty")
 	var panel = load("res://UI/vr_panel.tscn").instantiate()
 	game.add_child(panel)
 	capture_viewport = panel.get_node("Viewport")

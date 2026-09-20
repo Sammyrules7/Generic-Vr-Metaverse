@@ -21,6 +21,32 @@ func _ready() -> void:
 	_fit_ui()
 	PlayerProfile.restore()
 	%DisplayName.text = PlayerProfile.display_name
+	%MicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
+	%PushToTalk.button_pressed = PlayerProfile.push_to_talk
+	%InputGain.value = PlayerProfile.input_gain * 100.0
+	%VoiceVolume.value = PlayerProfile.voice_volume * 100.0
+	%LobbyMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
+	%LobbyPushToTalk.button_pressed = PlayerProfile.push_to_talk
+	%LobbyInputGain.value = PlayerProfile.input_gain * 100.0
+	%LobbyVoiceVolume.value = PlayerProfile.voice_volume * 100.0
+	Networking.voice_chat.set_muted(not PlayerProfile.microphone_enabled)
+	Networking.voice_chat.set_push_to_talk(PlayerProfile.push_to_talk)
+	Networking.voice_chat.set_input_gain(PlayerProfile.input_gain)
+	_populate_input_devices()
+	Networking.voice_chat.set_output_volume(PlayerProfile.voice_volume)
+	%MicrophoneEnabled.toggled.connect(_microphone_toggled)
+	%PushToTalk.toggled.connect(_push_to_talk_toggled)
+	%InputGain.value_changed.connect(_input_gain_changed)
+	%InputDevice.item_selected.connect(_input_device_selected)
+	%VoiceVolume.value_changed.connect(_voice_volume_changed)
+	%LobbyMicrophoneEnabled.toggled.connect(_microphone_toggled)
+	%LobbyPushToTalk.toggled.connect(_push_to_talk_toggled)
+	%LobbyInputGain.value_changed.connect(_input_gain_changed)
+	%LobbyInputDevice.item_selected.connect(_lobby_input_device_selected)
+	%LobbyVoiceVolume.value_changed.connect(_voice_volume_changed)
+	%OpenVoiceSettings.pressed.connect(func(): _set_voice_settings_open(true))
+	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
+	Networking.voice_chat.local_speaking_changed.connect(_local_speaking_changed)
 	%DisplayName.focus_exited.connect(_remember_preferences)
 	%PreviousWorld.pressed.connect(func(): _step_world(-1))
 	%NextWorld.pressed.connect(func(): _step_world(1))
@@ -59,10 +85,11 @@ func _ready() -> void:
 func _apply_theme() -> void:
 	var ui_theme := Theme.new()
 	ui_theme.default_font_size = 18
-	for type: String in ["Button", "LineEdit", "PanelContainer"]:
-		for state: String in (["normal", "hover", "pressed", "disabled", "focus"] if type == "Button" else ["normal", "focus"] if type == "LineEdit" else ["panel"]):
+	for type: String in ["Button", "OptionButton", "LineEdit", "PanelContainer", "PopupMenu"]:
+		var states := ["normal", "hover", "pressed", "disabled", "focus"] if type in ["Button", "OptionButton"] else ["normal", "focus"] if type == "LineEdit" else ["panel", "hover"] if type == "PopupMenu" else ["panel"]
+		for state: String in states:
 			var style := StyleBoxFlat.new()
-			style.bg_color = Color("#142237") if type == "PanelContainer" else Color("#21344b")
+			style.bg_color = Color("#142237") if type in ["PanelContainer", "PopupMenu"] else Color("#21344b")
 			if state in ["hover", "pressed"]:
 				style.bg_color = Color("#354e65")
 			style.set_corner_radius_all(8)
@@ -77,6 +104,8 @@ func _apply_theme() -> void:
 			ui_theme.set_stylebox(state, type, style)
 	ui_theme.set_color("font_color", "Label", Color("#dce7f4"))
 	ui_theme.set_color("font_disabled_color", "Button", Color("#74869a"))
+	ui_theme.set_color("font_disabled_color", "OptionButton", Color("#74869a"))
+	ui_theme.set_color("font_hover_color", "PopupMenu", Color("#ffffff"))
 	theme = ui_theme
 	var primary := ui_theme.get_stylebox("normal", "Button").duplicate() as StyleBoxFlat
 	primary.bg_color = Color("#a0bdd4")
@@ -127,6 +156,73 @@ func _remember_preferences() -> void:
 	if not value.is_empty():
 		PlayerProfile.display_name = value
 		PlayerProfile.save()
+
+
+func _microphone_toggled(enabled: bool) -> void:
+	PlayerProfile.microphone_enabled = enabled
+	%MicrophoneEnabled.set_pressed_no_signal(enabled)
+	%LobbyMicrophoneEnabled.set_pressed_no_signal(enabled)
+	Networking.voice_chat.set_muted(not enabled)
+	PlayerProfile.save()
+	_local_speaking_changed(false)
+
+
+func _push_to_talk_toggled(enabled: bool) -> void:
+	PlayerProfile.push_to_talk = enabled
+	%PushToTalk.set_pressed_no_signal(enabled)
+	%LobbyPushToTalk.set_pressed_no_signal(enabled)
+	Networking.voice_chat.set_push_to_talk(enabled)
+	PlayerProfile.save()
+
+
+func _input_gain_changed(value: float) -> void:
+	PlayerProfile.input_gain = value / 100.0
+	%InputGain.set_value_no_signal(value)
+	%LobbyInputGain.set_value_no_signal(value)
+	Networking.voice_chat.set_input_gain(PlayerProfile.input_gain)
+	PlayerProfile.save()
+
+
+func _populate_input_devices() -> void:
+	%InputDevice.clear()
+	%LobbyInputDevice.clear()
+	var devices := Networking.voice_chat.get_input_devices()
+	if devices.is_empty():
+		devices = PackedStringArray(["Default"])
+	for device: String in devices:
+		%InputDevice.add_item(device)
+		%LobbyInputDevice.add_item(device)
+	var selected := devices.find(PlayerProfile.input_device)
+	%InputDevice.select(maxi(0, selected))
+	%LobbyInputDevice.select(maxi(0, selected))
+	Networking.voice_chat.set_input_device(devices[maxi(0, selected)])
+
+
+func _input_device_selected(index: int) -> void:
+	PlayerProfile.input_device = %InputDevice.get_item_text(index)
+	%LobbyInputDevice.select(index)
+	Networking.voice_chat.set_input_device(PlayerProfile.input_device)
+	PlayerProfile.save()
+
+
+func _lobby_input_device_selected(index: int) -> void:
+	PlayerProfile.input_device = %LobbyInputDevice.get_item_text(index)
+	%InputDevice.select(index)
+	Networking.voice_chat.set_input_device(PlayerProfile.input_device)
+	PlayerProfile.save()
+
+
+func _local_speaking_changed(active: bool) -> void:
+	%VoiceActivity.text = "Speaking" if active else ("Microphone muted" if Networking.voice_chat.muted else "Microphone idle")
+	%VoiceActivity.add_theme_color_override("font_color", Color("#72d69c") if active else Color("#a0bdd4"))
+
+
+func _voice_volume_changed(value: float) -> void:
+	PlayerProfile.voice_volume = value / 100.0
+	%VoiceVolume.set_value_no_signal(value)
+	%LobbyVoiceVolume.set_value_no_signal(value)
+	Networking.voice_chat.set_output_volume(PlayerProfile.voice_volume)
+	PlayerProfile.save()
 
 
 func _save_identity() -> bool:
@@ -209,6 +305,7 @@ func _remove_room(_room_id: int) -> void:
 
 
 func _room_joined(_room: roomClass) -> void:
+	_set_voice_settings_open(false)
 	_set_keyboard_visible(false)
 	_update_session()
 	set_menu_open(false)
@@ -240,18 +337,33 @@ func set_menu_open(open: bool) -> void:
 	if vr_mode:
 		$Session.set_anchors_preset(Control.PRESET_CENTER)
 		$Session.offset_left = -260
-		$Session.offset_top = -150
+		$Session.offset_top = -280
 		$Session.offset_right = 260
-		$Session.offset_bottom = 150
+		$Session.offset_bottom = 280
 	$Background.visible = not in_room or (vr_mode and open)
+	if not open:
+		%VoiceSettings.hide()
 	mouse_filter = Control.MOUSE_FILTER_STOP if open else Control.MOUSE_FILTER_IGNORE
 	if not vr_mode:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED)
 	menu_changed.emit(open)
 
 
+func _set_voice_settings_open(open: bool) -> void:
+	var in_room := room_networking != null and room_networking.current_room != null
+	%VoiceSettings.visible = open and not in_room
+	$VBoxContainer.visible = not in_room and not open
+	if open:
+		%CloseVoiceSettings.grab_focus()
+	else:
+		%OpenVoiceSettings.grab_focus()
+
+
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("exit") and room_networking.current_room != null:
+	if event.is_action_pressed("exit") and %VoiceSettings.visible:
+		_set_voice_settings_open(false)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("exit") and room_networking.current_room != null:
 		set_menu_open(not menu_open)
 		get_viewport().set_input_as_handled()
 

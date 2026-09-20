@@ -4,6 +4,9 @@ extends RefCounted
 const Packets = preload("res://Networking/Generated/Packets.gd")
 const ICE_SERVERS := {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 const MAX_QUEUED_CANDIDATES := 64
+# Transfer channel 0 owns WebRTC's three built-in mode-specific channels. Voice
+# uses high-level transfer channel 1, backed by this fourth physical channel.
+const EXTRA_CHANNELS := [MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED]
 
 signal packet_created(packet: Packets.ClientPacket)
 signal connection_error(reason: String)
@@ -21,7 +24,7 @@ var queued_candidates: Dictionary[int, Array] = {}
 func start(local_id: int, in_session: int) -> Error:
 	session_id = in_session
 	multiplayer_peer = WebRTCMultiplayerPeer.new()
-	return multiplayer_peer.create_mesh(local_id)
+	return multiplayer_peer.create_mesh(local_id, EXTRA_CHANNELS)
 
 
 func close() -> void:

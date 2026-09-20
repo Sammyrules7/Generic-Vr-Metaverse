@@ -74,6 +74,7 @@ func _manager(client: Node) -> PlayerManager:
 	manager.spawn_point = branch.get_node("SpawnPoint")
 	manager.room_networking = client.room_networking
 	manager.replication = client.player_replication
+	manager.voice_chat = client.voice_chat
 	branch.add_child(manager)
 	return manager
 
@@ -141,6 +142,28 @@ func _run() -> void:
 	if not await _idle(b):
 		return
 	if not await _wait_until(func(): return am.players.get_child_count() == 2 and bm.players.get_child_count() == 2, "WebRTC and player spawning"):
+		return
+	# Voice uses the mesh's explicitly configured fourth data channel. Exercising
+	# the actual RPC catches confusing transfer-channel/physical-channel mappings.
+	var voice_frame := PackedByteArray()
+	voice_frame.resize(VoiceChat.BYTES_PER_FRAME)
+	a.voice_chat.voice_packet.rpc_id(b.client_id, voice_frame)
+	if not await _wait_until(func(): return not b.voice_chat.jobs.is_empty(), "voice packet on dedicated channel"):
+		return
+	if not _check(a.room_networking.rtc_mesh.multiplayer_peer.get_peer(b.client_id).channels.size() == 4, "Voice data channel was not negotiated"):
+		return
+	var silence := PackedVector2Array()
+	silence.resize(VoiceChat.SAMPLES_PER_FRAME)
+	var speech := PackedVector2Array()
+	speech.resize(VoiceChat.SAMPLES_PER_FRAME)
+	speech.fill(Vector2(0.1, 0.1))
+	if not _check(a.voice_chat._encode_pcm(silence).level < VoiceChat.SILENCE_THRESHOLD and a.voice_chat._encode_pcm(speech).level > VoiceChat.SILENCE_THRESHOLD, "Voice activity detection did not distinguish silence"):
+		return
+	var audio := PackedVector2Array()
+	audio.resize(VoiceChat.SAMPLES_PER_FRAME)
+	a.voice_chat._push_audio(b.client_id, audio)
+	var remote_head := am.players.get_node(str(b.client_id) + "/Avatar/Head")
+	if not _check(a.voice_chat.speakers.has(b.client_id) and a.voice_chat.speakers[b.client_id].get_parent() == remote_head, "Remote voice was not attached to the avatar head"):
 		return
 	if not _check(a.room_networking.current_room.world_id == "moon_garden" and b.room_networking.current_room.world_id == "moon_garden", "Peers received different world choices"):
 		return
