@@ -27,6 +27,9 @@ signal xr_ended
 ## This signal is emitted if XR fails to initialize.
 signal xr_failed_to_initialize
 
+## Human-readable XR state for application UI. Empty hides the status.
+signal xr_status_changed(message: String)
+
 
 ## XR active flag
 static var _xr_active : bool = false
@@ -56,6 +59,12 @@ var xr_frame_rate : float = 0
 
 # Is a WebXR is_session_supported query running
 var _webxr_session_query : bool = false
+var xr_status := ""
+
+
+func _set_xr_status(message: String) -> void:
+	xr_status = message
+	xr_status_changed.emit(message)
 
 
 # Handle auto-initialization when ready
@@ -66,6 +75,13 @@ func _ready() -> void:
 
 ## Initialize the XR interface
 func _initialize() -> bool:
+	# Web exports can expose more than one interface. Prefer WebXR there so an
+	# unavailable native OpenXR runtime cannot prevent the desktop fallback.
+	if OS.has_feature("web"):
+		xr_interface = XRServer.find_interface('WebXR')
+		if xr_interface:
+			return _setup_for_webxr()
+
 	# Check for OpenXR interface
 	xr_interface = XRServer.find_interface('OpenXR')
 	if xr_interface:
@@ -79,6 +95,7 @@ func _initialize() -> bool:
 	# No XR interface
 	xr_interface = null
 	print("No XR interface detected")
+	_set_xr_status("Desktop mode")
 	xr_failed_to_initialize.emit()
 	return false
 
@@ -123,6 +140,7 @@ func _get_configuration_warnings() -> PackedStringArray:
 # Perform OpenXR setup
 func _setup_for_openxr() -> bool:
 	print("OpenXR: Configuring interface")
+	_set_xr_status("Starting VR…")
 
 	# Set the render target size multiplier
 	xr_interface.render_target_size_multiplier = render_target_size_multiplier
@@ -132,6 +150,7 @@ func _setup_for_openxr() -> bool:
 		print("OpenXR: Initializing interface")
 		if not xr_interface.initialize():
 			push_error("OpenXR: Failed to initialize")
+			_set_xr_status("Desktop mode")
 			xr_failed_to_initialize.emit()
 			return false
 
@@ -178,6 +197,7 @@ func _on_openxr_focused_state() -> void:
 	if not _xr_active:
 		print("OpenXR: XR started (focused_state)")
 		_xr_active = true
+		_set_xr_status("VR mode active")
 		xr_started.emit()
 
 
@@ -217,6 +237,7 @@ func _setup_for_webxr() -> bool:
 	# (which we connected to the "session_supported" signal above) will
 	# be called sometime later to let us know if it's supported or not.
 	_webxr_session_query = true
+	_set_xr_status("Checking VR support…")
 	xr_interface.is_session_supported('immersive-ar' if enable_passthrough else 'immersive-vr')
 
 	# Report success
@@ -234,12 +255,14 @@ func _on_webxr_session_supported(session_mode: String, supported: bool) -> void:
 
 	# Report if not supported
 	if not supported:
-		OS.alert("Your web browser doesn't support " + session_mode + ". Sorry!")
+		print("WebXR: ", session_mode, " is not supported; continuing in desktop mode")
+		_set_xr_status("Desktop mode")
 		xr_failed_to_initialize.emit()
 		return
 
 	# WebXR is entered from the room screen's create action, preserving the
 	# browser-required user gesture without a second overlay button.
+	_set_xr_status("VR available · starts when joining")
 
 
 # Called when the WebXR session has started successfully
@@ -255,6 +278,7 @@ func _on_webxr_session_started() -> void:
 
 	# Report the XR starting
 	_xr_active = true
+	_set_xr_status("VR mode active")
 	xr_started.emit()
 
 
@@ -268,18 +292,21 @@ func _on_webxr_session_ended() -> void:
 
 	# Report the XR ending
 	_xr_active = false
+	_set_xr_status("Desktop mode")
 	xr_ended.emit()
 
 
 # Called when the immersive VR session fails to start
 func _on_webxr_session_failed(message: String) -> void:
-	OS.alert("Unable to enter VR: " + message)
+	print("WebXR: Unable to enter VR: ", message, "; continuing in desktop mode")
+	_set_xr_status("Desktop mode")
 
 
 ## Starts WebXR from an application-owned user gesture.
 func start_webxr() -> void:
 	if not xr_interface is WebXRInterface or xr_interface.is_initialized():
 		return
+	_set_xr_status("Starting VR…")
 	# Configure the WebXR interface
 	xr_interface.session_mode = 'immersive-ar' if enable_passthrough else 'immersive-vr'
 	xr_interface.requested_reference_space_types = 'bounded-floor, local-floor, local'
@@ -293,7 +320,8 @@ func start_webxr() -> void:
 	# Initialize the interface. This should trigger either _on_webxr_session_started
 	# or _on_webxr_session_failed
 	if not xr_interface.initialize():
-		OS.alert("Failed to initialize WebXR")
+		print("WebXR: Failed to initialize; continuing in desktop mode")
+		_set_xr_status("Desktop mode")
 
 
 # Set the XR frame rate to the configured value

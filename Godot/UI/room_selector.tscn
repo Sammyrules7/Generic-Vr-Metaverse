@@ -114,7 +114,7 @@ theme_override_constants/separation = 12
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(64, 48)
-text = "←"
+text = "<"
 tooltip_text = "Previous world"
 
 [node name="WorldPosition" type="Label" parent="VBoxContainer/Layout/Columns/Setup/Fields/WorldNavigation"]
@@ -127,7 +127,7 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(64, 48)
-text = "→"
+text = ">"
 tooltip_text = "Next world"
 
 [node name="WorldTitle" type="Label" parent="VBoxContainer/Layout/Columns/Setup/Fields" index="6"]
@@ -135,6 +135,12 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text_overrun_behavior = 3
+
+[node name="XRStatus" type="Label" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Checking VR support…"
+theme_override_colors/font_color = Color(0.63, 0.74, 0.83, 1)
 
 [node name="WorldDescription" type="Label" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
 unique_name_in_owner = true

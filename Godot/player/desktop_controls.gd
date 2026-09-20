@@ -19,9 +19,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Let UI buttons consume clicks before we decide to recapture the mouse.
 	if event is InputEventMouseMotion and mouse_captured:
 		apply_look(event.relative * mouse_sensitivity)
-	if event.is_action_pressed("exit"):
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		mouse_captured = false
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if not mouse_captured:
 			_capture_mouse()

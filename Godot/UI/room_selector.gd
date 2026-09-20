@@ -52,7 +52,6 @@ func _ready() -> void:
 	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
 	Networking.voice_chat.local_speaking_changed.connect(_local_speaking_changed)
 	Networking.voice_chat.input_devices_changed.connect(func(_devices): _populate_input_devices())
-	Networking.voice_chat.input_ready_changed.connect(_microphone_ready_changed)
 	%DisplayName.focus_exited.connect(_remember_preferences)
 	%PreviousWorld.pressed.connect(func(): _step_world(-1))
 	%NextWorld.pressed.connect(func(): _step_world(1))
@@ -151,6 +150,11 @@ func _select_world(id: String) -> void:
 	_remember_preferences()
 
 
+func set_xr_status(message: String) -> void:
+	%XRStatus.text = message
+	%XRStatus.visible = not message.is_empty()
+
+
 func _step_world(direction: int) -> void:
 	var ids := WorldCatalog.WORLDS.keys()
 	if ids.size() > 1:
@@ -238,11 +242,6 @@ func _request_microphone_permission() -> bool:
 	return false
 
 
-func _microphone_ready_changed(ready: bool) -> void:
-	if ready:
-		_set_status("Microphone ready. Press Create or Join again.")
-
-
 func _voice_volume_changed(value: float) -> void:
 	PlayerProfile.voice_volume = value / 100.0
 	%VoiceVolume.set_value_no_signal(value)
@@ -325,6 +324,7 @@ func _add_room(room: roomClass) -> void:
 	element.room = room
 	element.join_requested.connect(func(room_id: int):
 		if _save_identity() and _request_microphone_permission():
+			xr_requested.emit()
 			_check_request(room_networking.join_room(room_id))
 	)
 	%roomList.add_child(element)

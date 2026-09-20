@@ -15,6 +15,8 @@ func _ready() -> void:
 	ui.xr_requested.connect($StartXR.start_webxr)
 	$StartXR.xr_started.connect(_enable_xr_lobby)
 	$StartXR.xr_ended.connect(_disable_xr_lobby)
+	$StartXR.xr_status_changed.connect(ui.set_xr_status)
+	ui.set_xr_status($StartXR.xr_status)
 	ui.menu_changed.connect(_menu_changed)
 	ui.control_plane_warning_changed.connect(_control_plane_warning_changed)
 	Networking.room_networking.room_joined.connect(_joined)
@@ -103,6 +105,9 @@ func _joined(_room: roomClass) -> void:
 
 
 func _left() -> void:
+	var world := get_node_or_null("World")
+	if world != null:
+		world.free()
 	if xr_active:
 		get_viewport().use_xr = true
 		lobby_origin.current = true
@@ -110,6 +115,12 @@ func _left() -> void:
 		lobby_camera.current = true
 		_position_panel(lobby_camera)
 	_menu_changed(true)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("exit") and Networking.room_networking.current_room != null:
+		ui.set_menu_open(not ui.menu_open)
+		get_viewport().set_input_as_handled()
 
 
 func _attach_pointer(controller: XRController3D) -> void:
