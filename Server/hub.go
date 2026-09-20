@@ -66,7 +66,7 @@ func (h *Hub) handle(client *Client, packet *protocol.ClientPacket) {
 	case *protocol.ClientPacket_RoomCreate:
 		reply = h.createRoom(client, payload.RoomCreate.Name, payload.RoomCreate.WorldId)
 	case *protocol.ClientPacket_RoomJoin:
-		reply = h.joinRoom(client, payload.RoomJoin.RoomId)
+		reply = h.joinRoom(client, payload.RoomJoin)
 	case *protocol.ClientPacket_RoomLeave:
 		h.leaveRoom(client)
 		reply = roomLeftPacket()

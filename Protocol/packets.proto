@@ -43,7 +43,13 @@ message Peer {
 }
 
 message ClientRoomCreate { string name = 1; string world_id = 2; }
-message ClientRoomJoin { uint32 room_id = 1; }
+message ClientRoomJoin {
+  uint32 room_id = 1;
+  // Present only when restoring a P2P session after signaling reconnects.
+  Room recovery_room = 2;
+  uint32 client_id = 3;
+  uint32 session_id = 4;
+}
 message ClientRoomLeave {}
 
 message ClientRelay {

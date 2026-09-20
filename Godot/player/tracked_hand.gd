@@ -28,7 +28,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	var tracker := PlatformXRInput.hand_tracker(hand)
-	visible = tracker != null and PlatformXRInput.joint_valid(tracker, XRHandTracker.HAND_JOINT_PALM)
+	visible = PlatformXRInput.optical_hand(tracker) and PlatformXRInput.joint_valid(tracker, XRHandTracker.HAND_JOINT_PALM)
 	if not visible:
 		return
 	var origin := get_parent() as XROrigin3D
@@ -48,5 +48,9 @@ func _process(_delta: float) -> void:
 		if parent >= 0:
 			var parent_pose: Transform3D = poses.get(parent, skeleton.get_bone_global_pose(parent))
 			pose = parent_pose.affine_inverse() * pose
-		skeleton.set_bone_pose_position(bone, pose.origin)
-		skeleton.set_bone_pose_rotation(bone, pose.basis.orthonormalized().get_rotation_quaternion())
+		# Preserve the mesh's authored bone lengths. Applying tracked positions to
+		# every bone stretches the skinned mesh into the user's raw joint spacing.
+		# Bone poses are deltas from rest, not absolute local rotations.
+		var rest := skeleton.get_bone_rest(bone)
+		var rotation_delta := (rest.basis.inverse() * pose.basis).orthonormalized()
+		skeleton.set_bone_pose_rotation(bone, rotation_delta.get_rotation_quaternion())

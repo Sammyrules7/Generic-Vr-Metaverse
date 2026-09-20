@@ -62,6 +62,13 @@ func join(h *Hub, c *Client, roomID uint32) {
 	h.handle(c, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomJoin{RoomJoin: &protocol.ClientRoomJoin{RoomId: roomID}}})
 }
 
+func recover(h *Hub, c *Client, roomID, peerID, sessionID uint32) {
+	h.handle(c, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomJoin{RoomJoin: &protocol.ClientRoomJoin{
+		RoomId: roomID, ClientId: peerID, SessionId: sessionID,
+		RecoveryRoom: &protocol.Room{Id: roomID, Name: "Recovered room", WorldId: "floating_island"},
+	}}})
+}
+
 func TestRoomLifecycle(t *testing.T) {
 	h := newHub()
 	a, b := testClient(h), testClient(h)
@@ -104,6 +111,33 @@ func TestRoomLifecycle(t *testing.T) {
 	create(h, a)
 	if len(h.rooms) != 1 {
 		t.Fatal("disconnected client was allowed to create a room")
+	}
+}
+
+func TestPeersRecoverMissingRoom(t *testing.T) {
+	h := newHub()
+	a, b := testClient(h), testClient(h)
+	create(h, a)
+	join(h, b, a.roomID)
+	roomID, aID, bID, aSession, bSession := a.roomID, a.meshID(), b.meshID(), a.sessionID, b.sessionID
+	h.removeClient(a)
+	h.removeClient(b)
+	if h.rooms[roomID] != nil {
+		t.Fatal("disconnected room was not removed")
+	}
+
+	reconnectedB, reconnectedA := testClient(h), testClient(h)
+	packets(t, reconnectedB)
+	packets(t, reconnectedA)
+	recover(h, reconnectedB, roomID, bID, bSession)
+	recover(h, reconnectedA, roomID, aID, aSession)
+	if reconnectedA.meshID() != aID || reconnectedB.meshID() != bID || len(h.rooms[roomID].clients) != 2 {
+		t.Fatal("peers did not rebuild their room with preserved mesh IDs")
+	}
+	got := packets(t, reconnectedA)
+	joined := got[len(got)-1].GetRoomJoined()
+	if joined == nil || joined.SessionId != aSession || len(joined.Peers) != 1 || joined.Peers[0].Id != bID || joined.Peers[0].SessionId != bSession {
+		t.Fatalf("recovered membership did not preserve the live mesh: %v", got)
 	}
 }
 
@@ -241,8 +275,10 @@ func TestRejoinInvalidatesBothRelayEndpoints(t *testing.T) {
 	create(h, a)
 	roomID := a.roomID
 	join(h, b, roomID)
-	relay := &protocol.ClientRelay{DestinationId: b.id, SenderSessionId: a.sessionID, DestinationSessionId: b.sessionID,
-		Signal: &protocol.ClientRelay_Description{Description: &protocol.WebRTCSessionDescription{Type: "offer", Sdp: "sdp"}}}
+	relay := &protocol.ClientRelay{
+		DestinationId: b.id, SenderSessionId: a.sessionID, DestinationSessionId: b.sessionID,
+		Signal: &protocol.ClientRelay_Description{Description: &protocol.WebRTCSessionDescription{Type: "offer", Sdp: "sdp"}},
+	}
 	request := &protocol.ClientPacket{Payload: &protocol.ClientPacket_Relay{Relay: relay}}
 	leave := &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomLeave{RoomLeave: &protocol.ClientRoomLeave{}}}
 	h.handle(b, leave)

@@ -35,6 +35,7 @@ func _ready() -> void:
 	room_networking = RoomNetworking.new(multiplayer)
 	room_networking.packet_created.connect(_send)
 	room_networking.network_error.connect(network_error.emit)
+	room_networking.client_id_recovered.connect(func(recovered_id: int): client_id = recovered_id)
 	player_replication = PlayerReplication.new()
 	player_replication.name = "PlayerReplication"
 	add_child(player_replication)
@@ -94,6 +95,8 @@ func _handle_packet(bytes: PackedByteArray) -> void:
 			last_disconnect_reason = ""
 			room_networking.connected = true
 			signaling_connected.emit()
+			if room_networking.detached_session:
+				room_networking.recover_room()
 		Packets.ServerPacket.PayloadCase.ERROR:
 			if packet.get_request_id() != 0:
 				room_networking.handle_packet(packet, client_id)

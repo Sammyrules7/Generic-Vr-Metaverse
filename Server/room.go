@@ -63,21 +63,58 @@ func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ..
 	return h.enterRoom(client, room)
 }
 
-func (h *Hub) joinRoom(client *Client, roomID uint32) *protocol.ServerPacket {
+func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protocol.ServerPacket {
+	roomID := request.RoomId
 	// Validate the destination before leaving: a rejected switch keeps the old room.
 	room := h.rooms[roomID]
+	if request.RecoveryRoom != nil && request.ClientId > 1 && request.SessionId != 0 {
+		return h.recoverRoom(client, request, room)
+	}
 	if room == nil {
 		return errorPacket("room does not exist")
 	}
 	if client.roomID == roomID {
 		// Acknowledge without changing the session, which preserves the active mesh.
-		return roomJoinedPacket(room.packet(), room.peers(client.id), client.sessionID)
+		return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID)
 	}
 	if len(room.clients) >= maxRoomPlayers {
 		return errorPacket("room is full")
 	}
 	h.leaveRoom(client)
 	return h.enterRoom(client, room)
+}
+
+func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, room *Room) *protocol.ServerPacket {
+	if room != nil {
+		if existing := room.clients[recovery.ClientId]; existing != nil && existing != client {
+			return errorPacket("recovered peer ID is already in the room")
+		}
+	}
+	if _, supported := supportedWorlds[recovery.RecoveryRoom.WorldId]; !supported {
+		return errorPacket("unknown world")
+	}
+	name := strings.TrimSpace(recovery.RecoveryRoom.Name)
+	if name == "" || len(name) > 48 {
+		return errorPacket("invalid room name")
+	}
+
+	if room == nil {
+		room = &Room{id: recovery.RoomId, name: name, worldID: recovery.RecoveryRoom.WorldId, clients: make(map[uint32]*Client)}
+		h.rooms[room.id] = room
+		if room.id > h.nextRoomID {
+			h.nextRoomID = room.id
+		}
+	}
+	peers := room.peers(0)
+	client.peerID = recovery.ClientId
+	client.roomID = room.id
+	client.sessionID = recovery.SessionId
+	room.clients[client.meshID()] = client
+	for _, peer := range peers {
+		send(room.clients[peer.Id], peerJoinedPacket(client))
+	}
+	h.broadcast(roomUpdatedPacket(room.packet()))
+	return roomJoinedPacket(room.packet(), peers, client.sessionID)
 }
 
 func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
@@ -87,7 +124,7 @@ func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
 	h.nextSessionID++
 	client.sessionID = h.nextSessionID
 	client.roomID = room.id
-	room.clients[client.id] = client
+	room.clients[client.meshID()] = client
 	for _, peer := range peers {
 		send(room.clients[peer.Id], peerJoinedPacket(client))
 	}
@@ -102,9 +139,10 @@ func (h *Hub) leaveRoom(client *Client, signalingDisconnected ...bool) {
 	if room == nil {
 		return
 	}
-	delete(room.clients, client.id)
+	peerID := client.meshID()
+	delete(room.clients, peerID)
 	for _, peer := range room.clients {
-		send(peer, peerLeftPacket(client.id, signalingDisconnected...))
+		send(peer, peerLeftPacket(peerID, signalingDisconnected...))
 	}
 	if len(room.clients) == 0 {
 		delete(h.rooms, room.id)

@@ -1,7 +1,6 @@
 extends Control
 
 signal menu_changed(open: bool)
-signal control_plane_warning_changed(message: String)
 signal xr_requested
 
 const ROOM_ELEMENT := preload("res://UI/room_element.tscn")
@@ -12,7 +11,6 @@ var keyboard_target: LineEdit
 var uppercase := false
 var world_index := 0
 var disconnect_status := false
-var control_plane_warning := ""
 var _pointer_lock_callback: JavaScriptObject
 var _browser_document: JavaScriptObject
 var _last_unlock_msec := -1000
@@ -192,7 +190,9 @@ func _select_world(id: String) -> void:
 
 
 func set_webxr_supported(supported: bool) -> void:
-	%VRSupportBadge.visible = supported
+	%VRSupportBadge.show()
+	%VRModeText.text = "VR" if supported else "Desktop"
+	%VRModeText.add_theme_color_override("font_color", Color("#72d69c") if supported else Color("#a0bdd4"))
 
 
 func xr_point_is_visible(point: Vector2) -> bool:
@@ -446,11 +446,14 @@ func _check_request(result: Error) -> void:
 
 func _operation_started(operation: RoomNetworking.Operation) -> void:
 	_update_controls()
-	_set_status({RoomNetworking.Operation.CREATE: "Creating room…", RoomNetworking.Operation.JOIN: "Joining room…", RoomNetworking.Operation.LEAVE: "Leaving room…"}[operation])
+	if operation != RoomNetworking.Operation.RECOVER:
+		_set_status({RoomNetworking.Operation.CREATE: "Creating room…", RoomNetworking.Operation.JOIN: "Joining room…", RoomNetworking.Operation.LEAVE: "Leaving room…"}[operation])
 
 
-func _operation_finished(_operation: RoomNetworking.Operation, success: bool, reason: String) -> void:
+func _operation_finished(operation: RoomNetworking.Operation, success: bool, reason: String) -> void:
 	_update_controls()
+	if operation == RoomNetworking.Operation.RECOVER:
+		return
 	if not success:
 		_show_error(reason)
 	else:
@@ -470,12 +473,6 @@ func _update_controls() -> void:
 	%Connection.add_theme_color_override("font_color", Color("#a0bdd4") if room_networking.connected else Color("#f5bc79"))
 	%CreateRoom.disabled = not available or %DisplayName.text.strip_edges().is_empty() or WorldCatalog.WORLDS.is_empty()
 	%LeaveRoom.disabled = room_networking.current_room == null or room_networking.pending_operation != RoomNetworking.Operation.NONE
-	var warning := "Room disconnected from directory\nPeer-to-peer session continues" if room_networking.detached_session else ""
-	%ControlPlaneNotice.visible = not warning.is_empty() and not vr_mode
-	%ControlPlaneText.text = warning
-	if warning != control_plane_warning:
-		control_plane_warning = warning
-		control_plane_warning_changed.emit(warning)
 	%DisplayName.editable = room_networking.pending_operation == RoomNetworking.Operation.NONE
 	%RoomName.editable = %DisplayName.editable
 	for element in %roomList.get_children():

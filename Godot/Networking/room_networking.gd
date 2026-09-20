@@ -6,7 +6,7 @@ extends RefCounted
 const Packets = preload("res://Networking/Generated/Packets.gd")
 const REQUEST_TIMEOUT_MS := 10000
 
-enum Operation { NONE, CREATE, JOIN, LEAVE }
+enum Operation { NONE, CREATE, JOIN, LEAVE, RECOVER }
 
 signal rooms_replaced(rooms: Array)
 signal room_updated(room: roomClass)
@@ -17,6 +17,7 @@ signal operation_started(operation: Operation)
 signal operation_finished(operation: Operation, success: bool, reason: String)
 signal network_error(reason: String)
 signal packet_created(packet: Packets.ClientPacket)
+signal client_id_recovered(client_id: int)
 
 var multiplayer: MultiplayerAPI
 var connected := false
@@ -50,6 +51,21 @@ func join_room(room_id: int) -> Error:
 	return _request(Operation.JOIN, packet)
 
 
+func recover_room() -> Error:
+	if not connected or not detached_session or current_room == null or rtc_mesh == null:
+		return ERR_UNAVAILABLE
+	var packet := Packets.ClientPacket.new()
+	var recovery = packet.new_room_join()
+	recovery.set_room_id(current_room.id)
+	var room = recovery.new_recovery_room()
+	room.set_id(current_room.id)
+	room.set_name(current_room.room_name)
+	room.set_world_id(current_room.world_id)
+	recovery.set_client_id(multiplayer.get_unique_id())
+	recovery.set_session_id(rtc_mesh.session_id)
+	return _request(Operation.RECOVER, packet, true)
+
+
 func leave_room() -> Error:
 	if current_room != null and (not connected or detached_session):
 		if pending_operation != Operation.NONE:
@@ -65,8 +81,8 @@ func leave_room() -> Error:
 	return _request(Operation.LEAVE, packet)
 
 
-func _request(operation: Operation, packet: Packets.ClientPacket) -> Error:
-	if detached_session:
+func _request(operation: Operation, packet: Packets.ClientPacket, allow_detached := false) -> Error:
+	if detached_session and not allow_detached:
 		return ERR_UNAVAILABLE
 	if not connected:
 		return ERR_UNAVAILABLE
@@ -124,7 +140,13 @@ func reset(reason := "Session reset") -> void:
 
 
 func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
-	if detached_session and packet.get_payload_case() not in [Packets.ServerPacket.PayloadCase.ROOM_LIST, Packets.ServerPacket.PayloadCase.ROOM_UPDATED, Packets.ServerPacket.PayloadCase.ROOM_REMOVED]:
+	var recovery_reply := (
+		detached_session
+		and pending_operation == Operation.RECOVER
+		and packet.get_request_id() == _request_id
+		and packet.get_payload_case() in [Packets.ServerPacket.PayloadCase.ROOM_JOINED, Packets.ServerPacket.PayloadCase.ERROR]
+	)
+	if detached_session and not recovery_reply and packet.get_payload_case() not in [Packets.ServerPacket.PayloadCase.ROOM_LIST, Packets.ServerPacket.PayloadCase.ROOM_UPDATED, Packets.ServerPacket.PayloadCase.ROOM_REMOVED]:
 		return
 	var is_reply := packet.get_request_id() != 0
 	if is_reply and (pending_operation == Operation.NONE or packet.get_request_id() != _request_id):
@@ -181,6 +203,11 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 	# A duplicate join acknowledges the existing session; don't respawn players
 	# or renegotiate connections that are already working.
 	if rtc_mesh != null and rtc_mesh.session_id == joined.get_session_id():
+		current_room = _decode_room(joined.get_room())
+		detached_session = false
+		rtc_mesh.resume_signaling()
+		client_id_recovered.emit(multiplayer.get_unique_id())
+		room_updated.emit(current_room)
 		return ""
 	_stop_mesh()
 	current_room = _decode_room(joined.get_room())

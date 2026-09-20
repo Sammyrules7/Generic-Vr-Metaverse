@@ -38,7 +38,8 @@ func (limit *rateLimit) allow(rate, burst float64) bool {
 }
 
 type Client struct {
-	id           uint32      // Godot multiplayer peer ID; assigned before pumps start.
+	id           uint32      // Signaling socket identity; assigned before pumps start.
+	peerID       uint32      // Preserved WebRTC identity after room recovery, or zero.
 	outgoing     chan []byte // Do not use directly, use Client.sendPacket()
 	closed       chan struct{}
 	conn         *websocket.Conn
@@ -46,6 +47,13 @@ type Client struct {
 	roomID       uint32    // guarded by hub.mu
 	sessionID    uint32    // guarded by hub.mu; renewed on every room entry
 	roomCommands rateLimit // owned by the read pump
+}
+
+func (client *Client) meshID() uint32 {
+	if client.peerID != 0 {
+		return client.peerID
+	}
+	return client.id
 }
 
 func initClient(wsConn *websocket.Conn) {
@@ -105,7 +113,6 @@ func writePump(client *Client) {
 
 			client.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			err := client.conn.WriteMessage(websocket.BinaryMessage, message)
-
 			if err != nil {
 				return
 			}

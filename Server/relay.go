@@ -9,7 +9,7 @@ const (
 
 func (h *Hub) relay(sender *Client, relay *protocol.ClientRelay) {
 	room := h.rooms[sender.roomID]
-	if room == nil || relay.DestinationId == sender.id {
+	if room == nil || relay.DestinationId == sender.meshID() {
 		sendError(sender, "relay destination is not in your room")
 		return
 	}
@@ -21,20 +21,15 @@ func (h *Hub) relay(sender *Client, relay *protocol.ClientRelay) {
 	// A candidate can cross the peer-loss notification in flight. Discard it
 	// when the recipient disconnected or changed sessions; healthy P2P traffic
 	// must not turn a control-plane race into a fatal application error.
-	knownClient := h.clients[relay.DestinationId]
-	if knownClient == nil || knownClient.sessionID != relay.DestinationSessionId {
-		return
-	}
 	destination := room.clients[relay.DestinationId]
 	if destination == nil {
-		sendError(sender, "relay destination is not in your room")
 		return
 	}
 	if relay.DestinationSessionId != destination.sessionID {
 		return
 	}
 
-	forwarded := &protocol.ServerRelay{SenderId: sender.id, SenderSessionId: sender.sessionID, DestinationSessionId: destination.sessionID}
+	forwarded := &protocol.ServerRelay{SenderId: sender.meshID(), SenderSessionId: sender.sessionID, DestinationSessionId: destination.sessionID}
 	switch signal := relay.Signal.(type) {
 	case *protocol.ClientRelay_Description:
 		description := signal.Description

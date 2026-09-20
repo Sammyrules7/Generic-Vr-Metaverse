@@ -8,7 +8,6 @@ var panel: XRToolsViewport2DIn3D
 var ui: Control
 var xr_active := false
 var pointers: Array[Node3D] = []
-var control_plane_notice: Label3D
 var menu_pinch_time := 0.0
 var menu_pinch_latched := false
 var _world_load_generation := 0
@@ -24,7 +23,6 @@ func _ready() -> void:
 	$StartXR.webxr_support_changed.connect(ui.set_webxr_supported)
 	ui.set_webxr_supported($StartXR.webxr_supported)
 	ui.menu_changed.connect(_menu_changed)
-	ui.control_plane_warning_changed.connect(_control_plane_warning_changed)
 	$PlayerManager.local_player_spawned.connect(_player_spawned)
 	Networking.room_networking.room_left.connect(_left)
 	_menu_changed(true)
@@ -196,7 +194,19 @@ func _attach_pointer(controller: XRController3D) -> void:
 
 func _controller_button_pressed(action: String) -> void:
 	if action in ["menu_button", "menu", "select_button", "by_button"] and Networking.room_networking.current_room != null:
-		ui.set_menu_open(not ui.menu_open)
+		_leave_vr_room()
+
+
+func _leave_vr_room() -> void:
+	if room_leave_pending():
+		return
+	var result := Networking.room_networking.leave_room()
+	if result != OK:
+		Networking.network_error.emit(error_string(result))
+
+
+func room_leave_pending() -> bool:
+	return Networking.room_networking.pending_operation != RoomNetworking.Operation.NONE
 
 
 func _menu_changed(open: bool) -> void:
@@ -268,27 +278,4 @@ func _hand_menu_gesture(delta: float) -> void:
 		menu_pinch_time += delta
 		if menu_pinch_time >= 0.4:
 			menu_pinch_latched = true
-			ui.set_menu_open(not ui.menu_open)
-
-
-func _control_plane_warning_changed(message: String) -> void:
-	if not xr_active:
-		return
-	if message.is_empty():
-		if is_instance_valid(control_plane_notice):
-			control_plane_notice.hide()
-		return
-	var player: NetworkPlayer = $PlayerManager.local_player
-	if player == null:
-		return
-	if not is_instance_valid(control_plane_notice):
-		control_plane_notice = Label3D.new()
-		control_plane_notice.name = "ControlPlaneNotice"
-		control_plane_notice.font_size = 28
-		control_plane_notice.pixel_size = 0.001
-		control_plane_notice.position = Vector3(0, -0.35, -1.5)
-		control_plane_notice.no_depth_test = true
-		control_plane_notice.modulate = Color("#f5bc79")
-		player.controls.head.add_child(control_plane_notice)
-	control_plane_notice.text = message
-	control_plane_notice.show()
+			_leave_vr_room()

@@ -145,7 +145,8 @@ func _run() -> void:
 	state.current_room = roomClass.new(20, "Menu test", 1)
 	ui.set_menu_open(false)
 	game._controller_button_pressed("menu_button")
-	check(ui.menu_open, "Controller menu button did not open the room menu")
+	check(state.pending_operation == RoomNetworking.Operation.LEAVE, "Controller menu button did not leave the VR room")
+	state.pending_operation = RoomNetworking.Operation.NONE
 	state.current_room = null
 	ui.set_menu_open(true)
 	await _capture("/tmp/lobby-keyboard.png")

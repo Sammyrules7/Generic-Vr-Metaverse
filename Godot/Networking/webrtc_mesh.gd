@@ -77,6 +77,10 @@ func suspend_peer_signaling(peer_id: int) -> void:
 	signaling_unavailable[peer_id] = true
 
 
+func resume_signaling() -> void:
+	signaling_unavailable.clear()
+
+
 func _get_connection(peer_id: int) -> WebRTCPeerConnection:
 	# Godot owns the connection registry and can remove failed peers while polling.
 	# A second registry here would retain connections no longer in the mesh.

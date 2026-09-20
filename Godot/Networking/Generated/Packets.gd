@@ -141,7 +141,7 @@ class PBField:
 		tag = a_tag
 		option_packed = packed
 		value = a_value
-		
+
 	var name : String
 	var type : int
 	var rule : int
@@ -538,7 +538,7 @@ class PBPacker:
 					elif res < 0:
 						return res
 					else:
-						break							
+						break
 			else:
 				return offset
 		return PB_ERR.UNDEFINED_STATE
@@ -579,13 +579,13 @@ class PBPacker:
 		for kv in key_values:
 			result[kv.get_key()] = kv.get_value()
 		return result
-	
+
 	static func tabulate(text : String, nesting : int) -> String:
 		var tab : String = ""
 		for _i in range(nesting):
 			tab += DEBUG_TAB
 		return tab + text
-	
+
 	static func value_to_string(value, field : PBField, nesting : int) -> String:
 		var result : String = ""
 		var text : String
@@ -614,7 +614,7 @@ class PBPacker:
 		else:
 			result += str(value)
 		return result
-	
+
 	static func field_to_string(field : PBField, nesting : int) -> String:
 		var result : String = tabulate(field.name + ": ", nesting)
 		if field.type == PB_DATA_TYPE.MAP:
@@ -651,7 +651,7 @@ class PBPacker:
 			result += value_to_string(field.value, field, nesting)
 		result += ";\n"
 		return result
-		
+
 	static func message_to_string(data, nesting : int = 0) -> String:
 		var DEFAULT_VALUES
 		if PROTO_VERSION == 2:
@@ -683,38 +683,38 @@ class PBPacker:
 class ClientPacket:
 	func _init():
 		var service
-		
+
 		__room_create = PBField.new("room_create", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_create
 		service.func_ref = Callable(self, "new_room_create")
 		data[__room_create.tag] = service
-		
+
 		__room_join = PBField.new("room_join", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_join
 		service.func_ref = Callable(self, "new_room_join")
 		data[__room_join.tag] = service
-		
+
 		__room_leave = PBField.new("room_leave", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_leave
 		service.func_ref = Callable(self, "new_room_leave")
 		data[__room_leave.tag] = service
-		
+
 		__relay = PBField.new("relay", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __relay
 		service.func_ref = Callable(self, "new_relay")
 		data[__relay.tag] = service
-		
+
 		__request_id = PBField.new("request_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __request_id
 		data[__request_id.tag] = service
-		
+
 	var data = {}
-	
+
 	enum PayloadCase {
 		PAYLOAD_NOT_SET = 0,
 		ROOM_CREATE = 1,
@@ -743,7 +743,7 @@ class ClientPacket:
 		data[4].state = PB_SERVICE_STATE.UNFILLED
 		__room_create.value = ClientRoomCreate.new()
 		return __room_create.value
-	
+
 	var __room_join: PBField
 	func has_room_join() -> bool:
 		return data[2].state == PB_SERVICE_STATE.FILLED
@@ -763,7 +763,7 @@ class ClientPacket:
 		data[4].state = PB_SERVICE_STATE.UNFILLED
 		__room_join.value = ClientRoomJoin.new()
 		return __room_join.value
-	
+
 	var __room_leave: PBField
 	func has_room_leave() -> bool:
 		return data[3].state == PB_SERVICE_STATE.FILLED
@@ -783,7 +783,7 @@ class ClientPacket:
 		data[4].state = PB_SERVICE_STATE.UNFILLED
 		__room_leave.value = ClientRoomLeave.new()
 		return __room_leave.value
-	
+
 	var __relay: PBField
 	func has_relay() -> bool:
 		return data[4].state == PB_SERVICE_STATE.FILLED
@@ -803,7 +803,7 @@ class ClientPacket:
 		_payload_case = 4
 		__relay.value = ClientRelay.new()
 		return __relay.value
-	
+
 	var __request_id: PBField
 	func has_request_id() -> bool:
 		if __request_id.value != null:
@@ -816,15 +816,15 @@ class ClientPacket:
 		__request_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_request_id(value : int) -> void:
 		__request_id.value = value
-	
+
 	func get_payload_case() -> int:
 		return _payload_case
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -839,78 +839,78 @@ class ClientPacket:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerPacket:
 	func _init():
 		var service
-		
+
 		__connected = PBField.new("connected", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __connected
 		service.func_ref = Callable(self, "new_connected")
 		data[__connected.tag] = service
-		
+
 		__room_list = PBField.new("room_list", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_list
 		service.func_ref = Callable(self, "new_room_list")
 		data[__room_list.tag] = service
-		
+
 		__room_updated = PBField.new("room_updated", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_updated
 		service.func_ref = Callable(self, "new_room_updated")
 		data[__room_updated.tag] = service
-		
+
 		__room_removed = PBField.new("room_removed", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_removed
 		service.func_ref = Callable(self, "new_room_removed")
 		data[__room_removed.tag] = service
-		
+
 		__room_joined = PBField.new("room_joined", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_joined
 		service.func_ref = Callable(self, "new_room_joined")
 		data[__room_joined.tag] = service
-		
+
 		__room_left = PBField.new("room_left", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room_left
 		service.func_ref = Callable(self, "new_room_left")
 		data[__room_left.tag] = service
-		
+
 		__peer_joined = PBField.new("peer_joined", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __peer_joined
 		service.func_ref = Callable(self, "new_peer_joined")
 		data[__peer_joined.tag] = service
-		
+
 		__peer_left = PBField.new("peer_left", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __peer_left
 		service.func_ref = Callable(self, "new_peer_left")
 		data[__peer_left.tag] = service
-		
+
 		__relay = PBField.new("relay", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __relay
 		service.func_ref = Callable(self, "new_relay")
 		data[__relay.tag] = service
-		
+
 		__error = PBField.new("error", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __error
 		service.func_ref = Callable(self, "new_error")
 		data[__error.tag] = service
-		
+
 		__request_id = PBField.new("request_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 11, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __request_id
 		data[__request_id.tag] = service
-		
+
 	var data = {}
-	
+
 	enum PayloadCase {
 		PAYLOAD_NOT_SET = 0,
 		CONNECTED = 1,
@@ -957,7 +957,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__connected.value = ClientConnected.new()
 		return __connected.value
-	
+
 	var __room_list: PBField
 	func has_room_list() -> bool:
 		return data[2].state == PB_SERVICE_STATE.FILLED
@@ -989,7 +989,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__room_list.value = ServerRoomList.new()
 		return __room_list.value
-	
+
 	var __room_updated: PBField
 	func has_room_updated() -> bool:
 		return data[3].state == PB_SERVICE_STATE.FILLED
@@ -1021,7 +1021,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__room_updated.value = ServerRoomUpdated.new()
 		return __room_updated.value
-	
+
 	var __room_removed: PBField
 	func has_room_removed() -> bool:
 		return data[4].state == PB_SERVICE_STATE.FILLED
@@ -1053,7 +1053,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__room_removed.value = ServerRoomRemoved.new()
 		return __room_removed.value
-	
+
 	var __room_joined: PBField
 	func has_room_joined() -> bool:
 		return data[5].state == PB_SERVICE_STATE.FILLED
@@ -1085,7 +1085,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__room_joined.value = ServerRoomJoined.new()
 		return __room_joined.value
-	
+
 	var __room_left: PBField
 	func has_room_left() -> bool:
 		return data[6].state == PB_SERVICE_STATE.FILLED
@@ -1117,7 +1117,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__room_left.value = ServerRoomLeft.new()
 		return __room_left.value
-	
+
 	var __peer_joined: PBField
 	func has_peer_joined() -> bool:
 		return data[7].state == PB_SERVICE_STATE.FILLED
@@ -1149,7 +1149,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__peer_joined.value = ServerPeerJoined.new()
 		return __peer_joined.value
-	
+
 	var __peer_left: PBField
 	func has_peer_left() -> bool:
 		return data[8].state == PB_SERVICE_STATE.FILLED
@@ -1181,7 +1181,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__peer_left.value = ServerPeerLeft.new()
 		return __peer_left.value
-	
+
 	var __relay: PBField
 	func has_relay() -> bool:
 		return data[9].state == PB_SERVICE_STATE.FILLED
@@ -1213,7 +1213,7 @@ class ServerPacket:
 		data[10].state = PB_SERVICE_STATE.UNFILLED
 		__relay.value = ServerRelay.new()
 		return __relay.value
-	
+
 	var __error: PBField
 	func has_error() -> bool:
 		return data[10].state == PB_SERVICE_STATE.FILLED
@@ -1245,7 +1245,7 @@ class ServerPacket:
 		_payload_case = 10
 		__error.value = ServerError.new()
 		return __error.value
-	
+
 	var __request_id: PBField
 	func has_request_id() -> bool:
 		if __request_id.value != null:
@@ -1258,15 +1258,15 @@ class ServerPacket:
 		__request_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_request_id(value : int) -> void:
 		__request_id.value = value
-	
+
 	func get_payload_case() -> int:
 		return _payload_case
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1281,33 +1281,33 @@ class ServerPacket:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class Room:
 	func _init():
 		var service
-		
+
 		__id = PBField.new("id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __id
 		data[__id.tag] = service
-		
+
 		__name = PBField.new("name", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __name
 		data[__name.tag] = service
-		
+
 		__player_count = PBField.new("player_count", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __player_count
 		data[__player_count.tag] = service
-		
+
 		__world_id = PBField.new("world_id", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __world_id
 		data[__world_id.tag] = service
 
 	var data = {}
-	
+
 	var __id: PBField
 	func has_id() -> bool:
 		if __id.value != null:
@@ -1320,7 +1320,7 @@ class Room:
 		__id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_id(value : int) -> void:
 		__id.value = value
-	
+
 	var __name: PBField
 	func has_name() -> bool:
 		if __name.value != null:
@@ -1333,7 +1333,7 @@ class Room:
 		__name.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_name(value : String) -> void:
 		__name.value = value
-	
+
 	var __player_count: PBField
 	func has_player_count() -> bool:
 		if __player_count.value != null:
@@ -1346,7 +1346,7 @@ class Room:
 		__player_count.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_player_count(value : int) -> void:
 		__player_count.value = value
-	
+
 	var __world_id: PBField
 	func has_world_id() -> bool:
 		if __world_id.value != null:
@@ -1362,10 +1362,10 @@ class Room:
 
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1380,23 +1380,23 @@ class Room:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class Peer:
 	func _init():
 		var service
-		
+
 		__id = PBField.new("id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __id
 		data[__id.tag] = service
-		
+
 		__session_id = PBField.new("session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __session_id
 		data[__session_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __id: PBField
 	func has_id() -> bool:
 		if __id.value != null:
@@ -1409,7 +1409,7 @@ class Peer:
 		__id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_id(value : int) -> void:
 		__id.value = value
-	
+
 	var __session_id: PBField
 	func has_session_id() -> bool:
 		if __session_id.value != null:
@@ -1422,13 +1422,13 @@ class Peer:
 		__session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_session_id(value : int) -> void:
 		__session_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1443,23 +1443,23 @@ class Peer:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ClientRoomCreate:
 	func _init():
 		var service
-		
+
 		__name = PBField.new("name", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __name
 		data[__name.tag] = service
-		
+
 		__world_id = PBField.new("world_id", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __world_id
 		data[__world_id.tag] = service
 
 	var data = {}
-	
+
 	var __name: PBField
 	func has_name() -> bool:
 		if __name.value != null:
@@ -1472,7 +1472,7 @@ class ClientRoomCreate:
 		__name.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_name(value : String) -> void:
 		__name.value = value
-	
+
 	var __world_id: PBField
 	func has_world_id() -> bool:
 		if __world_id.value != null:
@@ -1488,10 +1488,10 @@ class ClientRoomCreate:
 
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1506,18 +1506,34 @@ class ClientRoomCreate:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ClientRoomJoin:
 	func _init():
 		var service
-		
+
 		__room_id = PBField.new("room_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __room_id
 		data[__room_id.tag] = service
-		
+
+		__recovery_room = PBField.new("recovery_room", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __recovery_room
+		service.func_ref = Callable(self, "new_recovery_room")
+		data[__recovery_room.tag] = service
+
+		__client_id = PBField.new("client_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __client_id
+		data[__client_id.tag] = service
+
+		__session_id = PBField.new("session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __session_id
+		data[__session_id.tag] = service
+
 	var data = {}
-	
+
 	var __room_id: PBField
 	func has_room_id() -> bool:
 		if __room_id.value != null:
@@ -1530,13 +1546,53 @@ class ClientRoomJoin:
 		__room_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_room_id(value : int) -> void:
 		__room_id.value = value
-	
+
+	var __recovery_room: PBField
+	func has_recovery_room() -> bool:
+		if __recovery_room.value != null:
+			return true
+		return false
+	func get_recovery_room() -> Room:
+		return __recovery_room.value
+	func clear_recovery_room() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__recovery_room.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_recovery_room() -> Room:
+		__recovery_room.value = Room.new()
+		return __recovery_room.value
+
+	var __client_id: PBField
+	func has_client_id() -> bool:
+		if __client_id.value != null:
+			return true
+		return false
+	func get_client_id() -> int:
+		return __client_id.value
+	func clear_client_id() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__client_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_client_id(value : int) -> void:
+		__client_id.value = value
+
+	var __session_id: PBField
+	func has_session_id() -> bool:
+		if __session_id.value != null:
+			return true
+		return false
+	func get_session_id() -> int:
+		return __session_id.value
+	func clear_session_id() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_session_id(value : int) -> void:
+		__session_id.value = value
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1551,19 +1607,19 @@ class ClientRoomJoin:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ClientRoomLeave:
 	func _init():
 		var service
-		
+
 	var data = {}
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1578,40 +1634,40 @@ class ClientRoomLeave:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ClientRelay:
 	func _init():
 		var service
-		
+
 		__destination_id = PBField.new("destination_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __destination_id
 		data[__destination_id.tag] = service
-		
+
 		__description = PBField.new("description", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __description
 		service.func_ref = Callable(self, "new_description")
 		data[__description.tag] = service
-		
+
 		__candidate = PBField.new("candidate", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __candidate
 		service.func_ref = Callable(self, "new_candidate")
 		data[__candidate.tag] = service
-		
+
 		__sender_session_id = PBField.new("sender_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __sender_session_id
 		data[__sender_session_id.tag] = service
-		
+
 		__destination_session_id = PBField.new("destination_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __destination_session_id
 		data[__destination_session_id.tag] = service
-		
+
 	var data = {}
-	
+
 	enum SignalCase {
 		SIGNAL_NOT_SET = 0,
 		DESCRIPTION = 2,
@@ -1631,7 +1687,7 @@ class ClientRelay:
 		__destination_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_destination_id(value : int) -> void:
 		__destination_id.value = value
-	
+
 	var __description: PBField
 	func has_description() -> bool:
 		return data[2].state == PB_SERVICE_STATE.FILLED
@@ -1647,7 +1703,7 @@ class ClientRelay:
 		data[3].state = PB_SERVICE_STATE.UNFILLED
 		__description.value = WebRTCSessionDescription.new()
 		return __description.value
-	
+
 	var __candidate: PBField
 	func has_candidate() -> bool:
 		return data[3].state == PB_SERVICE_STATE.FILLED
@@ -1663,7 +1719,7 @@ class ClientRelay:
 		_signal_case = 3
 		__candidate.value = WebRTCIceCandidate.new()
 		return __candidate.value
-	
+
 	var __sender_session_id: PBField
 	func has_sender_session_id() -> bool:
 		if __sender_session_id.value != null:
@@ -1676,7 +1732,7 @@ class ClientRelay:
 		__sender_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_sender_session_id(value : int) -> void:
 		__sender_session_id.value = value
-	
+
 	var __destination_session_id: PBField
 	func has_destination_session_id() -> bool:
 		if __destination_session_id.value != null:
@@ -1689,15 +1745,15 @@ class ClientRelay:
 		__destination_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_destination_session_id(value : int) -> void:
 		__destination_session_id.value = value
-	
+
 	func get_signal_case() -> int:
 		return _signal_case
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1712,18 +1768,18 @@ class ClientRelay:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ClientConnected:
 	func _init():
 		var service
-		
+
 		__client_id = PBField.new("client_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __client_id
 		data[__client_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __client_id: PBField
 	func has_client_id() -> bool:
 		if __client_id.value != null:
@@ -1736,13 +1792,13 @@ class ClientConnected:
 		__client_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_client_id(value : int) -> void:
 		__client_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1757,20 +1813,20 @@ class ClientConnected:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerRoomList:
 	func _init():
 		var service
-		
+
 		var __rooms_default: Array[Room] = []
 		__rooms = PBField.new("rooms", PB_DATA_TYPE.MESSAGE, PB_RULE.REPEATED, 1, true, __rooms_default)
 		service = PBServiceField.new()
 		service.field = __rooms
 		service.func_ref = Callable(self, "add_rooms")
 		data[__rooms.tag] = service
-		
+
 	var data = {}
-	
+
 	var __rooms: PBField
 	func get_rooms() -> Array[Room]:
 		return __rooms.value
@@ -1781,13 +1837,13 @@ class ServerRoomList:
 		var element = Room.new()
 		__rooms.value.append(element)
 		return element
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1802,19 +1858,19 @@ class ServerRoomList:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerRoomUpdated:
 	func _init():
 		var service
-		
+
 		__room = PBField.new("room", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room
 		service.func_ref = Callable(self, "new_room")
 		data[__room.tag] = service
-		
+
 	var data = {}
-	
+
 	var __room: PBField
 	func has_room() -> bool:
 		if __room.value != null:
@@ -1828,13 +1884,13 @@ class ServerRoomUpdated:
 	func new_room() -> Room:
 		__room.value = Room.new()
 		return __room.value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1849,18 +1905,18 @@ class ServerRoomUpdated:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerRoomRemoved:
 	func _init():
 		var service
-		
+
 		__room_id = PBField.new("room_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __room_id
 		data[__room_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __room_id: PBField
 	func has_room_id() -> bool:
 		if __room_id.value != null:
@@ -1873,13 +1929,13 @@ class ServerRoomRemoved:
 		__room_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_room_id(value : int) -> void:
 		__room_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1894,31 +1950,31 @@ class ServerRoomRemoved:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerRoomJoined:
 	func _init():
 		var service
-		
+
 		__room = PBField.new("room", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __room
 		service.func_ref = Callable(self, "new_room")
 		data[__room.tag] = service
-		
+
 		var __peers_default: Array[Peer] = []
 		__peers = PBField.new("peers", PB_DATA_TYPE.MESSAGE, PB_RULE.REPEATED, 2, true, __peers_default)
 		service = PBServiceField.new()
 		service.field = __peers
 		service.func_ref = Callable(self, "add_peers")
 		data[__peers.tag] = service
-		
+
 		__session_id = PBField.new("session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __session_id
 		data[__session_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __room: PBField
 	func has_room() -> bool:
 		if __room.value != null:
@@ -1932,7 +1988,7 @@ class ServerRoomJoined:
 	func new_room() -> Room:
 		__room.value = Room.new()
 		return __room.value
-	
+
 	var __peers: PBField
 	func get_peers() -> Array[Peer]:
 		return __peers.value
@@ -1943,7 +1999,7 @@ class ServerRoomJoined:
 		var element = Peer.new()
 		__peers.value.append(element)
 		return element
-	
+
 	var __session_id: PBField
 	func has_session_id() -> bool:
 		if __session_id.value != null:
@@ -1956,13 +2012,13 @@ class ServerRoomJoined:
 		__session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_session_id(value : int) -> void:
 		__session_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1977,19 +2033,19 @@ class ServerRoomJoined:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerRoomLeft:
 	func _init():
 		var service
-		
+
 	var data = {}
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2004,19 +2060,19 @@ class ServerRoomLeft:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerPeerJoined:
 	func _init():
 		var service
-		
+
 		__peer = PBField.new("peer", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __peer
 		service.func_ref = Callable(self, "new_peer")
 		data[__peer.tag] = service
-		
+
 	var data = {}
-	
+
 	var __peer: PBField
 	func has_peer() -> bool:
 		if __peer.value != null:
@@ -2030,13 +2086,13 @@ class ServerPeerJoined:
 	func new_peer() -> Peer:
 		__peer.value = Peer.new()
 		return __peer.value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2051,23 +2107,23 @@ class ServerPeerJoined:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerPeerLeft:
 	func _init():
 		var service
-		
+
 		__peer_id = PBField.new("peer_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __peer_id
 		data[__peer_id.tag] = service
-		
+
 		__signaling_disconnected = PBField.new("signaling_disconnected", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __signaling_disconnected
 		data[__signaling_disconnected.tag] = service
 
 	var data = {}
-	
+
 	var __peer_id: PBField
 	func has_peer_id() -> bool:
 		if __peer_id.value != null:
@@ -2080,7 +2136,7 @@ class ServerPeerLeft:
 		__peer_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_peer_id(value : int) -> void:
 		__peer_id.value = value
-	
+
 	var __signaling_disconnected: PBField
 	func has_signaling_disconnected() -> bool:
 		if __signaling_disconnected.value != null:
@@ -2096,10 +2152,10 @@ class ServerPeerLeft:
 
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2114,40 +2170,40 @@ class ServerPeerLeft:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerRelay:
 	func _init():
 		var service
-		
+
 		__sender_id = PBField.new("sender_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __sender_id
 		data[__sender_id.tag] = service
-		
+
 		__description = PBField.new("description", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __description
 		service.func_ref = Callable(self, "new_description")
 		data[__description.tag] = service
-		
+
 		__candidate = PBField.new("candidate", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
 		service = PBServiceField.new()
 		service.field = __candidate
 		service.func_ref = Callable(self, "new_candidate")
 		data[__candidate.tag] = service
-		
+
 		__sender_session_id = PBField.new("sender_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __sender_session_id
 		data[__sender_session_id.tag] = service
-		
+
 		__destination_session_id = PBField.new("destination_session_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __destination_session_id
 		data[__destination_session_id.tag] = service
-		
+
 	var data = {}
-	
+
 	enum SignalCase {
 		SIGNAL_NOT_SET = 0,
 		DESCRIPTION = 2,
@@ -2167,7 +2223,7 @@ class ServerRelay:
 		__sender_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_sender_id(value : int) -> void:
 		__sender_id.value = value
-	
+
 	var __description: PBField
 	func has_description() -> bool:
 		return data[2].state == PB_SERVICE_STATE.FILLED
@@ -2183,7 +2239,7 @@ class ServerRelay:
 		data[3].state = PB_SERVICE_STATE.UNFILLED
 		__description.value = WebRTCSessionDescription.new()
 		return __description.value
-	
+
 	var __candidate: PBField
 	func has_candidate() -> bool:
 		return data[3].state == PB_SERVICE_STATE.FILLED
@@ -2199,7 +2255,7 @@ class ServerRelay:
 		_signal_case = 3
 		__candidate.value = WebRTCIceCandidate.new()
 		return __candidate.value
-	
+
 	var __sender_session_id: PBField
 	func has_sender_session_id() -> bool:
 		if __sender_session_id.value != null:
@@ -2212,7 +2268,7 @@ class ServerRelay:
 		__sender_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_sender_session_id(value : int) -> void:
 		__sender_session_id.value = value
-	
+
 	var __destination_session_id: PBField
 	func has_destination_session_id() -> bool:
 		if __destination_session_id.value != null:
@@ -2225,15 +2281,15 @@ class ServerRelay:
 		__destination_session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_destination_session_id(value : int) -> void:
 		__destination_session_id.value = value
-	
+
 	func get_signal_case() -> int:
 		return _signal_case
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2248,23 +2304,23 @@ class ServerRelay:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class WebRTCSessionDescription:
 	func _init():
 		var service
-		
+
 		__type = PBField.new("type", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __type
 		data[__type.tag] = service
-		
+
 		__sdp = PBField.new("sdp", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __sdp
 		data[__sdp.tag] = service
-		
+
 	var data = {}
-	
+
 	var __type: PBField
 	func has_type() -> bool:
 		if __type.value != null:
@@ -2277,7 +2333,7 @@ class WebRTCSessionDescription:
 		__type.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_type(value : String) -> void:
 		__type.value = value
-	
+
 	var __sdp: PBField
 	func has_sdp() -> bool:
 		if __sdp.value != null:
@@ -2290,13 +2346,13 @@ class WebRTCSessionDescription:
 		__sdp.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_sdp(value : String) -> void:
 		__sdp.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2311,28 +2367,28 @@ class WebRTCSessionDescription:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class WebRTCIceCandidate:
 	func _init():
 		var service
-		
+
 		__media = PBField.new("media", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __media
 		data[__media.tag] = service
-		
+
 		__index = PBField.new("index", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __index
 		data[__index.tag] = service
-		
+
 		__candidate = PBField.new("candidate", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __candidate
 		data[__candidate.tag] = service
-		
+
 	var data = {}
-	
+
 	var __media: PBField
 	func has_media() -> bool:
 		if __media.value != null:
@@ -2345,7 +2401,7 @@ class WebRTCIceCandidate:
 		__media.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_media(value : String) -> void:
 		__media.value = value
-	
+
 	var __index: PBField
 	func has_index() -> bool:
 		if __index.value != null:
@@ -2358,7 +2414,7 @@ class WebRTCIceCandidate:
 		__index.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_index(value : int) -> void:
 		__index.value = value
-	
+
 	var __candidate: PBField
 	func has_candidate() -> bool:
 		if __candidate.value != null:
@@ -2371,13 +2427,13 @@ class WebRTCIceCandidate:
 		__candidate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_candidate(value : String) -> void:
 		__candidate.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2392,18 +2448,18 @@ class WebRTCIceCandidate:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class ServerError:
 	func _init():
 		var service
-		
+
 		__reason = PBField.new("reason", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __reason
 		data[__reason.tag] = service
-		
+
 	var data = {}
-	
+
 	var __reason: PBField
 	func has_reason() -> bool:
 		if __reason.value != null:
@@ -2416,13 +2472,13 @@ class ServerError:
 		__reason.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_reason(value : String) -> void:
 		__reason.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2437,5 +2493,5 @@ class ServerError:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 ################ USER DATA END #################

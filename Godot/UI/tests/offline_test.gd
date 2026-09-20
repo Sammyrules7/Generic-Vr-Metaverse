@@ -45,19 +45,20 @@ func _run() -> void:
 	check(ui.get_node("%RoomName").text == "Keep this room name", "Reconnect erased form state")
 	Networking.room_networking.create_room("Disconnect test", "moon_garden")
 	check(await _wait_until(func(): return Networking.room_networking.current_room != null), "Test room did not open")
+	check(await _wait_until(func(): return game.get_node("PlayerManager").local_player != null), "Test world did not spawn a player")
 	var player: NetworkPlayer = game.get_node("PlayerManager").local_player
 	var mesh: WebRTCMesh = Networking.room_networking.rtc_mesh
-	var original_room: roomClass = Networking.room_networking.current_room
+	var original_room_id: int = Networking.room_networking.current_room.id
 	Networking.ws.close(-1)
 	check(await _wait_until(func(): return not Networking.room_networking.connected), "Disconnect was not detected")
-	check(game.get_node("PlayerManager").local_player == player and Networking.room_networking.rtc_mesh == mesh and Networking.room_networking.current_room == original_room, "Control-plane loss destroyed the live room")
+	check(game.get_node("PlayerManager").local_player == player and Networking.room_networking.rtc_mesh == mesh and Networking.room_networking.current_room != null and Networking.room_networking.current_room.id == original_room_id, "Control-plane loss destroyed the live room")
 	check(not ui.menu_open and player.controls.input_enabled and not ui.get_node("VBoxContainer").visible, "Control-plane loss interrupted gameplay")
-	check(ui.get_node("%ControlPlaneNotice").visible and not ui.get_node("%LeaveRoom").disabled, "Control-plane notice or offline leave action missing")
+	check(ui.find_child("ControlPlaneNotice", true, false) == null and not ui.get_node("%LeaveRoom").disabled, "Detached-session notice remained or offline leave action is missing")
 	if "--capture" in OS.get_cmdline_user_args():
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("/tmp/control-plane-offline.png")
-	check(await _wait_until(func(): return Networking.room_networking.connected), "Session disconnect did not reconnect")
-	check(not ui.get_node("%ControlPlaneNotice").visible and Networking.room_networking.rtc_mesh == mesh and game.get_node("PlayerManager").local_player == player, "Reconnect replaced the live session or retained its warning")
+	check(await _wait_until(func(): return Networking.room_networking.connected and not Networking.room_networking.detached_session and Networking.room_networking.pending_operation == RoomNetworking.Operation.NONE), "Session disconnect did not recover its room")
+	check(Networking.room_networking.current_room != null and Networking.room_networking.current_room.id == original_room_id and Networking.room_networking.rtc_mesh == mesh and game.get_node("PlayerManager").local_player == player, "Reconnect replaced the live session")
 	# A TCP connection without the protocol handshake must also time out.
 	Networking.client_id = 0
 	Networking.connect_deadline = Time.get_ticks_msec() - 1
