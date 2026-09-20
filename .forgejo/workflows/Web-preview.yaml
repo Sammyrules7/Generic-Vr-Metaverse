@@ -122,8 +122,9 @@ jobs:
         shell: bash
         run: |
           prefix="s3://$GARAGE_BUCKET/branches/$BUILD_SLUG"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
           printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
           s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
 
@@ -132,8 +133,9 @@ jobs:
         shell: bash
         run: |
           prefix="s3://$GARAGE_BUCKET/channels/main"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
+          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream --content-encoding gzip "$EXPORT_DIR/" "$prefix/assets/"
           printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
           s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
 
@@ -143,7 +145,7 @@ jobs:
       - name: Publish links
         shell: bash
         run: |
-          preview_url="https://app.vr.maio-tech.com/previews/$BUILD_SLUG/$BUILD_COMMIT/"
+          preview_url="https://app.vr.maio-tech.com/$BUILD_SLUG/$BUILD_COMMIT/"
           {
             echo "## Web build published"
             echo

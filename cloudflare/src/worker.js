@@ -1,7 +1,7 @@
 const APP_HOST = "app.vr.maio-tech.com";
 const HOME_HOST = "vr.maio-tech.com";
 const API_HOST = "api.vr.maio-tech.com";
-const PREVIEW_PREFIX = "/previews/";
+const LEGACY_PREVIEW_PREFIX = "/previews/";
 
 export default {
   async fetch(request, env, context) {
@@ -15,6 +15,10 @@ export default {
       return fetch(new Request(upstream, request));
     }
     if (url.hostname === HOME_HOST) return Response.redirect(`https://${APP_HOST}/`, 302);
+    if (url.pathname.startsWith(LEGACY_PREVIEW_PREFIX)) {
+      url.pathname = url.pathname.slice("/previews".length);
+      return Response.redirect(url.toString(), 301);
+    }
 
     try {
       const target = await resolveTarget(url.pathname, env.ORIGIN_URL);
@@ -65,24 +69,23 @@ export default {
 };
 
 async function resolveTarget(pathname, origin) {
-  if (pathname.startsWith(PREVIEW_PREFIX)) {
-    const parts = pathname.slice(PREVIEW_PREFIX.length).split("/");
-    const branch = parts.shift();
-    if (!isSlug(branch)) return null;
-
+  const parts = pathname.replace(/^\/+/, "").split("/");
+  const branch = parts[0];
+  if (isSlug(branch)) {
     const activeCommit = await fetchPointer(origin, `branches/${branch}/commit.txt`);
-    if (!isCommit(activeCommit)) return null;
-
-    // A 40-character second segment selects a specific commit. All other
-    // paths resolve directly against the branch's latest published assets.
-    if (isCommit(parts[0])) {
-      const commit = parts.shift();
-      if (activeCommit !== commit) return null;
+    if (isCommit(activeCommit)) {
+      parts.shift();
+      // A 40-character second segment selects a specific commit. All other
+      // paths resolve directly against the branch's latest published assets.
+      if (isCommit(parts[0])) {
+        const commit = parts.shift();
+        if (activeCommit !== commit) return null;
+      }
+      return {
+        key: `branches/${branch}/assets/${normalizeAssetPath(parts.join("/"))}`,
+        preview: true,
+      };
     }
-    return {
-      key: `branches/${branch}/assets/${normalizeAssetPath(parts.join("/"))}`,
-      preview: true,
-    };
   }
 
   const commit = await fetchPointer(origin, "channels/main/commit.txt");
