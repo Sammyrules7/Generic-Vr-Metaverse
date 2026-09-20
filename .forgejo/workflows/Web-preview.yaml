@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - Multiplayer
+      - t3code/add-voip-support
     paths:
       - Godot/**
       - .forgejo/workflows/Web-preview.yaml
+      - cloudflare/**
   workflow_dispatch:
     inputs:
       ref:
@@ -151,9 +153,6 @@ jobs:
 
       - name: Deploy Cloudflare build router
         run: wrangler deploy
-
-      - name: Deploy Cloudflare build router
-        run: npx --yes wrangler@4 deploy
 
       - name: Publish links
         shell: bash
