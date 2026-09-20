@@ -153,6 +153,16 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Create room"
 
+[node name="VoiceSpacer" type="Control" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="QuickMicrophoneEnabled" type="CheckButton" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Voice chat enabled"
+
 [node name="OpenVoiceSettings" type="Button" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
 unique_name_in_owner = true
 layout_mode = 2

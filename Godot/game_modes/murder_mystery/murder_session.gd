@@ -60,6 +60,16 @@ func bind_world(world: Node3D, in_manager: PlayerManager, id: int) -> void:
 	presentation = MurderPresentation.new()
 	add_child(presentation)
 	presentation.setup(manager.players, manager.local_player, world)
+	manager.local_player.controls_changed.connect(_bind_controls)
+	_bind_controls()
+	_elect_authority()
+
+
+func _bind_controls() -> void:
+	for connection: Dictionary in _controller_connections:
+		if is_instance_valid(connection.node):
+			connection.node.button_pressed.disconnect(connection.callback)
+	_controller_connections.clear()
 	var controls := manager.local_player.controls
 	if manager.local_player.use_vr:
 		for hand: String in ["left_hand", "right_hand"]:
@@ -68,10 +78,11 @@ func bind_world(world: Node3D, in_manager: PlayerManager, id: int) -> void:
 				var callback := _vr_button.bind(hand == "right_hand")
 				controller.button_pressed.connect(callback)
 				_controller_connections.append({"node": controller, "callback": callback})
-	_elect_authority()
 
 
 func clear() -> void:
+	if is_instance_valid(manager) and is_instance_valid(manager.local_player) and manager.local_player.controls_changed.is_connected(_bind_controls):
+		manager.local_player.controls_changed.disconnect(_bind_controls)
 	for connection: Dictionary in _controller_connections:
 		if is_instance_valid(connection.node):
 			connection.node.button_pressed.disconnect(connection.callback)

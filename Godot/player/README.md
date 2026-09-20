@@ -14,16 +14,25 @@ and ceilings. Jump requests in the air are discarded; holding jump does not
 cause automatic jumping when landing.
 
 Desktop: WASD/arrows or left stick move; mouse or right stick look; Space/gamepad
-A jumps. Escape releases the cursor, and left click captures it again. Mouse
+A jumps. Escape opens the room menu, including browser pointer-lock release;
+Resume captures the cursor again. Mouse
 sensitivity and gamepad angular speed are separate settings on Input.
 
 XR: left stick moves relative to headset yaw, right stick smoothly turns around
-the headset, and right A/X jumps. Stick deadzones preserve analog speed. A left
+the headset, and right A/X jumps. Both OpenXR primary and WebXR thumbstick inputs
+are supported. Stick deadzones preserve analog speed. A
 thumb/index pinch moves forward when the stick is idle, with separate press and
 release thresholds. Missing trackers or invalid joint positions cancel pinch.
 The body follows horizontal room-scale motion through collision checks; blocked
 motion corrects the virtual origin. The capsule remains a fixed standing height
 (crouching and climbing are not implemented).
+
+The VR menu follows the left hand with smoothing and faces the headset. Touch
+it with the right index finger; it holds still during a touch for dragging.
+Controllers retain a ray that is visible only over the menu. Menu, Select,
+and B/Y toggle the room menu when those buttons are exposed by the runtime.
+With hands only, hold a left thumb/ring-finger pinch for 0.4 seconds to toggle it.
+Optical hands use the tracked skeleton instead of grip/trigger animations.
 
 Run from the repository root, using Godot 4.7:
 

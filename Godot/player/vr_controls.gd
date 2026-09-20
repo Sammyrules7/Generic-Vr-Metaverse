@@ -5,7 +5,6 @@ extends PlayerControls
 @export var pinch_threshold := 0.02
 @export var release_threshold := 0.035
 
-var trackers: Dictionary[String, XRHandTracker]
 var pinching := false
 
 
@@ -32,9 +31,9 @@ func update(delta: float) -> void:
 		pinching = false
 		return
 	sync_room_scale()
-	var look: Vector2 = $Origin/RightHand.get_vector2("primary") if $Origin/RightHand.get_is_active() else Vector2.ZERO
+	var look := PlatformXRInput.stick($Origin/RightHand)
 	rotate_around_head(-filtered_stick(Vector2(look.x, 0.0)).x * rotation_speed * delta)
-	var input: Vector2 = $Origin/LeftHand.get_vector2("primary") if $Origin/LeftHand.get_is_active() else Vector2.ZERO
+	var input := PlatformXRInput.stick($Origin/LeftHand)
 	var hand := _hand_pinch()
 	movement = planar_direction(select_movement(input, hand.x > 0.5, hand.y), head.global_basis)
 
@@ -68,20 +67,18 @@ func select_movement(stick: Vector2, hand_valid: bool, pinch_distance: float) ->
 
 func _hand_pinch() -> Vector2:
 	var thumb_joint := XRHandTracker.HAND_JOINT_THUMB_TIP
-	var middle_joint := XRHandTracker.HAND_JOINT_MIDDLE_FINGER_TIP
+	var index_joint := XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP
 	var valid_flag := XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID
 	var closest := INF
 	for hand: String in ["left", "right"]:
-		if not trackers.has(hand):
-			trackers[hand] = XRServer.get_tracker("/user/hand_tracker/" + hand) as XRHandTracker
-		var tracker := trackers[hand]
-		if tracker == null or not tracker.has_tracking_data:
+		var tracker := PlatformXRInput.hand_tracker(hand)
+		if not PlatformXRInput.optical_hand(tracker):
 			continue
-		if (tracker.get_hand_joint_flags(thumb_joint) & valid_flag) == 0 or (tracker.get_hand_joint_flags(middle_joint) & valid_flag) == 0:
+		if (tracker.get_hand_joint_flags(thumb_joint) & valid_flag) == 0 or (tracker.get_hand_joint_flags(index_joint) & valid_flag) == 0:
 			continue
 		var thumb := tracker.get_hand_joint_transform(thumb_joint).origin
-		var middle := tracker.get_hand_joint_transform(middle_joint).origin
-		closest = minf(closest, thumb.distance_to(middle))
+		var index := tracker.get_hand_joint_transform(index_joint).origin
+		closest = minf(closest, thumb.distance_to(index))
 	return Vector2(1.0, closest) if closest < INF else Vector2.ZERO
 
 

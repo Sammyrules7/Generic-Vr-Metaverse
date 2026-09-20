@@ -1,6 +1,8 @@
 class_name NetworkPlayer
 extends CharacterBody3D
 
+signal controls_changed
+
 # Both input modes use the same body, physics, and remote avatar. Controls exist
 # only on the owning client, so a remote VR avatar never initializes local XR.
 const DESKTOP_CONTROLS = preload("res://player/desktop_controls.tscn")
@@ -32,6 +34,21 @@ func apply_pose(body_pose: Transform3D, head_pose: Transform3D, left_pose: Trans
 	$Avatar/Head.transform = head_pose
 	$Avatar/LeftHand.transform = left_pose
 	$Avatar/RightHand.transform = right_pose
+
+
+func set_control_mode(vr: bool) -> void:
+	if use_vr == vr:
+		return
+	# WebXR can finish starting after the world has spawned its desktop rig.
+	var was_enabled := controls.input_enabled
+	controls.free()
+	use_vr = vr
+	controls = (VR_CONTROLS if vr else DESKTOP_CONTROLS).instantiate()
+	add_child(controls)
+	controls.input_enabled = was_enabled
+	motor.input_source = controls
+	Networking.player_replication.set_local_player(self)
+	controls_changed.emit()
 
 
 func set_display_name(display_name: String) -> void:

@@ -134,7 +134,10 @@ func remove_peer_anchor(peer_id: int) -> void:
 
 
 func _start_voice(_room: roomClass) -> void:
-	prepare_microphone()
+	# Permission is requested by the voice toggle/settings gesture. Joining a
+	# room must not launch a competing permission prompt during WebXR startup.
+	if not muted and (not OS.has_feature("web") or input_permission_requested):
+		prepare_microphone()
 
 
 func prepare_microphone() -> bool:

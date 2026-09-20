@@ -13,11 +13,15 @@ var uppercase := false
 var world_index := 0
 var disconnect_status := false
 var control_plane_warning := ""
+var _pointer_lock_callback: JavaScriptObject
+var _browser_document: JavaScriptObject
+var _last_unlock_msec := -1000
 
 
 func _ready() -> void:
 	_apply_theme()
 	get_viewport().size_changed.connect(_fit_ui)
+	$VBoxContainer.minimum_size_changed.connect(_fit_ui)
 	_fit_ui()
 	PlayerProfile.restore()
 	%DisplayName.text = PlayerProfile.display_name
@@ -26,6 +30,7 @@ func _ready() -> void:
 	%InputGain.value = PlayerProfile.input_gain * 100.0
 	%VoiceVolume.value = PlayerProfile.voice_volume * 100.0
 	%LobbyMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
+	%QuickMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
 	%LobbyPushToTalk.button_pressed = PlayerProfile.push_to_talk
 	%LobbyInputGain.value = PlayerProfile.input_gain * 100.0
 	%LobbyVoiceVolume.value = PlayerProfile.voice_volume * 100.0
@@ -40,6 +45,7 @@ func _ready() -> void:
 	%InputDevice.item_selected.connect(_input_device_selected)
 	%VoiceVolume.value_changed.connect(_voice_volume_changed)
 	%LobbyMicrophoneEnabled.toggled.connect(_microphone_toggled)
+	%QuickMicrophoneEnabled.toggled.connect(_microphone_toggled)
 	%LobbyPushToTalk.toggled.connect(_push_to_talk_toggled)
 	%LobbyInputGain.value_changed.connect(_input_gain_changed)
 	%LobbyInputDevice.item_selected.connect(_lobby_input_device_selected)
@@ -85,6 +91,27 @@ func _ready() -> void:
 	_update_controls()
 	if room_networking.current_room != null:
 		_room_joined(room_networking.current_room)
+	if OS.has_feature("web"):
+		_browser_document = JavaScriptBridge.get_interface("document")
+		_pointer_lock_callback = JavaScriptBridge.create_callback(_pointer_lock_changed)
+		_browser_document.addEventListener("pointerlockchange", _pointer_lock_callback)
+
+
+func _enter_tree() -> void:
+	# Reparenting between desktop and the XR viewport does not rerun _ready.
+	if _browser_document != null and _pointer_lock_callback != null:
+		_browser_document.addEventListener("pointerlockchange", _pointer_lock_callback)
+
+
+func _exit_tree() -> void:
+	if _browser_document != null and _pointer_lock_callback != null:
+		_browser_document.removeEventListener("pointerlockchange", _pointer_lock_callback)
+
+
+func _pointer_lock_changed(_args: Array) -> void:
+	if not vr_mode and not menu_open and room_networking.current_room != null and _browser_document.pointerLockElement == null:
+		_last_unlock_msec = Time.get_ticks_msec()
+		set_menu_open(true)
 
 
 func _apply_theme() -> void:
@@ -125,8 +152,22 @@ func _apply_theme() -> void:
 func _fit_ui() -> void:
 	# Keep the full lobby visible in narrow Quest browser windows while retaining
 	# the authored size in the fixed-resolution in-headset viewport.
-	var available := get_viewport_rect().size
-	theme.default_base_scale = clampf(minf(available.x / 1120.0, available.y / 800.0), 0.65, 1.0)
+	var available := get_viewport_rect().size.max(Vector2.ONE)
+	# Scale the complete layout: theme scaling alone does not scale authored
+	# margins, minimum sizes, or text consistently.
+	var design: Vector2 = $VBoxContainer.get_combined_minimum_size().max(Vector2(1120, 900))
+	var factor := minf(available.x / design.x, available.y / design.y)
+	theme.default_base_scale = 1.0
+	$VBoxContainer.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	$VBoxContainer.scale = Vector2.ONE * factor
+	$VBoxContainer.size = available / factor
+	$VBoxContainer.position = Vector2.ZERO
+	for card: Control in [$Session, %VoiceSettings]:
+		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700))
+		card.scale = Vector2.ONE * minf(1.0, minf(available.x / (card_size.x + 32), available.y / (card_size.y + 32)))
+		card.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		card.size = card_size
+		card.position = (available - card.size * card.scale) * 0.5
 
 
 func _select_world(id: String) -> void:
@@ -155,6 +196,13 @@ func set_xr_status(message: String) -> void:
 	%XRStatus.visible = not message.is_empty()
 
 
+func xr_point_is_visible(point: Vector2) -> bool:
+	for card: Control in [$Session, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse]:
+		if card.is_visible_in_tree() and card.get_global_rect().has_point(point):
+			return true
+	return false
+
+
 func _step_world(direction: int) -> void:
 	var ids := WorldCatalog.WORLDS.keys()
 	if ids.size() > 1:
@@ -172,6 +220,7 @@ func _microphone_toggled(enabled: bool) -> void:
 	PlayerProfile.microphone_enabled = enabled
 	%MicrophoneEnabled.set_pressed_no_signal(enabled)
 	%LobbyMicrophoneEnabled.set_pressed_no_signal(enabled)
+	%QuickMicrophoneEnabled.set_pressed_no_signal(enabled)
 	Networking.voice_chat.set_muted(not enabled)
 	PlayerProfile.save()
 	_local_speaking_changed(false)
@@ -230,16 +279,13 @@ func _local_speaking_changed(active: bool) -> void:
 
 
 func _request_microphone_permission() -> bool:
-	if not OS.has_feature("web") or not PlayerProfile.microphone_enabled:
+	if not PlayerProfile.microphone_enabled:
 		return true
 	if Networking.voice_chat.is_input_ready():
 		return true
-	# A declined prompt disables voice but must never prevent joining a room.
-	if Networking.voice_chat.has_requested_input_permission():
-		return true
+	# This runs only from an explicit voice control, never as an entry gate.
 	Networking.voice_chat.prepare_microphone()
-	_set_status("Choose microphone access, then press Create or Join again. You can continue if you decline.")
-	return false
+	return true
 
 
 func _voice_volume_changed(value: float) -> void:
@@ -267,11 +313,6 @@ func _create_room() -> void:
 		_show_error("No world selected.")
 		return
 	if not _save_identity():
-		return
-	# WebXR must begin directly from a user gesture, while microphone permission
-	# can interrupt an active immersive session. Acquire permission on an earlier
-	# click, then let the player's next click start WebXR and create the room.
-	if not _request_microphone_permission():
 		return
 	var room_name: String = %RoomName.text.strip_edges()
 	if room_name.is_empty():
@@ -323,7 +364,7 @@ func _add_room(room: roomClass) -> void:
 	var element = ROOM_ELEMENT.instantiate()
 	element.room = room
 	element.join_requested.connect(func(room_id: int):
-		if _save_identity() and _request_microphone_permission():
+		if _save_identity():
 			xr_requested.emit()
 			_check_request(room_networking.join_room(room_id))
 	)
@@ -365,13 +406,8 @@ func set_menu_open(open: bool) -> void:
 	$VBoxContainer.visible = not in_room
 	$Session.visible = in_room and open
 	$MenuHint.visible = in_room and not open and not vr_mode
-	if vr_mode:
-		$Session.set_anchors_preset(Control.PRESET_CENTER)
-		$Session.offset_left = -260
-		$Session.offset_top = -280
-		$Session.offset_right = 260
-		$Session.offset_bottom = 280
-	$Background.visible = not in_room or (vr_mode and open)
+	$Background.visible = not vr_mode and not in_room
+	_fit_ui()
 	if not open:
 		%VoiceSettings.hide()
 	mouse_filter = Control.MOUSE_FILTER_STOP if open else Control.MOUSE_FILTER_IGNORE
@@ -391,6 +427,10 @@ func _set_voice_settings_open(open: bool) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("exit") and Time.get_ticks_msec() - _last_unlock_msec < 250:
+		# Some browsers deliver Escape after reporting the pointer-lock loss.
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("exit") and %VoiceSettings.visible:
 		_set_voice_settings_open(false)
 		get_viewport().set_input_as_handled()
