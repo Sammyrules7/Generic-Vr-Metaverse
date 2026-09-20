@@ -110,6 +110,12 @@
       };
 
     in {
+      devShells.${system}.default = pkgs.mkShell {
+        packages = with pkgs; [
+          go godot_4 protobuf protoc-gen-go git-lfs ripgrep shellcheck nodejs_24
+        ];
+      };
+
       packages.${system} = {
         default = server;
         server = server;

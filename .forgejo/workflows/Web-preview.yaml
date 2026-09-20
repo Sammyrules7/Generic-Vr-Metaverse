@@ -1,5 +1,9 @@
 name: Web preview
 
+concurrency:
+  group: web-publish
+  cancel-in-progress: false
+
 on:
   push:
     branches:
@@ -7,8 +11,8 @@ on:
       - t3code/add-voip-support
     paths:
       - Godot/**
+      - '!Godot/**/*.md'
       - .forgejo/workflows/Web-preview.yaml
-      - cloudflare/**
   workflow_dispatch:
     inputs:
       ref:
@@ -24,13 +28,6 @@ on:
 env:
   PROJECT_PATH: Godot
   EXPORT_DIR: ${{ github.workspace }}/build/web
-  GARAGE_BUCKET: vr-platform-web
-  GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
-  AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
-  AWS_DEFAULT_REGION: garage
-  CLOUDFLARE_ACCOUNT_ID: a92ab2f2ab0059485a5a45d61783b5da
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
 jobs:
   web-preview:
@@ -49,6 +46,7 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
           lfs: true
+          persist-credentials: false
 
       - name: Describe build
         id: describe
@@ -59,28 +57,29 @@ jobs:
         run: |
           commit="$(git rev-parse HEAD)"
           branch="$REQUESTED_REF"
-          slug="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63)"
+          slug="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63 | sed 's/-*$//')"
           if [ -z "$slug" ]; then slug="commit"; fi
           publish_main=false
           if [ "$REQUESTED_MAIN" = "true" ] || [ "$branch" = "main" ]; then publish_main=true; fi
           printf 'BUILD_COMMIT=%s\nBUILD_BRANCH=%s\nBUILD_SLUG=%s\nPUBLISH_MAIN=%s\n' "$commit" "$branch" "$slug" "$publish_main" >> "$GITHUB_ENV"
           printf 'commit=%s\nslug=%s\npublish_main=%s\n' "$commit" "$slug" "$publish_main" >> "$GITHUB_OUTPUT"
 
+      - name: Read engine version
+        id: engine
+        run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
+
       - name: Cache Godot imports
         uses: actions/cache@v4
         with:
           path: ${{ env.PROJECT_PATH }}/.godot
-          key: godot-web-assets-${{ hashFiles('**/project.godot') }}
-          restore-keys: godot-web-assets-
+          key: godot-web-v2-${{ steps.engine.outputs.version }}-${{ steps.describe.outputs.commit }}
+          restore-keys: godot-web-v2-${{ steps.engine.outputs.version }}-
 
       - name: Import project
-        run: godot --headless --editor --quit --path "$PROJECT_PATH"
+        run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
 
       - name: Test player movement
         run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/movement_test.gd
-
-      #- name: Test server address configuration
-      #  run: godot --headless --xr-mode off --path "$PROJECT_PATH" res://Networking/tests/server_config_test.tscn
 
       - name: Configure main signaling backend
         env:
@@ -107,12 +106,19 @@ jobs:
       # Updated automatically from the flake by Server-container.yaml.
       image: nix:0/nix/store/1fh64qhk5iva1idawvklmimsq9akiais-nix-image-vr-platform-web-publish-ci.tar
     env:
+      GARAGE_BUCKET: vr-platform-web
+      GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
+      AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: garage
       BUILD_COMMIT: ${{ needs.web-preview.outputs.commit }}
       BUILD_SLUG: ${{ needs.web-preview.outputs.slug }}
       PUBLISH_MAIN: ${{ needs.web-preview.outputs.publish_main }}
     steps:
       - name: Checkout deployment configuration
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Download web client
         uses: actions/download-artifact@v3
@@ -130,32 +136,19 @@ jobs:
             fi
           done
 
-      - name: Replace branch build in Garage
+      - name: Publish immutable branch build
         shell: bash
-        run: |
-          prefix="s3://$GARAGE_BUCKET/branches/$BUILD_SLUG"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$prefix/assets/"
-          printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
+        run: bash scripts/publish_web.sh "branches/$BUILD_SLUG"
 
       - name: Publish main channel
         if: env.PUBLISH_MAIN == 'true'
         shell: bash
-        run: |
-          prefix="s3://$GARAGE_BUCKET/channels/main"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" sync --delete "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$prefix/assets/"
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$prefix/assets/"
-          printf '%s\n' "$BUILD_COMMIT" > /tmp/commit.txt
-          s5cmd --endpoint-url "$GARAGE_ENDPOINT" cp --content-type text/plain --cache-control no-cache /tmp/commit.txt "$prefix/commit.txt"
-
-      - name: Deploy Cloudflare build router
-        run: wrangler deploy
+        run: bash scripts/publish_web.sh channels/main
 
       - name: Publish links
         shell: bash
+        env:
+          BACKEND_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
         run: |
           preview_url="https://app.vr.maio-tech.com/$BUILD_SLUG/$BUILD_COMMIT/"
           {
@@ -163,6 +156,6 @@ jobs:
             echo
             echo "- Preview: $preview_url"
             if [ "$PUBLISH_MAIN" = "true" ]; then echo "- Main: https://app.vr.maio-tech.com/"; fi
-            echo "- Backend: ${{ vars.VR_PLATFORM_SERVER_URL }}"
+            echo "- Backend: $BACKEND_URL"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$preview_url"

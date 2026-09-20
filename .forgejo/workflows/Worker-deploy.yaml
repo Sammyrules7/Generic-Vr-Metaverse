@@ -1,0 +1,32 @@
+name: Deploy web router
+
+on:
+  push:
+    branches: [main, Multiplayer]
+    paths:
+      - cloudflare/**
+      - wrangler.jsonc
+      - .forgejo/workflows/Worker-deploy.yaml
+  workflow_dispatch:
+
+concurrency:
+  group: web-router-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: default
+    container:
+      # Updated with the publisher image by Server-container.yaml.
+      image: nix:0/nix/store/1fh64qhk5iva1idawvklmimsq9akiais-nix-image-vr-platform-web-publish-ci.tar
+    steps:
+      - name: Checkout router configuration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Deploy router
+        env:
+          CLOUDFLARE_ACCOUNT_ID: a92ab2f2ab0059485a5a45d61783b5da
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: wrangler deploy

@@ -76,5 +76,11 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,windows,macos
-vr-platform.keystore
+*.keystore
+*.jks
+/result
+/result-*
+/Server/server
+/.wrangler/
+/node_modules/
 build/

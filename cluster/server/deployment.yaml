@@ -6,9 +6,10 @@ metadata:
     app.kubernetes.io/name: vr-platform-server
     app.kubernetes.io/part-of: vr-platform
 spec:
-  # Room membership is held in memory, so keep one replica until shared state
-  # or session affinity is implemented.
+  # Each process has its own directory. Never overlap replicas during rollout.
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: vr-platform-server

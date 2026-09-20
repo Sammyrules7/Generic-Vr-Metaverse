@@ -460,7 +460,7 @@ func _operation_finished(_operation: RoomNetworking.Operation, success: bool, re
 
 
 func _available() -> bool:
-	return room_networking.connected and room_networking.pending_operation == RoomNetworking.Operation.NONE
+	return room_networking.connected and not room_networking.detached_session and room_networking.pending_operation == RoomNetworking.Operation.NONE
 
 
 func _update_controls() -> void:
@@ -471,7 +471,7 @@ func _update_controls() -> void:
 	%Connection.add_theme_color_override("font_color", Color("#a0bdd4") if room_networking.connected else Color("#f5bc79"))
 	%CreateRoom.disabled = not available or %DisplayName.text.strip_edges().is_empty() or WorldCatalog.WORLDS.is_empty()
 	%LeaveRoom.disabled = room_networking.current_room == null or room_networking.pending_operation != RoomNetworking.Operation.NONE
-	var warning := "Control plane offline\nPeer-to-peer session continues" if room_networking.current_room != null and not room_networking.connected else ""
+	var warning := "Room disconnected from directory\nPeer-to-peer session continues" if room_networking.detached_session else ""
 	%ControlPlaneNotice.visible = not warning.is_empty() and not vr_mode
 	%ControlPlaneText.text = warning
 	if warning != control_plane_warning:

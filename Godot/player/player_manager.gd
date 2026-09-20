@@ -17,6 +17,7 @@ var room_networking: RoomNetworking
 var replication: PlayerReplication
 var voice_chat: VoiceChat
 var local_player: NetworkPlayer
+var _spawn_generation := 0
 
 
 func _ready() -> void:
@@ -44,10 +45,19 @@ func _exit_tree() -> void:
 
 func _room_joined(_room: roomClass) -> void:
 	_clear_players()
+	var generation := _spawn_generation
+	var point := spawn_point
 	if get_parent().has_method("load_world"):
-		spawn_point = await get_parent().load_world(_room.world_id)
-	if spawn_point == null:
+		point = await get_parent().load_world(_room.world_id)
+	# A leave or a newer join can arrive while the scene is loading.
+	if generation != _spawn_generation or not is_inside_tree():
 		return
+	if point == null:
+		room_networking.network_error.emit("Could not load the room's world")
+		# A cached load can finish inside room_joined, before its command clears.
+		room_networking.leave_room.call_deferred()
+		return
+	spawn_point = point
 	var xr := XRServer.primary_interface
 	var use_vr: bool = xr != null and xr.is_initialized()
 	local_player = _spawn(multiplayer.get_unique_id(), use_vr, spawn_point.global_transform)
@@ -94,6 +104,7 @@ func _remove_remote(peer_id: int) -> void:
 
 
 func _clear_players() -> void:
+	_spawn_generation += 1
 	players_clearing.emit()
 	# An outgoing scene must not unregister a player installed by its replacement.
 	if is_instance_valid(replication) and replication.local_player == local_player:
@@ -101,8 +112,7 @@ func _clear_players() -> void:
 	local_player = null
 	if is_instance_valid(players):
 		for player in players.get_children():
-			if player != local_player:
-				voice_chat.remove_peer_anchor(int(player.name))
+			voice_chat.remove_peer_anchor(int(player.name))
 			player.free()
 
 

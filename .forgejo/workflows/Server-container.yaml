@@ -1,4 +1,4 @@
-name: Build server container
+name: Build Nix images
 
 on:
   push:
@@ -8,8 +8,14 @@ on:
       - cluster/server/**
       - flake.nix
       - flake.lock
+      - nix/images/**
+      - scripts/update_ci_images.sh
       - .forgejo/workflows/Server-container.yaml
   workflow_dispatch:
+
+concurrency:
+  group: nix-images-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -18,54 +24,57 @@ jobs:
     container:
       image: nix:0/nix/store/8gkw0nrmwykp4yhcic8x96a5g63hrf74-nix-image-vr-platform-builder-ci.tar
     steps:
-      - name: Checkout
+      - name: Checkout code without game assets
         uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 2
+          lfs: false
 
-      - name: Build and cache Nix images
+      - name: Select images
+        id: images
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_COMMIT: ${{ github.event.before }}
+        run: |
+          scope=all
+          # Compare the whole push, not just HEAD^ (pushes can contain many commits).
+          # Missing history, a new branch, and manual runs safely build everything.
+          if [[ "$EVENT_NAME" == push && "$BASE_COMMIT" =~ ^[0-9a-f]{40}$ && "$BASE_COMMIT" != 0000000000000000000000000000000000000000 ]]; then
+            if git cat-file -e "$BASE_COMMIT^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$BASE_COMMIT"; then
+              if git diff --quiet "$BASE_COMMIT" HEAD -- flake.nix flake.lock nix/images scripts/update_ci_images.sh .forgejo/workflows/Server-container.yaml; then
+                scope=server
+              fi
+            fi
+          fi
+          printf 'scope=%s\n' "$scope" >> "$GITHUB_OUTPUT"
+
+      - name: Build and cache selected images
+        shell: bash
         env:
           ATTIC_SERVER: https://attic.maio-tech.com
           ATTIC_CACHE: main
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+          IMAGE_SCOPE: ${{ steps.images.outputs.scope }}
         run: |
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
-          SERVER_IMAGE_PATH="$(nix build .#server-image --no-link --print-out-paths)"
-          GODOT_IMAGE_PATH="$(nix build .#godot-ci-image --no-link --print-out-paths)"
-          GODOT_WEB_IMAGE_PATH="$(nix build .#godot-web-ci-image --no-link --print-out-paths)"
-          WEB_PUBLISH_IMAGE_PATH="$(nix build .#web-publish-ci-image --no-link --print-out-paths)"
-          PUBLISH_IMAGE_PATH="$(nix build .#publish-ci-image --no-link --print-out-paths)"
-          CLEANUP_IMAGE_PATH="$(nix build .#cleanup-ci-image --no-link --print-out-paths)"
-          BUILDER_IMAGE_PATH="$(nix build .#builder-ci-image --no-link --print-out-paths)"
+          bash scripts/update_ci_images.sh "$IMAGE_SCOPE"
 
-          nix run .#attic-client -- push "$ATTIC_CACHE" \
-            "$SERVER_IMAGE_PATH" \
-            "$GODOT_IMAGE_PATH" \
-            "$GODOT_WEB_IMAGE_PATH" \
-            "$WEB_PUBLISH_IMAGE_PATH" \
-            "$PUBLISH_IMAGE_PATH" \
-            "$CLEANUP_IMAGE_PATH" \
-            "$BUILDER_IMAGE_PATH"
-
-          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-server.tar|image: nix:0$SERVER_IMAGE_PATH|" cluster/server/deployment.yaml
-          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-godot-ci.tar|image: nix:0$GODOT_IMAGE_PATH|" \
-            .forgejo/workflows/Build-and-release.yaml
-          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-godot-web-ci.tar|image: nix:0$GODOT_WEB_IMAGE_PATH|" \
-            .forgejo/workflows/Web-preview.yaml
-          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-web-publish-ci.tar|image: nix:0$WEB_PUBLISH_IMAGE_PATH|" \
-            .forgejo/workflows/Web-preview.yaml
-          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-publish-ci.tar|image: nix:0$PUBLISH_IMAGE_PATH|" \
-            .forgejo/workflows/Build-and-release.yaml
-          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-cleanup-ci.tar|image: nix:0$CLEANUP_IMAGE_PATH|" \
-            .forgejo/workflows/Web-preview-cleanup.yaml
-          sed -i -E "s|image: nix:0/nix/store/[^ ]+-nix-image-vr-platform-builder-ci.tar|image: nix:0$BUILDER_IMAGE_PATH|" \
-            .forgejo/workflows/Server-container.yaml
-
-          generated_files="cluster/server/deployment.yaml .forgejo/workflows/Build-and-release.yaml .forgejo/workflows/Server-container.yaml .forgejo/workflows/Web-preview.yaml .forgejo/workflows/Web-preview-cleanup.yaml"
-          if ! git diff --quiet -- $generated_files; then
-            git config user.name "Forgejo Actions"
-            git config user.email "actions@forgejo.maio-tech.com"
-            git add $generated_files
-            git commit -m "Update Nix image references [skip ci]"
-            git push origin "HEAD:${FORGEJO_REF_NAME}"
+      - name: Commit updated image references
+        shell: bash
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          generated_files=(cluster/server/deployment.yaml .forgejo/workflows/Build-and-release.yaml .forgejo/workflows/Server-container.yaml .forgejo/workflows/Web-preview.yaml .forgejo/workflows/Web-preview-cleanup.yaml .forgejo/workflows/Worker-deploy.yaml)
+          if git diff --quiet -- "${generated_files[@]}"; then exit 0; fi
+          git fetch --no-tags --depth=1 origin "refs/heads/$BRANCH_NAME"
+          if [[ "$(git rev-parse FETCH_HEAD)" != "$SOURCE_COMMIT" ]]; then
+            echo 'Branch advanced during the build; skipping stale image references. Run this workflow on the latest commit to refresh them.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
+          git config user.name "Forgejo Actions"
+          git config user.email "actions@forgejo.maio-tech.com"
+          git add -- "${generated_files[@]}"
+          git commit -m "Update Nix image references [skip ci]"
+          git push origin "HEAD:refs/heads/$BRANCH_NAME"

@@ -5,10 +5,11 @@ let
   # templates. Copying only these files prevents those targets from becoming
   # runtime dependencies of the web-preview image.
   exportTemplates = pkgs.runCommand "godot-web-export-templates" { } ''
-    versionDir="$out/share/godot/export_templates/4.7.2.stable"
+    templateDir="${pkgs.godot-export-templates-bin}/share/godot/export_templates/${pkgs.godot-export-templates-bin.version}.stable"
+    versionDir="$out/share/godot/export_templates/${pkgs.godot-export-templates-bin.version}.stable"
     mkdir -p "$versionDir"
-    cp ${pkgs.godot-export-templates-bin}/share/godot/export_templates/4.7.2.stable/web_*.zip "$versionDir/"
-    cp ${pkgs.godot-export-templates-bin}/share/godot/export_templates/4.7.2.stable/version.txt "$versionDir/"
+    cp "$templateDir"/web_*.zip "$versionDir/"
+    cp "$templateDir/version.txt" "$versionDir/"
   '';
 in
 mkResolvedImage {

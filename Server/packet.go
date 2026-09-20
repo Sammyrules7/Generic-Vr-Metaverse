@@ -45,6 +45,17 @@ func handlePacket(encoded []byte, sender *Client) {
 		sendError(sender, "invalid packet")
 		return
 	}
+	switch packet.Payload.(type) {
+	case *protocol.ClientPacket_RoomCreate, *protocol.ClientPacket_RoomJoin, *protocol.ClientPacket_RoomLeave:
+		// Membership changes broadcast to the entire directory. Their budget is
+		// smaller than ICE signaling so one client cannot churn everyone's queues.
+		if !sender.roomCommands.allow(4, 8) {
+			reply := errorPacket("too many room commands; try again shortly")
+			reply.RequestId = packet.RequestId
+			send(sender, reply)
+			return
+		}
+	}
 	hub.handle(sender, packet)
 }
 

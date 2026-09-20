@@ -8,9 +8,9 @@ mkdir -p "$repo_dir/Server/protocol" "$repo_dir/Godot/Networking/Generated"
 run_protoc() {
 	protoc "$@"
 }
-if ! command -v protoc >/dev/null 2>&1; then
+if ! command -v protoc >/dev/null 2>&1 || ! command -v protoc-gen-go >/dev/null 2>&1; then
 	if ! command -v nix-shell >/dev/null 2>&1; then
-		printf 'protoc (or nix-shell) is required to regenerate protocol code.\n' >&2
+		printf 'protoc and protoc-gen-go (or nix-shell) are required to regenerate protocol code.\n' >&2
 		exit 1
 	fi
 	run_protoc() {

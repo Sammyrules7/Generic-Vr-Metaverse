@@ -1,5 +1,9 @@
 name: Remove deleted branch web preview
 
+concurrency:
+  group: web-publish
+  cancel-in-progress: false
+
 on:
   delete:
 
@@ -23,6 +27,6 @@ jobs:
         env:
           DELETED_BRANCH: ${{ github.event.ref }}
         run: |
-          slug="$(printf '%s' "$DELETED_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63)"
+          slug="$(printf '%s' "$DELETED_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63 | sed 's/-*$//')"
           test -n "$slug"
           s5cmd --endpoint-url "$GARAGE_ENDPOINT" rm "s3://$GARAGE_BUCKET/branches/$slug/*"

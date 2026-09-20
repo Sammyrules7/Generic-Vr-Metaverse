@@ -59,7 +59,11 @@ func _ready() -> void:
 	room_networking.room_left.connect(_stop_voice)
 	multiplayer.peer_disconnected.connect(_remove_speaker)
 	worker_running = true
-	worker.start(_worker_loop)
+	if worker.start(_worker_loop) != OK:
+		worker_running = false
+		push_error("Could not start voice processing")
+		set_process(false)
+		return
 	if room_networking.current_room != null:
 		_start_voice(room_networking.current_room)
 
@@ -134,6 +138,7 @@ func remove_peer_anchor(peer_id: int) -> void:
 
 
 func _start_voice(_room: roomClass) -> void:
+	_stop_voice()
 	# Permission is requested by the voice toggle/settings gesture. Joining a
 	# room must not launch a competing permission prompt during WebXR startup.
 	if not muted and (not OS.has_feature("web") or input_permission_requested):
@@ -219,8 +224,11 @@ func _process(_delta: float) -> void:
 	if room_networking == null or room_networking.current_room == null:
 		return
 	for result: Dictionary in outgoing:
-		_set_local_speaking(result.active)
-		if result.active:
+		# Worker results may predate a mute or push-to-talk release. Check the
+		# current controls at the last possible point before sending audio.
+		var active: bool = result.active and not muted and (not push_to_talk or Input.is_action_pressed("voice_push_to_talk"))
+		_set_local_speaking(active)
+		if active:
 			voice_packet.rpc(result.packet)
 	for item: Dictionary in incoming:
 		_push_audio(item.peer_id, item.frames)
@@ -295,7 +303,7 @@ func _decode_pcm(packet: PackedByteArray) -> PackedVector2Array:
 @rpc("any_peer", "call_remote", "unreliable_ordered", 1)
 func voice_packet(packet: PackedByteArray) -> void:
 	var peer_id := multiplayer.get_remote_sender_id()
-	if packet.size() != BYTES_PER_FRAME or not multiplayer.get_peers().has(peer_id):
+	if not worker_running or packet.size() != BYTES_PER_FRAME or not multiplayer.get_peers().has(peer_id):
 		return
 	if not peer_activity_deadlines.has(peer_id):
 		peer_speaking_changed.emit(peer_id, true)

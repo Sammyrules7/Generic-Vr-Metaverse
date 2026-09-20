@@ -13,12 +13,10 @@ mkResolvedImage {
   name = "vr-platform-godot-ci";
   root = mkImageRoot "vr-platform-godot-ci-root" (baseTools ++ (with pkgs; [
     androidSdk
-    awscli2
     fontconfig
     godot_4
     godot-export-templates-bin
     jdk17
-    wrangler
   ]));
   env = [
     "ANDROID_HOME=${androidSdk}/libexec/android-sdk"

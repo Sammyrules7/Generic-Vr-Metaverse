@@ -11,6 +11,7 @@ var pointers: Array[Node3D] = []
 var control_plane_notice: Label3D
 var menu_pinch_time := 0.0
 var menu_pinch_latched := false
+var _world_load_generation := 0
 
 
 func _ready() -> void:
@@ -22,7 +23,7 @@ func _ready() -> void:
 	ui.set_xr_status($StartXR.xr_status)
 	ui.menu_changed.connect(_menu_changed)
 	ui.control_plane_warning_changed.connect(_control_plane_warning_changed)
-	Networking.room_networking.room_joined.connect(_joined)
+	$PlayerManager.local_player_spawned.connect(_player_spawned)
 	Networking.room_networking.room_left.connect(_left)
 	_menu_changed(true)
 
@@ -85,6 +86,8 @@ func _disable_xr_lobby() -> void:
 
 
 func load_world(world_id: String) -> Marker3D:
+	_world_load_generation += 1
+	var generation := _world_load_generation
 	# Room IDs resolve only to bundled scenes, never to arbitrary network paths.
 	var id := world_id if WorldCatalog.WORLDS.has(world_id) else "floating_island"
 	var path: String = WorldCatalog.WORLDS[id].scene_path
@@ -100,6 +103,9 @@ func load_world(world_id: String) -> Marker3D:
 		push_error("Could not load world: " + path)
 		return null
 	var packed := ResourceLoader.load_threaded_get(path) as PackedScene
+	# Consume the loader's result even when cancelled, releasing its request.
+	if generation != _world_load_generation or not is_inside_tree():
+		return null
 	if packed == null:
 		push_error("Could not load world: " + path)
 		return null
@@ -112,9 +118,7 @@ func load_world(world_id: String) -> Marker3D:
 	return world.get_node("SpawnPoint")
 
 
-func _joined(_room: roomClass) -> void:
-	if $PlayerManager.local_player == null:
-		await $PlayerManager.local_player_spawned
+func _player_spawned() -> void:
 	if xr_active:
 		$PlayerManager.local_player.set_control_mode(true)
 		_activate_player_rig()
@@ -134,6 +138,7 @@ func _activate_player_rig() -> void:
 
 
 func _left() -> void:
+	_world_load_generation += 1
 	var world := get_node_or_null("World")
 	if world != null:
 		world.free()

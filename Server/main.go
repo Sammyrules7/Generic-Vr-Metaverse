@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -47,15 +48,19 @@ func main() {
 	}
 	fmt.Printf("Starting server on %s\n", address)
 
-	err := http.ListenAndServe(address, nil)
+	server := &http.Server{
+		Addr:              address,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    16 * 1024,
+	}
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatalf("HTTP server failed: %s", err)
 	}
 }
 
 func handleWsConn(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("Conn recived!\n")
-
 	wsConn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Printf("Error upgrading WebSocket: %s\n", err)
