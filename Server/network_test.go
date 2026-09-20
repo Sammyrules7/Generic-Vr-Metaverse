@@ -342,3 +342,24 @@ func TestLateCandidateAfterSignalingDisconnect(t *testing.T) {
 		t.Fatal("in-flight candidate for a disconnected peer should be discarded quietly")
 	}
 }
+
+func TestPrairieWeatherRooms(t *testing.T) {
+	for _, worldID := range []string{"prairie_crossing", "prairie_daylight", "prairie_night"} {
+		t.Run(worldID, func(t *testing.T) {
+			h := newHub()
+			host := testClient(h)
+			h.handle(host, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomCreate{
+				RoomCreate: &protocol.ClientRoomCreate{Name: "Bench overlook", WorldId: worldID},
+			}})
+			room := h.rooms[host.roomID]
+			if room == nil || room.packet().WorldId != worldID {
+				t.Fatalf("weather scene %q was not preserved in the room", worldID)
+			}
+			guest := testClient(h)
+			join(h, guest, host.roomID)
+			if guest.roomID != host.roomID || h.rooms[guest.roomID].worldID != worldID {
+				t.Fatalf("guest did not join the same weather scene %q", worldID)
+			}
+		})
+	}
+}

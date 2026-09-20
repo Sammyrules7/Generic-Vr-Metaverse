@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://worlds/prairie_crossing/prairie_crossing.tscn" id="1"]
+
+[node name="PrairieDaylight" instance=ExtResource("1")]
+weather_preset = "daylight"

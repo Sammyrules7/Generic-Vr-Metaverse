@@ -14,6 +14,9 @@ var supportedWorlds = map[string]struct{}{
 	"moon_garden":           {},
 	"moonlit_grotto":        {},
 	"starlight_observatory": {},
+	"prairie_crossing":      {},
+	"prairie_daylight":      {},
+	"prairie_night":         {},
 }
 
 // Membership helpers run under Hub.mu, including notification queuing. A relay

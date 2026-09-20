@@ -11,6 +11,37 @@
 [ext_resource type="Texture2D" path="res://worlds/previews/moonlit_grotto.png" id="grotto_preview"]
 [ext_resource type="Texture2D" path="res://worlds/previews/starlight_observatory.png" id="observatory_preview"]
 
+[ext_resource type="PackedScene" path="res://worlds/prairie_crossing/prairie_crossing.tscn" id="prairie_scene"]
+[ext_resource type="PackedScene" path="res://worlds/prairie_crossing/daylight.tscn" id="prairie_day_scene"]
+[ext_resource type="PackedScene" path="res://worlds/prairie_crossing/night.tscn" id="prairie_night_scene"]
+[ext_resource type="Texture2D" path="res://worlds/previews/prairie_crossing.png" id="prairie_preview"]
+[ext_resource type="Texture2D" path="res://worlds/previews/prairie_daylight.png" id="prairie_day_preview"]
+[ext_resource type="Texture2D" path="res://worlds/previews/prairie_night.png" id="prairie_night_preview"]
+
+[sub_resource type="Resource" id="prairie"]
+script = ExtResource("definition")
+id = "prairie_crossing"
+title = "Prairie Crossing · Rain"
+description = "A quiet bench above the ravine, soft rainfall, wet trails, and misty pylons."
+scene = ExtResource("prairie_scene")
+preview = ExtResource("prairie_preview")
+
+[sub_resource type="Resource" id="prairie_day"]
+script = ExtResource("definition")
+id = "prairie_daylight"
+title = "Prairie Crossing · Daylight"
+description = "A small fenced overlook among sage meadows, wooden benches, and prairie skies."
+scene = ExtResource("prairie_day_scene")
+preview = ExtResource("prairie_day_preview")
+
+[sub_resource type="Resource" id="prairie_night"]
+script = ExtResource("definition")
+id = "prairie_night"
+title = "Prairie Crossing · Night Lights"
+description = "Blue-hour pylon silhouettes and warm city lights across the dark ravine."
+scene = ExtResource("prairie_night_scene")
+preview = ExtResource("prairie_night_preview")
+
 [sub_resource type="Resource" id="island"]
 script = ExtResource("definition")
 id = "floating_island"
@@ -45,4 +76,4 @@ preview = ExtResource("grotto_preview")
 
 [resource]
 script = ExtResource("registry")
-worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden"), SubResource("grotto"), SubResource("observatory")])
+worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden"), SubResource("grotto"), SubResource("observatory"), SubResource("prairie"), SubResource("prairie_day"), SubResource("prairie_night")])

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://worlds/prairie_crossing/prairie_crossing.gd" id="1"]
+
+[node name="PrairieCrossing" type="Node3D"]
+script = ExtResource("1")
+scale = Vector3(0.8, 0.8, 0.8)
+
+[node name="SpawnPoint" type="Marker3D" parent="."]
+position = Vector3(17, 0.6, 33)
