@@ -23,7 +23,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		mouse_captured = false
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_capture_mouse()
+		if not mouse_captured:
+			_capture_mouse()
+			# Recapturing after Escape must not also fire an equipped game weapon.
+			get_viewport().set_input_as_handled()
 
 
 func update(delta: float) -> void:

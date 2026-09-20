@@ -6,6 +6,8 @@
 [ext_resource type="Texture2D" path="res://worlds/previews/moon_garden.png" id="garden_preview"]
 [ext_resource type="Texture2D" path="res://worlds/previews/moonlit_grotto.png" id="grotto_preview"]
 [ext_resource type="Texture2D" path="res://worlds/previews/starlight_observatory.png" id="observatory_preview"]
+[ext_resource type="Texture2D" path="res://worlds/blackthorn_house/preview.png" id="blackthorn_preview"]
+[ext_resource type="Texture2D" path="res://worlds/briarwick_manor/preview.png" id="briarwick_preview"]
 
 [sub_resource type="Resource" id="island"]
 script = ExtResource("definition")
@@ -39,6 +41,22 @@ description = "Rocky island sanctuary with a waterfall, lagoon, quartz shrine, a
 scene_path = "res://worlds/moonlit_grotto/moonlit_grotto.tscn"
 preview = ExtResource("grotto_preview")
 
+[sub_resource type="Resource" id="blackthorn"]
+script = ExtResource("definition")
+id = "blackthorn_house"
+title = "Blackthorn House"
+description = "A quiet manor with an optional murder mystery game. Join at the hall table, or just explore."
+scene_path = "res://worlds/blackthorn_house/blackthorn_house.tscn"
+preview = ExtResource("blackthorn_preview")
+
+[sub_resource type="Resource" id="briarwick"]
+script = ExtResource("definition")
+id = "briarwick_manor"
+title = "Briarwick Manor"
+description = "A painted storybook manor at blue hour. Candlelit rooms, a winter gallery, and an optional mystery at the guestbook."
+scene_path = "res://worlds/briarwick_manor/briarwick_manor.tscn"
+preview = ExtResource("briarwick_preview")
+
 [resource]
 script = ExtResource("registry")
-worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden"), SubResource("grotto"), SubResource("observatory")])
+worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden"), SubResource("grotto"), SubResource("observatory"), SubResource("blackthorn"), SubResource("briarwick")])

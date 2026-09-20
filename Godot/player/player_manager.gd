@@ -2,6 +2,8 @@ class_name PlayerManager
 extends Node
 
 signal local_player_spawned
+## Scene/game components release avatar references before players are destroyed.
+signal players_clearing
 
 # The world owns player instances and spawn locations. The persistent replication
 # endpoint owns RPCs, so packets can still arrive safely after this scene is freed.
@@ -86,6 +88,7 @@ func _remove_remote(peer_id: int) -> void:
 
 
 func _clear_players() -> void:
+	players_clearing.emit()
 	# An outgoing scene must not unregister a player installed by its replacement.
 	if is_instance_valid(replication) and replication.local_player == local_player:
 		replication.set_local_player(null)

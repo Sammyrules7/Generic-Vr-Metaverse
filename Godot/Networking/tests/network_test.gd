@@ -350,6 +350,39 @@ func _check_game_scene() -> bool:
 	if not _check(manager.local_player == null and game.get_node("roomSelector/VBoxContainer").visible, "Game leave did not clear players and restore the lobby"):
 		return false
 	await get_tree().create_timer(2.6).timeout
+	# The app owns game endpoints; loading/leaving worlds only binds their state.
+	var session: Node = game.get_node("GameModes/MurderSession")
+	if not _check(not network.has_node("MurderSession") and session.rules == null, "Networking owns game state or social world started murder rules"):
+		return false
+	network.room_networking.create_room("Game lifecycle", "blackthorn_house")
+	if not await _wait_until(func(): return session.map != null and manager.local_player != null, "murder map lifecycle binding"):
+		return false
+	if not _check(session.manager == manager and session.player_manager == manager, "Main scene did not wire the game to its player manager"):
+		return false
+	session.wants_to_play = true
+	session._sync_clock = 0.0
+	if not await _wait_until(func(): return session.snapshot.get("self", {}).get("participating", false), "game opt-in"):
+		return false
+	# Switch directly to a social world without an intervening room-left event.
+	network.room_networking.create_room("Social lifecycle", "floating_island")
+	if not await _idle(network):
+		return false
+	if not await _wait_until(func(): return manager.local_player != null and game.get_node("World").has_node("Bounds"), "social world replacement"):
+		return false
+	if not _check(session.map == null and session.rules == null and session.presentation == null and not session.wants_to_play, "World replacement retained game state"):
+		return false
+	network.room_networking.create_room("Game lifecycle again", "blackthorn_house")
+	if not await _wait_until(func(): return session.map != null, "game rebind after world replacement"):
+		return false
+	if not _check(not session.snapshot.self.participating, "Re-entering a murder world retained old opt-in"):
+		return false
+	network.room_networking.leave_room()
+	if not await _idle(network):
+		return false
+	if not _check(session.map == null and session.rules == null and session.presentation == null, "Room leave retained game state"):
+		return false
 	game.free()
+	if not _check(not is_instance_valid(session), "Game endpoint outlived its app scene"):
+		return false
 	network.ws.close(-1)
 	return true
