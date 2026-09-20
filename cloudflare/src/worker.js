@@ -29,14 +29,18 @@ export default {
       }
 
       const cache = caches.default;
-      const cacheKey = new Request(request.url, request);
+      const cacheUrl = new URL(request.url);
+      cacheUrl.searchParams.set("__build", target.commit);
+      const cacheKey = new Request(cacheUrl, request);
       const cacheable = target.preview && request.method === "GET" && !request.headers.has("range");
       if (cacheable) {
         const cached = await cache.match(cacheKey);
         if (cached) return withBrowserRevalidation(cached);
       }
 
-      const originResponse = await fetch(`${env.ORIGIN_URL}/${target.key}`, {
+      const originUrl = new URL(`${env.ORIGIN_URL}/${target.key}`);
+      originUrl.searchParams.set("build", target.commit);
+      const originResponse = await fetch(originUrl, {
         headers: copyOriginHeaders(request.headers),
       });
       if (!originResponse.ok) {
@@ -89,6 +93,7 @@ async function resolveTarget(pathname, origin) {
         key: `branches/${branch}/assets/${normalizeAssetPath(parts.join("/"))}`,
         preview: true,
         previewRoot: parts.length === 0 || parts.every((part) => part === ""),
+        commit: activeCommit,
       };
     }
   }
@@ -99,6 +104,7 @@ async function resolveTarget(pathname, origin) {
     key: `channels/main/assets/${normalizeAssetPath(pathname)}`,
     preview: false,
     previewRoot: false,
+    commit,
   };
 }
 
