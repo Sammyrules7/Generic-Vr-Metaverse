@@ -39,6 +39,27 @@ layout_mode = 2
 text = "Rooms"
 theme_override_font_sizes/font_size = 28
 
+[node name="VRSupportBadge" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -152.0
+offset_top = 24.0
+offset_right = -32.0
+offset_bottom = 68.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="VRSupportBadge"]
+layout_mode = 2
+text = "VR supported"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.45, 0.84, 0.61, 1)
+
 [node name="Connection" type="Label" parent="VBoxContainer/Layout"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -135,12 +156,6 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text_overrun_behavior = 3
-
-[node name="XRStatus" type="Label" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Checking VR support…"
-theme_override_colors/font_color = Color(0.63, 0.74, 0.83, 1)
 
 [node name="WorldDescription" type="Label" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
 unique_name_in_owner = true

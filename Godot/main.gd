@@ -19,8 +19,8 @@ func _ready() -> void:
 	ui.xr_requested.connect($StartXR.start_webxr)
 	$StartXR.xr_started.connect(_enable_xr_lobby)
 	$StartXR.xr_ended.connect(_disable_xr_lobby)
-	$StartXR.xr_status_changed.connect(ui.set_xr_status)
-	ui.set_xr_status($StartXR.xr_status)
+	$StartXR.webxr_support_changed.connect(ui.set_webxr_supported)
+	ui.set_webxr_supported($StartXR.webxr_supported)
 	ui.menu_changed.connect(_menu_changed)
 	ui.control_plane_warning_changed.connect(_control_plane_warning_changed)
 	$PlayerManager.local_player_spawned.connect(_player_spawned)
@@ -89,20 +89,27 @@ func load_world(world_id: String) -> Marker3D:
 	_world_load_generation += 1
 	var generation := _world_load_generation
 	# Room IDs resolve only to bundled scenes, never to arbitrary network paths.
-	var id := world_id if WorldCatalog.WORLDS.has(world_id) else "floating_island"
+	var id := world_id if WorldCatalog.WORLDS.has(world_id) else WorldCatalog.default_id()
+	if id.is_empty():
+		push_error("Could not load world: the world catalog is empty")
+		return null
 	var path: String = WorldCatalog.WORLDS[id].scene_path
 	var error := ResourceLoader.load_threaded_request(path)
 	if error != OK:
-		push_error("Could not start loading world: " + path)
-		return null
-	var status := ResourceLoader.load_threaded_get_status(path)
-	while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-		await get_tree().process_frame
-		status = ResourceLoader.load_threaded_get_status(path)
-	if status != ResourceLoader.THREAD_LOAD_LOADED:
-		push_error("Could not load world: " + path)
-		return null
-	var packed := ResourceLoader.load_threaded_get(path) as PackedScene
+		# A resource can already be cached or have a platform-specific threaded
+		# loader failure. Loading it synchronously is a safe fallback here because
+		# every path comes from the bundled world allowlist.
+		push_warning("Threaded world load did not start (%s); retrying directly" % error_string(error))
+	var packed: PackedScene
+	if error == OK:
+		var status := ResourceLoader.load_threaded_get_status(path)
+		while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			await get_tree().process_frame
+			status = ResourceLoader.load_threaded_get_status(path)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			packed = ResourceLoader.load_threaded_get(path) as PackedScene
+	if packed == null:
+		packed = load(path) as PackedScene
 	# Consume the loader's result even when cancelled, releasing its request.
 	if generation != _world_load_generation or not is_inside_tree():
 		return null
@@ -142,6 +149,9 @@ func _left() -> void:
 	var world := get_node_or_null("World")
 	if world != null:
 		world.free()
+	if $StartXR.xr_interface is WebXRInterface and $StartXR.xr_interface.is_initialized():
+		$StartXR.end_xr()
+		return
 	if xr_active:
 		get_viewport().use_xr = true
 		lobby_origin.current = true

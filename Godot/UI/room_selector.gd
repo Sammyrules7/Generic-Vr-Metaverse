@@ -191,9 +191,8 @@ func _select_world(id: String) -> void:
 	_remember_preferences()
 
 
-func set_xr_status(message: String) -> void:
-	%XRStatus.text = message
-	%XRStatus.visible = not message.is_empty()
+func set_webxr_supported(supported: bool) -> void:
+	%VRSupportBadge.visible = supported
 
 
 func xr_point_is_visible(point: Vector2) -> bool:

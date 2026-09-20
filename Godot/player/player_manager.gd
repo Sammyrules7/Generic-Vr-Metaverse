@@ -54,8 +54,6 @@ func _room_joined(_room: roomClass) -> void:
 		return
 	if point == null:
 		room_networking.network_error.emit("Could not load the room's world")
-		# A cached load can finish inside room_joined, before its command clears.
-		room_networking.leave_room.call_deferred()
 		return
 	spawn_point = point
 	var xr := XRServer.primary_interface

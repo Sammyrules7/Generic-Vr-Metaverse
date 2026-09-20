@@ -34,7 +34,7 @@ func _run() -> void:
 	var ui = game.get_node("roomSelector")
 	var registry := load(WorldCatalog.REGISTRY_PATH) as WorldRegistry
 	check(registry != null and not registry.worlds.is_empty(), "Bundled world registry did not load")
-	check(WorldCatalog.WORLDS.size() == 4 and WorldCatalog.WORLDS.has("moon_garden") and WorldCatalog.WORLDS.has("moonlit_grotto") and WorldCatalog.WORLDS.has("starlight_observatory"), "Bundled worlds are missing from the registry")
+	check(WorldCatalog.WORLDS.size() == 6 and WorldCatalog.WORLDS.has("moon_garden") and WorldCatalog.WORLDS.has("moonlit_grotto") and WorldCatalog.WORLDS.has("starlight_observatory") and WorldCatalog.WORLDS.has("blackthorn_house") and WorldCatalog.WORLDS.has("briarwick_manor"), "Bundled worlds are missing from the registry")
 	ui._select_world(registry.worlds[0].id)
 	for index in range(registry.worlds.size()):
 		var definition: WorldDefinition = registry.worlds[index]
