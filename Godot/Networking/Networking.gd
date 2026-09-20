@@ -4,7 +4,7 @@ extends Node
 # replication have separate owners so neither depends on the current scene.
 const Packets = preload("res://Networking/Generated/Packets.gd")
 const SERVER_URL_SETTING := "network/signaling/server_url"
-const DEFAULT_SERVER_URL := "ws://localhost:8080/ws"
+const DEFAULT_SERVER_URL := "wss://api.vr.maio-tech.com/ws"
 
 signal signaling_connected
 signal signaling_disconnected
@@ -17,6 +17,7 @@ var ws_url: String = _configured_server_url()
 var client_id := 0
 var room_networking: RoomNetworking
 var player_replication: PlayerReplication
+var voice_chat: VoiceChat
 var reconnect_at := 0
 var connect_deadline := 0
 var connection_message := "Connecting to the room server…"
@@ -37,6 +38,9 @@ func _ready() -> void:
 	player_replication = PlayerReplication.new()
 	player_replication.name = "PlayerReplication"
 	add_child(player_replication)
+	voice_chat = VoiceChat.new()
+	voice_chat.name = "VoiceChat"
+	add_child(voice_chat)
 	_connect_websocket()
 
 

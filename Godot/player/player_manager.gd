@@ -15,6 +15,7 @@ const PLAYER_SCENE = preload("res://player/network_player.tscn")
 # Can be supplied by the scene or tests; the application uses its shared services.
 var room_networking: RoomNetworking
 var replication: PlayerReplication
+var voice_chat: VoiceChat
 var local_player: NetworkPlayer
 
 
@@ -23,6 +24,8 @@ func _ready() -> void:
 		room_networking = Networking.room_networking
 	if replication == null:
 		replication = Networking.player_replication
+	if voice_chat == null:
+		voice_chat = Networking.voice_chat
 	room_networking.room_joined.connect(_room_joined)
 	room_networking.room_left.connect(_clear_players)
 	replication.player_announced.connect(_spawn_remote)
@@ -60,6 +63,8 @@ func _spawn(peer_id: int, use_vr: bool, initial_pose: Transform3D) -> NetworkPla
 	player.set_multiplayer_authority(peer_id)
 	players.add_child(player)
 	player.global_transform = initial_pose
+	if peer_id != multiplayer.get_unique_id():
+		voice_chat.set_peer_anchor(peer_id, player.get_node("Avatar/Head"))
 	return player
 
 
@@ -82,6 +87,7 @@ func _apply_pose(peer_id: int, body_pose: Transform3D, head_pose: Transform3D, l
 
 
 func _remove_remote(peer_id: int) -> void:
+	voice_chat.remove_peer_anchor(peer_id)
 	var player := players.get_node_or_null(str(peer_id))
 	if player != null:
 		player.free()
@@ -95,6 +101,8 @@ func _clear_players() -> void:
 	local_player = null
 	if is_instance_valid(players):
 		for player in players.get_children():
+			if player != local_player:
+				voice_chat.remove_peer_anchor(int(player.name))
 			player.free()
 
 

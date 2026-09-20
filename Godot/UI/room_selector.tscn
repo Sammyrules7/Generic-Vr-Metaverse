@@ -147,6 +147,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Create room"
 
+[node name="OpenVoiceSettings" type="Button" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Voice settings"
+
 [node name="Browse" type="PanelContainer" parent="VBoxContainer/Layout/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -199,7 +204,7 @@ layout_mode = 1
 offset_left = 24.0
 offset_top = 24.0
 offset_right = 520.0
-offset_bottom = 220.0
+offset_bottom = 560.0
 
 [node name="Content" type="VBoxContainer" parent="Session"]
 layout_mode = 2
@@ -210,6 +215,73 @@ autowrap_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 text = "Room"
+
+[node name="VoiceSeparator" type="HSeparator" parent="Session/Content"]
+layout_mode = 2
+
+[node name="VoiceTitle" type="Label" parent="Session/Content"]
+layout_mode = 2
+text = "Voice chat"
+theme_override_font_sizes/font_size = 22
+
+[node name="VoiceActivity" type="Label" parent="Session/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Microphone idle"
+theme_override_colors/font_color = Color(0.63, 0.74, 0.83, 1)
+
+[node name="MicrophoneEnabled" type="CheckButton" parent="Session/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Microphone enabled"
+button_pressed = true
+
+[node name="PushToTalk" type="CheckButton" parent="Session/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Push to talk (V)"
+
+[node name="InputDeviceLabel" type="Label" parent="Session/Content"]
+layout_mode = 2
+text = "Microphone input"
+
+[node name="InputDevice" type="OptionButton" parent="Session/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="InputGainRow" type="HBoxContainer" parent="Session/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Session/Content/InputGainRow"]
+layout_mode = 2
+text = "Input level"
+
+[node name="InputGain" type="HSlider" parent="Session/Content/InputGainRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 200.0
+step = 5.0
+value = 100.0
+tooltip_text = "Microphone amplification"
+
+[node name="VoiceVolumeRow" type="HBoxContainer" parent="Session/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Session/Content/VoiceVolumeRow"]
+layout_mode = 2
+text = "Voice volume"
+
+[node name="VoiceVolume" type="HSlider" parent="Session/Content/VoiceVolumeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 5.0
+value = 80.0
+tooltip_text = "Volume of other players"
 
 [node name="Resume" type="Button" parent="Session/Content"]
 unique_name_in_owner = true
@@ -260,6 +332,79 @@ horizontal_alignment = 1
 autowrap_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.74, 0.47, 1)
 mouse_filter = 2
+
+[node name="VoiceSettings" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -285.0
+offset_right = 260.0
+offset_bottom = 285.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="VoiceSettings"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="VoiceSettings/Content"]
+layout_mode = 2
+text = "Voice settings"
+theme_override_font_sizes/font_size = 26
+
+[node name="Description" type="Label" parent="VoiceSettings/Content"]
+layout_mode = 2
+text = "Configure voice chat before joining a room."
+autowrap_mode = 2
+
+[node name="LobbyMicrophoneEnabled" type="CheckButton" parent="VoiceSettings/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Microphone enabled"
+
+[node name="LobbyPushToTalk" type="CheckButton" parent="VoiceSettings/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Push to talk (V)"
+
+[node name="InputLabel" type="Label" parent="VoiceSettings/Content"]
+layout_mode = 2
+text = "Microphone input"
+
+[node name="LobbyInputDevice" type="OptionButton" parent="VoiceSettings/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="InputGainLabel" type="Label" parent="VoiceSettings/Content"]
+layout_mode = 2
+text = "Input level"
+
+[node name="LobbyInputGain" type="HSlider" parent="VoiceSettings/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 200.0
+step = 5.0
+
+[node name="VolumeLabel" type="Label" parent="VoiceSettings/Content"]
+layout_mode = 2
+text = "Voice volume"
+
+[node name="LobbyVoiceVolume" type="HSlider" parent="VoiceSettings/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 100.0
+step = 5.0
+
+[node name="CloseVoiceSettings" type="Button" parent="VoiceSettings/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Done"
 
 [node name="Navigation" type="Node" parent="."]
 script = ExtResource("2_navigation")
