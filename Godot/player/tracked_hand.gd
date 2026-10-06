@@ -28,7 +28,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	var tracker := PlatformXRInput.hand_tracker(hand)
-	visible = PlatformXRInput.optical_hand(tracker) and PlatformXRInput.joint_valid(tracker, XRHandTracker.HAND_JOINT_PALM)
+	visible = PlatformXRInput.optical_hand(tracker) and PlatformXRInput.joint_valid(tracker, XRHandTracker.HAND_JOINT_PALM) and (tracker.get_hand_joint_flags(XRHandTracker.HAND_JOINT_PALM) & XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID) != 0
 	if not visible:
 		return
 	var origin := get_parent() as XROrigin3D
@@ -37,7 +37,7 @@ func _process(_delta: float) -> void:
 	var poses: Dictionary[int, Transform3D] = {}
 	for bone: int in bone_joints:
 		var joint: int = bone_joints[bone]
-		if not PlatformXRInput.joint_valid(tracker, joint):
+		if not PlatformXRInput.joint_valid(tracker, joint) or (tracker.get_hand_joint_flags(joint) & XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID) == 0:
 			continue
 		var world_pose := PlatformXRInput.joint_world(origin, tracker, joint)
 		world_pose.basis *= LEGACY_AXES
@@ -50,7 +50,5 @@ func _process(_delta: float) -> void:
 			pose = parent_pose.affine_inverse() * pose
 		# Preserve the mesh's authored bone lengths. Applying tracked positions to
 		# every bone stretches the skinned mesh into the user's raw joint spacing.
-		# Bone poses are deltas from rest, not absolute local rotations.
-		var rest := skeleton.get_bone_rest(bone)
-		var rotation_delta := (rest.basis.inverse() * pose.basis).orthonormalized()
-		skeleton.set_bone_pose_rotation(bone, rotation_delta.get_rotation_quaternion())
+		# Godot 4 expects the local rotation relative to the parent bone.
+		skeleton.set_bone_pose_rotation(bone, pose.basis.orthonormalized().get_rotation_quaternion())

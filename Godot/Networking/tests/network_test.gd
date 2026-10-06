@@ -147,6 +147,18 @@ func _run() -> void:
 	# the actual RPC catches confusing transfer-channel/physical-channel mappings.
 	var voice_frame := PackedByteArray()
 	voice_frame.resize(VoiceChat.BYTES_PER_FRAME)
+	b.voice_chat.set_audience_policy(func(_sender, _listener): return false)
+	a.voice_chat.send_voice(voice_frame)
+	await get_tree().create_timer(0.2).timeout
+	if not _check(b.voice_chat.jobs.is_empty(), "Receiver accepted voice outside its audience"):
+		return
+	b.voice_chat.set_audience_policy(Callable())
+	a.voice_chat.set_audience_policy(func(_sender, _listener): return false)
+	a.voice_chat.send_voice(voice_frame)
+	await get_tree().create_timer(0.2).timeout
+	if not _check(b.voice_chat.jobs.is_empty(), "Sender broadcast voice outside its audience"):
+		return
+	a.voice_chat.set_audience_policy(Callable())
 	a.voice_chat.voice_packet.rpc_id(b.client_id, voice_frame)
 	if not await _wait_until(func(): return not b.voice_chat.jobs.is_empty(), "voice packet on dedicated channel"):
 		return
@@ -256,7 +268,7 @@ func _run() -> void:
 	if not _check(b.room_networking.current_room != null and b.room_networking.rooms.is_empty() and bm.local_player == previous_player and b.room_networking.rtc_mesh == previous_mesh and b.room_networking.pending_operation == RoomNetworking.Operation.NONE and failures.size() == 1, "Disconnect destroyed the live session or failed to finish its pending operation"):
 		return
 	failures.clear()
-	if not await _wait_until(func(): return b.client_id > 0 and b.client_id != previous_id, "automatic reconnect"):
+	if not await _wait_until(func(): return b.client_id == previous_id and b.room_networking.connected and not b.room_networking.detached_session, "automatic room recovery"):
 		return
 	a.ws.close(-1)
 	b.ws.close(-1)
@@ -329,6 +341,8 @@ func _check_control_plane_survival(a: Node, b: Node) -> bool:
 	if not await _wait_until(func(): return am.players.get_child_count() == 1 and bm.local_player == null, "explicit leave from detached session"):
 		return false
 	a.room_networking.leave_room()
+	if not await _idle(a):
+		return false
 	a.room_networking.create_room("New signaling session", "moon_garden")
 	if not await _idle(a):
 		return false

@@ -33,3 +33,6 @@ run_protoc \
 		--input="$repo_dir/Protocol/packets.proto" \
 		--output="$repo_dir/Godot/Networking/Generated/Packets.gd"
 )
+
+# Godobuf emits trailing tabs; keep generated diffs and whitespace checks stable.
+sed -i 's/[[:blank:]]*$//' "$repo_dir/Godot/Networking/Generated/Packets.gd"

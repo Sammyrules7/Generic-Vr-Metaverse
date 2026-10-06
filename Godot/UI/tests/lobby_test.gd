@@ -34,7 +34,7 @@ func _run() -> void:
 	var ui = game.get_node("roomSelector")
 	var registry := load(WorldCatalog.REGISTRY_PATH) as WorldRegistry
 	check(registry != null and not registry.worlds.is_empty(), "Bundled world registry did not load")
-	check(WorldCatalog.WORLDS.size() == 6 and WorldCatalog.WORLDS.has("moon_garden") and WorldCatalog.WORLDS.has("moonlit_grotto") and WorldCatalog.WORLDS.has("starlight_observatory") and WorldCatalog.WORLDS.has("blackthorn_house") and WorldCatalog.WORLDS.has("briarwick_manor"), "Bundled worlds are missing from the registry")
+	check(WorldCatalog.WORLDS.size() == 7 and WorldCatalog.WORLDS.has("moon_garden") and WorldCatalog.WORLDS.has("moonlit_grotto") and WorldCatalog.WORLDS.has("starlight_observatory") and WorldCatalog.WORLDS.has("blackthorn_house") and WorldCatalog.WORLDS.has("briarwick_manor"), "Bundled worlds are missing from the registry")
 	ui._select_world(registry.worlds[0].id)
 	for index in range(registry.worlds.size()):
 		var definition: WorldDefinition = registry.worlds[index]
@@ -144,6 +144,8 @@ func _run() -> void:
 	check(ui.get_node("%Keyboard").visible, "VR keyboard did not open")
 	state.current_room = roomClass.new(20, "Menu test", 1)
 	ui.set_menu_open(false)
+	game._controller_button_pressed("by_button")
+	check(state.pending_operation == RoomNetworking.Operation.NONE, "Furnishing B/Y button must not leave the room")
 	game._controller_button_pressed("menu_button")
 	check(state.pending_operation == RoomNetworking.Operation.LEAVE, "Controller menu button did not leave the VR room")
 	state.pending_operation = RoomNetworking.Operation.NONE

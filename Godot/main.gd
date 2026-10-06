@@ -193,7 +193,7 @@ func _attach_pointer(controller: XRController3D) -> void:
 
 
 func _controller_button_pressed(action: String) -> void:
-	if action in ["menu_button", "menu", "select_button", "by_button"] and Networking.room_networking.current_room != null:
+	if action in ["menu_button", "menu", "select_button"] and Networking.room_networking.current_room != null:
 		_leave_vr_room()
 
 

@@ -1,6 +1,6 @@
 # Generic VR Platform
 
-A free and open source social VR platform built with Godot and Go. Explore six
+A free and open source social VR platform built with Godot and Go. Explore seven
 worlds using desktop controls, OpenXR, or WebXR, with peer-to-peer multiplayer,
 positional voice, and an optional murder mystery game.
 
@@ -53,9 +53,10 @@ the development shell and commit both generated implementations.
   independent of the signaling server.
 - `cloudflare/` and `.forgejo/workflows/`: browser delivery and releases.
 
-Established peer connections can survive signaling loss, but the detached room
-cannot accept new members through its old directory entry. Leave and create or
-join a room to restore directory membership. The mesh currently uses STUN only;
+Established peer connections survive signaling loss. Clients silently restore
+directory membership with their original room token and peer/session IDs after
+reconnection. Conflicting recovered identities are rejected without replacing the
+surviving mesh. The mesh currently uses STUN only;
 some networks require a TURN relay, which is not provisioned here.
 
 ## Web builds
@@ -85,6 +86,5 @@ image updates, and further optimization options.
 ## Roadmap
 
 - Broader device validation
-- Game-aware voice audiences
 - VRM avatar importing and switching
 - Inverse kinematics

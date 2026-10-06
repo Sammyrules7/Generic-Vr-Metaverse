@@ -81,6 +81,8 @@ func _bind_controls() -> void:
 
 
 func clear() -> void:
+	if is_instance_valid(manager) and is_instance_valid(manager.voice_chat):
+		manager.voice_chat.set_audience_policy(Callable())
 	if is_instance_valid(manager) and is_instance_valid(manager.local_player) and manager.local_player.controls_changed.is_connected(_bind_controls):
 		manager.local_player.controls_changed.disconnect(_bind_controls)
 	for connection: Dictionary in _controller_connections:
@@ -238,6 +240,20 @@ func _apply_snapshot(view: Dictionary) -> void:
 		manager.local_player.velocity = Vector3.ZERO
 	if is_instance_valid(presentation):
 		presentation.apply_snapshot(view)
+	if is_instance_valid(manager) and is_instance_valid(manager.voice_chat):
+		manager.voice_chat.set_audience_policy(_voice_allowed)
+
+
+func _voice_allowed(sender_id: int, listener_id: int) -> bool:
+	if snapshot.get("phase", "") != "active":
+		return true
+	var players: Dictionary = snapshot.get("players", {})
+	var sender: Dictionary = players.get(sender_id, {})
+	var listener: Dictionary = players.get(listener_id, {})
+	var sender_living: bool = sender.get("participating", false) and sender.get("alive", false)
+	var listener_living: bool = listener.get("participating", false) and listener.get("alive", false)
+	# Spectators may listen to the round; only living players can speak to living players.
+	return sender_living or not listener_living
 
 
 func _update_hint() -> void:

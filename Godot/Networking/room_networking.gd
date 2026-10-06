@@ -61,6 +61,7 @@ func recover_room() -> Error:
 	room.set_id(current_room.id)
 	room.set_name(current_room.room_name)
 	room.set_world_id(current_room.world_id)
+	room.set_recovery_token(current_room.recovery_token)
 	recovery.set_client_id(multiplayer.get_unique_id())
 	recovery.set_session_id(rtc_mesh.session_id)
 	return _request(Operation.RECOVER, packet, true)
@@ -161,7 +162,7 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 		Packets.ServerPacket.PayloadCase.ROOM_UPDATED:
 			var room := _decode_room(packet.get_room_updated().get_room())
 			rooms[room.id] = room
-			if not detached_session and current_room != null and current_room.id == room.id:
+			if not detached_session and current_room != null and current_room.id == room.id and current_room.recovery_token == room.recovery_token:
 				current_room = room
 			room_updated.emit(room)
 		Packets.ServerPacket.PayloadCase.ROOM_REMOVED:
@@ -202,10 +203,12 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 	# A duplicate join acknowledges the existing session; don't respawn players
 	# or renegotiate connections that are already working.
-	if rtc_mesh != null and rtc_mesh.session_id == joined.get_session_id():
+	if rtc_mesh != null and current_room != null and current_room.id == joined.get_room().get_id() and current_room.recovery_token == joined.get_room().get_recovery_token() and rtc_mesh.session_id == joined.get_session_id():
 		current_room = _decode_room(joined.get_room())
 		detached_session = false
 		rtc_mesh.resume_signaling()
+		for peer in joined.get_peers():
+			rtc_mesh.add_peer(peer, true)
 		client_id_recovered.emit(multiplayer.get_unique_id())
 		room_updated.emit(current_room)
 		return ""
@@ -238,4 +241,4 @@ func _stop_mesh() -> void:
 
 
 func _decode_room(packet: Packets.Room) -> roomClass:
-	return roomClass.new(packet.get_id(), packet.get_name(), packet.get_player_count(), packet.get_world_id())
+	return roomClass.new(packet.get_id(), packet.get_name(), packet.get_player_count(), packet.get_world_id(), packet.get_recovery_token())

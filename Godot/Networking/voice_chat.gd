@@ -46,15 +46,34 @@ var local_speaking := false
 var silence_frames := 0
 var input_ready := false
 var input_permission_requested := false
+var audience_policy := Callable()
+
+
+func set_audience_policy(policy: Callable) -> void:
+	audience_policy = policy
+	for peer_id: int in speakers.keys():
+		if not can_hear(peer_id, multiplayer.get_unique_id()):
+			_remove_speaker(peer_id)
+
+
+func can_hear(sender_id: int, listener_id: int) -> bool:
+	return not audience_policy.is_valid() or audience_policy.call(sender_id, listener_id)
+
+
+func send_voice(packet: PackedByteArray) -> void:
+	for peer_id: int in multiplayer.get_peers():
+		if can_hear(multiplayer.get_unique_id(), peer_id):
+			voice_packet.rpc_id(peer_id, packet)
 
 
 func _ready() -> void:
+	room_networking = get_parent().room_networking
+	room_networking.room_left.connect(func(): set_audience_policy(Callable()))
 	# Headless integration clients share one AudioServer and have no microphone.
 	# Keeping voice dormant there also makes server-side test runs deterministic.
 	if DisplayServer.get_name() == "headless":
 		set_process(false)
 		return
-	room_networking = get_parent().room_networking
 	room_networking.room_joined.connect(_start_voice)
 	room_networking.room_left.connect(_stop_voice)
 	multiplayer.peer_disconnected.connect(_remove_speaker)
@@ -229,9 +248,10 @@ func _process(_delta: float) -> void:
 		var active: bool = result.active and not muted and (not push_to_talk or Input.is_action_pressed("voice_push_to_talk"))
 		_set_local_speaking(active)
 		if active:
-			voice_packet.rpc(result.packet)
+			send_voice(result.packet)
 	for item: Dictionary in incoming:
-		_push_audio(item.peer_id, item.frames)
+		if can_hear(item.peer_id, multiplayer.get_unique_id()):
+			_push_audio(item.peer_id, item.frames)
 	var now := Time.get_ticks_msec()
 	for peer_id: int in peer_activity_deadlines.keys():
 		if now >= peer_activity_deadlines[peer_id]:
@@ -303,7 +323,13 @@ func _decode_pcm(packet: PackedByteArray) -> PackedVector2Array:
 @rpc("any_peer", "call_remote", "unreliable_ordered", 1)
 func voice_packet(packet: PackedByteArray) -> void:
 	var peer_id := multiplayer.get_remote_sender_id()
-	if not worker_running or packet.size() != BYTES_PER_FRAME or not multiplayer.get_peers().has(peer_id):
+	if packet.size() != BYTES_PER_FRAME or not multiplayer.get_peers().has(peer_id) or not can_hear(peer_id, multiplayer.get_unique_id()):
+		return
+	# Keep transport assertions usable headlessly without starting capture/audio.
+	if DisplayServer.get_name() == "headless":
+		_queue_job({"decode": packet, "peer_id": peer_id, "generation": voice_generation})
+		return
+	if not worker_running:
 		return
 	if not peer_activity_deadlines.has(peer_id):
 		peer_speaking_changed.emit(peer_id, true)

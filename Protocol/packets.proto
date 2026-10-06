@@ -34,6 +34,8 @@ message Room {
   string name = 2;
   uint32 player_count = 3;
   string world_id = 4;
+  // Distinguishes a recovered room from a new room reusing its numeric ID.
+  string recovery_token = 5;
 }
 
 // A session changes every time a client enters a room, including rejoining it.

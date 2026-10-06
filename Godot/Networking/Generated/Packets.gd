@@ -1306,6 +1306,11 @@ class Room:
 		service.field = __world_id
 		data[__world_id.tag] = service
 
+		__recovery_token = PBField.new("recovery_token", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __recovery_token
+		data[__recovery_token.tag] = service
+
 	var data = {}
 
 	var __id: PBField
@@ -1359,6 +1364,19 @@ class Room:
 		__world_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_world_id(value : String) -> void:
 		__world_id.value = value
+
+	var __recovery_token: PBField
+	func has_recovery_token() -> bool:
+		if __recovery_token.value != null:
+			return true
+		return false
+	func get_recovery_token() -> String:
+		return __recovery_token.value
+	func clear_recovery_token() -> void:
+		data[5].state = PB_SERVICE_STATE.UNFILLED
+		__recovery_token.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_recovery_token(value : String) -> void:
+		__recovery_token.value = value
 
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)

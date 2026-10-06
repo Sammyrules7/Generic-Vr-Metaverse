@@ -22,9 +22,10 @@ ghost bodies, names, held items, or shadows. Ghosts see each other and the livin
 but cannot attack or collect items. Visitors also spectate invisibly during rounds
 and can see each other. Remote avatar colliders are already disabled by the platform,
 so spectators cannot block players. Ghosts still collide with the house to keep
-locomotion familiar. The platform currently provides positional voice to the whole
-room. Living and ghost participants are not yet separated into voice audiences,
-so spectators can reveal information to living players.
+locomotion familiar. During active rounds, living players hear only living
+participants. Ghosts and visitors can hear the round and talk to each other, but
+their speech is excluded from living players' voice audience. Results and game
+teardown restore normal room conversation. Send and receive paths enforce the policy.
 
 | Action | Desktop | VR controllers |
 | --- | --- | --- |

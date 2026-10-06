@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"strings"
 
@@ -16,19 +17,21 @@ var supportedWorlds = map[string]struct{}{
 	"starlight_observatory": {},
 	"blackthorn_house":      {},
 	"briarwick_manor":       {},
+	"prairie_crossing":      {},
 }
 
 // Membership helpers run under Hub.mu, including notification queuing. A relay
 // therefore cannot overtake the peer-joined notification that makes it usable.
 type Room struct {
-	id      uint32
-	name    string
-	worldID string
-	clients map[uint32]*Client
+	id            uint32
+	name          string
+	worldID       string
+	recoveryToken string
+	clients       map[uint32]*Client
 }
 
 func (room *Room) packet() *protocol.Room {
-	return &protocol.Room{Id: room.id, Name: room.name, WorldId: room.worldID, PlayerCount: uint32(len(room.clients))}
+	return &protocol.Room{Id: room.id, Name: room.name, WorldId: room.worldID, PlayerCount: uint32(len(room.clients)), RecoveryToken: room.recoveryToken}
 }
 
 func (room *Room) peers(except uint32) []*protocol.Peer {
@@ -58,7 +61,7 @@ func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ..
 	if name == "" {
 		name = fmt.Sprintf("Room %d", h.nextRoomID)
 	}
-	room := &Room{id: h.nextRoomID, name: name, worldID: worldID, clients: make(map[uint32]*Client)}
+	room := &Room{id: h.nextRoomID, name: name, worldID: worldID, recoveryToken: rand.Text(), clients: make(map[uint32]*Client)}
 	h.rooms[room.id] = room
 	return h.enterRoom(client, room)
 }
@@ -85,9 +88,30 @@ func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protoc
 }
 
 func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, room *Room) *protocol.ServerPacket {
+	if recovery.RoomId == 0 || recovery.RecoveryRoom.Id != recovery.RoomId {
+		return errorPacket("invalid recovered room ID")
+	}
+	if client.roomID != 0 && (client.meshID() != recovery.ClientId || client.sessionID != recovery.SessionId) {
+		return errorPacket("cannot replace an active recovered identity")
+	}
+	for _, other := range h.clients {
+		if other != client && (other.meshID() == recovery.ClientId || other.sessionID == recovery.SessionId) {
+			return errorPacket("recovered identity is already in use")
+		}
+	}
 	if room != nil {
+		if room.name != strings.TrimSpace(recovery.RecoveryRoom.Name) || room.worldID != recovery.RecoveryRoom.WorldId ||
+			room.recoveryToken != recovery.RecoveryRoom.RecoveryToken {
+			return errorPacket("recovered room conflicts with an existing room")
+		}
 		if existing := room.clients[recovery.ClientId]; existing != nil && existing != client {
 			return errorPacket("recovered peer ID is already in the room")
+		}
+		if len(room.clients) >= maxRoomPlayers && room.clients[recovery.ClientId] != client {
+			return errorPacket("room is full")
+		}
+		if room.clients[recovery.ClientId] == client && client.sessionID == recovery.SessionId {
+			return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID)
 		}
 	}
 	if _, supported := supportedWorlds[recovery.RecoveryRoom.WorldId]; !supported {
@@ -99,11 +123,17 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 	}
 
 	if room == nil {
-		room = &Room{id: recovery.RoomId, name: name, worldID: recovery.RecoveryRoom.WorldId, clients: make(map[uint32]*Client)}
+		room = &Room{id: recovery.RoomId, name: name, worldID: recovery.RecoveryRoom.WorldId, recoveryToken: recovery.RecoveryRoom.RecoveryToken, clients: make(map[uint32]*Client)}
 		h.rooms[room.id] = room
 		if room.id > h.nextRoomID {
 			h.nextRoomID = room.id
 		}
+	}
+	// Fresh server counters must never hand a new client a surviving mesh identity.
+	h.nextClientID = max(h.nextClientID, recovery.ClientId)
+	h.nextSessionID = max(h.nextSessionID, recovery.SessionId)
+	if client.roomID != 0 && client.roomID != room.id {
+		h.leaveRoom(client)
 	}
 	peers := room.peers(0)
 	client.peerID = recovery.ClientId

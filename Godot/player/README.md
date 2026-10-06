@@ -29,9 +29,10 @@ motion corrects the virtual origin. The capsule remains a fixed standing height
 
 The VR menu follows the left hand with smoothing and faces the headset. Touch
 it with the right index finger; it holds still during a touch for dragging.
-Controllers retain a ray that is visible only over the menu. Menu, Select,
-and B/Y toggle the room menu when those buttons are exposed by the runtime.
-With hands only, hold a left thumb/ring-finger pinch for 0.4 seconds to toggle it.
+Controllers retain a ray that is visible only over the menu. In a room, Menu or
+Select returns directly to the home screen. B/Y remains available for world
+interactions. With hands only, hold a left thumb/ring-finger pinch for 0.4 seconds
+to return home.
 Optical hands use the tracked skeleton instead of grip/trigger animations.
 
 Run from the repository root, using Godot 4.7:

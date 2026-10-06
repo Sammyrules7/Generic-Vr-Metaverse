@@ -411,3 +411,73 @@ func TestLateCandidateAfterSignalingDisconnect(t *testing.T) {
 		t.Fatal("in-flight candidate for a disconnected peer should be discarded quietly")
 	}
 }
+
+func TestFreshServerRecoveryReservesIdentities(t *testing.T) {
+	h := newHub()
+	survivor := testClient(h)
+	recover(h, survivor, 9, 3, 1)
+	newcomer := testClient(h)
+	join(h, newcomer, 9)
+	if newcomer.meshID() == survivor.meshID() || len(h.rooms[9].clients) != 2 || h.rooms[9].clients[3] != survivor {
+		t.Fatal("new member overwrote recovered peer")
+	}
+	oldSession := survivor.sessionID
+	reply := h.createRoom(survivor, "Another world", "moon_garden")
+	if reply.GetRoomJoined() == nil || reply.GetRoomJoined().SessionId == oldSession {
+		t.Fatal("new membership reused recovered session")
+	}
+}
+
+func TestRecoveryRejectsReusedRoomID(t *testing.T) {
+	for _, sameWorld := range []bool{false, true} {
+		h := newHub()
+		newcomer := testClient(h)
+		create(h, newcomer)
+		survivor := testClient(h)
+		original := h.rooms[newcomer.roomID]
+		world := "moon_garden"
+		if sameWorld {
+			world = original.worldID
+		}
+		reply := h.joinRoom(survivor, &protocol.ClientRoomJoin{
+			RoomId: original.id, ClientId: 8, SessionId: 40,
+			RecoveryRoom: &protocol.Room{Id: original.id, Name: original.name, WorldId: world, RecoveryToken: "old-incarnation"},
+		})
+		if reply.GetError() == nil || survivor.roomID != 0 || len(original.clients) != 1 {
+			t.Fatal("recovery attached to unrelated room with reused ID")
+		}
+	}
+}
+
+func TestRecoveryRejectsOccupiedPeerIdentity(t *testing.T) {
+	h := newHub()
+	occupied := testClient(h)
+	create(h, occupied)
+	survivor := testClient(h)
+	reply := h.joinRoom(survivor, &protocol.ClientRoomJoin{
+		RoomId: 9, ClientId: occupied.meshID(), SessionId: 40,
+		RecoveryRoom: &protocol.Room{Id: 9, Name: "Surviving room", WorldId: "moon_garden"},
+	})
+	if reply.GetError() == nil || h.rooms[9] != nil {
+		t.Fatal("recovery accepted an already allocated peer ID")
+	}
+}
+
+func TestRecoveredRoomTokenSurvivesFreshHub(t *testing.T) {
+	old := newHub()
+	a, b := testClient(old), testClient(old)
+	create(old, a)
+	join(old, b, a.roomID)
+	room := old.rooms[a.roomID].packet()
+	h := newHub()
+	for _, original := range []*Client{b, a} {
+		reconnect := testClient(h)
+		reply := h.joinRoom(reconnect, &protocol.ClientRoomJoin{RoomId: room.Id, ClientId: original.meshID(), SessionId: original.sessionID, RecoveryRoom: room})
+		if reply.GetRoomJoined() == nil || reply.GetRoomJoined().Room.RecoveryToken != room.RecoveryToken {
+			t.Fatal("fresh hub did not restore room token and peer")
+		}
+	}
+	if len(h.rooms[room.Id].clients) != 2 {
+		t.Fatal("missing recovered member")
+	}
+}

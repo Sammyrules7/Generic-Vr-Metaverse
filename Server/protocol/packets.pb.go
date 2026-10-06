@@ -363,11 +363,13 @@ func (*ServerPacket_Relay) isServerPacket_Payload() {}
 func (*ServerPacket_Error) isServerPacket_Payload() {}
 
 type Room struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	PlayerCount   uint32                 `protobuf:"varint,3,opt,name=player_count,json=playerCount,proto3" json:"player_count,omitempty"`
-	WorldId       string                 `protobuf:"bytes,4,opt,name=world_id,json=worldId,proto3" json:"world_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	PlayerCount uint32                 `protobuf:"varint,3,opt,name=player_count,json=playerCount,proto3" json:"player_count,omitempty"`
+	WorldId     string                 `protobuf:"bytes,4,opt,name=world_id,json=worldId,proto3" json:"world_id,omitempty"`
+	// Distinguishes a recovered room from a new room reusing its numeric ID.
+	RecoveryToken string `protobuf:"bytes,5,opt,name=recovery_token,json=recoveryToken,proto3" json:"recovery_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -426,6 +428,13 @@ func (x *Room) GetPlayerCount() uint32 {
 func (x *Room) GetWorldId() string {
 	if x != nil {
 		return x.WorldId
+	}
+	return ""
+}
+
+func (x *Room) GetRecoveryToken() string {
+	if x != nil {
+		return x.RecoveryToken
 	}
 	return ""
 }
@@ -1409,12 +1418,13 @@ const file_packets_proto_rawDesc = "" +
 	" \x01(\v2\f.ServerErrorH\x00R\x05error\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\v \x01(\rR\trequestIdB\t\n" +
-	"\apayload\"h\n" +
+	"\apayload\"\x8f\x01\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fplayer_count\x18\x03 \x01(\rR\vplayerCount\x12\x19\n" +
-	"\bworld_id\x18\x04 \x01(\tR\aworldId\"5\n" +
+	"\bworld_id\x18\x04 \x01(\tR\aworldId\x12%\n" +
+	"\x0erecovery_token\x18\x05 \x01(\tR\rrecoveryToken\"5\n" +
 	"\x04Peer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1d\n" +
 	"\n" +
