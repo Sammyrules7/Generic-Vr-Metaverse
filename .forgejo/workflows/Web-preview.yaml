@@ -81,6 +81,12 @@ jobs:
       - name: Test player movement
         run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/movement_test.gd
 
+      - name: Test XR hand tracking and menu
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
+
       - name: Configure main signaling backend
         env:
           VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}

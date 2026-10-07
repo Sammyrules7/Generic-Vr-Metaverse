@@ -1,5 +1,17 @@
 extends Node
 
+class FocusedOpenXR extends XRInterfaceExtension:
+	func _get_name() -> StringName:
+		return &"OpenXR"
+
+	func _is_initialized() -> bool:
+		return true
+
+	var pulses: Array = []
+
+	func _trigger_haptic_pulse(action_name: String, tracker_name: StringName, frequency: float, amplitude: float, duration_sec: float, delay_sec: float) -> void:
+		pulses.append([action_name, tracker_name, frequency, amplitude, duration_sec, delay_sec])
+
 const Packets = preload("res://Networking/Generated/Packets.gd")
 var failed := false
 var capture_viewport: SubViewport
@@ -85,6 +97,22 @@ func _run() -> void:
 	capture_viewport = panel.get_node("Viewport")
 	ui.reparent(capture_viewport)
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var action_map := load("res://openxr_action_map.tres") as OpenXRActionMap
+	var quest_menu_found := false
+	for interaction in action_map.interaction_profiles:
+		for binding in interaction.bindings:
+			check(not binding.binding_path.contains("/system/"), "Application binds a runtime system button")
+			if interaction.interaction_profile_path == "/interaction_profiles/oculus/touch_controller" and binding.action.resource_name == "menu_button":
+				check(binding.binding_path == "/user/hand/left/input/menu/click", "Quest app menu is not the left menu button")
+				quest_menu_found = true
+	check(quest_menu_found, "Quest left-menu binding is missing")
+	ui.set_webxr_supported(false)
+	ui.vr_mode = true
+	check(ui.get_node("%VRModeText").text == "VR", "Native VR was labelled Desktop")
+	ui.set_webxr_supported(false)
+	check(ui.get_node("%VRModeText").text == "VR", "WebXR capability changed the active VR label")
+	ui.vr_mode = false
+	check(ui.get_node("%VRModeText").text == "Desktop", "Leaving VR did not update mode label")
 	var state: RoomNetworking = Networking.room_networking
 	await get_tree().process_frame
 	ui.get_node("%DisplayName").text = "Nova"
@@ -124,6 +152,7 @@ func _run() -> void:
 	ui.get_node("%Search").text = ""
 	ui.get_node("%Search").text_changed.emit("")
 	await _test_navigation(ui, panel, state)
+	await _test_single_activation(ui, panel)
 	ui.vr_mode = true
 	# Exercise the same 3D pointer-to-Control path used by the controller laser.
 	var pointer := Node3D.new()
@@ -144,10 +173,39 @@ func _run() -> void:
 	check(ui.get_node("%Keyboard").visible, "VR keyboard did not open")
 	state.current_room = roomClass.new(20, "Menu test", 1)
 	ui.set_menu_open(false)
-	game._controller_button_pressed("by_button")
+	game._controller_button_pressed("by_button", &"left_hand")
 	check(state.pending_operation == RoomNetworking.Operation.NONE, "Furnishing B/Y button must not leave the room")
-	game._controller_button_pressed("menu_button")
-	check(state.pending_operation == RoomNetworking.Operation.LEAVE, "Controller menu button did not leave the VR room")
+	game._controller_button_pressed("menu_button", &"right_hand")
+	game._controller_button_pressed("select_button", &"left_hand")
+	check(state.pending_operation == RoomNetworking.Operation.NONE, "System/right/select button must not leave the room")
+	var start_xr := game.get_node("StartXR") as XRToolsStartXR
+	var saved_interface := start_xr.xr_interface
+	start_xr.xr_interface = FocusedOpenXR.new()
+	game._disable_xr_lobby()
+	check(not ui.menu_open and state.pending_operation == RoomNetworking.Operation.NONE, "Runtime dashboard/focus loss changed the app menu or left the room")
+	start_xr.xr_interface = saved_interface
+	game._controller_button_pressed("menu_button", &"left_hand")
+	check(ui.menu_open and state.pending_operation == RoomNetworking.Operation.NONE and state.current_room != null, "Triple-line menu button must open UI without leaving the room")
+	game._controller_button_pressed("menu_button", &"left_hand")
+	check(not ui.menu_open and ui.get_node("QuickSession").visible, "Closing the menu did not restore compact VR UI")
+	check(ui.xr_point_is_visible(ui.get_node("%InGameMicrophone").get_global_rect().get_center()), "Compact VR microphone is not touchable")
+	check(not game.has_method("_hand_menu_gesture"), "Menu still has a hand gesture binding")
+	await _test_immediate_touch(game, ui, panel)
+	await _test_feedback(ui, panel)
+	# Explicit leave remains quiet; an unsolicited server exit reports why.
+	var room_errors: Array = []
+	var capture_error := func(reason): room_errors.append(reason)
+	state.network_error.connect(capture_error)
+	var leave := Packets.ServerPacket.new()
+	leave.new_room_left()
+	state.pending_operation = RoomNetworking.Operation.LEAVE
+	state.handle_packet(leave, 2)
+	check(room_errors.is_empty(), "Explicit leave was reported as an unexpected exit")
+	state.current_room = roomClass.new(20, "Unexpected exit", 1)
+	state.pending_operation = RoomNetworking.Operation.NONE
+	state.handle_packet(leave, 2)
+	check(room_errors == ["The room server ended this session"], "Unexpected server exit did not provide a reason")
+	state.network_error.disconnect(capture_error)
 	state.pending_operation = RoomNetworking.Operation.NONE
 	state.current_room = null
 	ui.set_menu_open(true)
@@ -170,6 +228,10 @@ func _run() -> void:
 	check(ui.get_node("%CreateRoom").disabled and ui.get_node("%roomList").get_child_count() == 1, "Offline UI has stale rooms or active actions")
 	check(ui.get_node("%RoomName").text == "Friday room", "Offline recovery lost room name")
 	check(Networking.retry_connection("https://invalid") == ERR_INVALID_PARAMETER, "Invalid server address accepted")
+	# Flush stopped audio playbacks before shutting down the audio server.
+	panel.click_audio.stop()
+	game.get_node("World").queue_free()
+	await get_tree().create_timer(0.08).timeout
 	game.free()
 	if profile_existed:
 		FileAccess.open("user://profile.cfg", FileAccess.WRITE).store_buffer(profile_backup)
@@ -280,4 +342,184 @@ func _test_navigation(ui: Control, panel: Node3D, state: RoomNetworking) -> void
 
 
 func _panel_point(panel: Node3D, point: Vector2) -> Vector3:
-	return panel.to_global(Vector3((point.x / 1120.0 - 0.5) * 2.24, (0.5 - point.y / 800.0) * 1.6, 0))
+	return panel.to_global(Vector3((point.x / 1120.0 - 0.5) * panel.screen_size.x, (0.5 - point.y / 800.0) * panel.screen_size.y, 0))
+
+
+func _tap(panel: Node3D, button: BaseButton, pointer: Node3D) -> void:
+	var point := _panel_point(panel, button.get_global_rect().get_center())
+	var body := panel.get_node("StaticBody3D")
+	XRToolsPointerEvent.entered(pointer, body, point)
+	XRToolsPointerEvent.moved(pointer, body, point, point)
+	XRToolsPointerEvent.pressed(pointer, body, point)
+	XRToolsPointerEvent.released(pointer, body, point)
+	XRToolsPointerEvent.exited(pointer, body, point)
+
+
+func _test_single_activation(ui: Control, panel: Node3D) -> void:
+	ui.vr_mode = true
+	ui._set_keyboard_visible(false)
+	ui._microphone_toggled(true)
+	await get_tree().process_frame
+	var mic: BaseButton = ui.get_node("%QuickMicrophoneEnabled")
+	var count := [0]
+	var capture := func(_value): count[0] += 1
+	mic.toggled.connect(capture)
+	_tap(panel, mic, panel.hand_contacts.right.pointer)
+	check(count[0] == 1 and not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "One physical microphone tap must toggle exactly once")
+	_tap(panel, mic, panel.hand_contacts.left.pointer)
+	check(count[0] == 1 and Networking.voice_chat.muted, "Second-hand bounce within 100 ms toggled microphone again")
+	await get_tree().create_timer(0.11).timeout
+	_tap(panel, mic, panel.hand_contacts.left.pointer)
+	check(count[0] == 2 and PlayerProfile.microphone_enabled and not Networking.voice_chat.muted, "Left-hand deliberate tap did not enable microphone")
+	mic.toggled.disconnect(capture)
+	var next: Button = ui.get_node("%NextWorld")
+	var before: int = ui.world_index
+	_tap(panel, next, panel.hand_contacts.right.pointer)
+	check(ui.world_index == posmod(before + 1, WorldCatalog.WORLDS.size()), "One world-arrow tap must advance exactly one world")
+	_tap(panel, next, panel.hand_contacts.left.pointer)
+	check(ui.world_index == posmod(before + 1, WorldCatalog.WORLDS.size()), "World-arrow bounce within 100 ms was not suppressed")
+	for index in 4:
+		await get_tree().create_timer(0.11).timeout
+		_tap(panel, next, panel.hand_contacts["left" if index % 2 == 0 else "right"].pointer)
+		check(ui.world_index == posmod(before + index + 2, WorldCatalog.WORLDS.size()), "Rapid intentional world tap was dropped or doubled")
+	var state: RoomNetworking = Networking.room_networking
+	for path in ["%LobbyMicrophoneEnabled", "%MicrophoneEnabled", "%InGameMicrophone"]:
+		if path == "%LobbyMicrophoneEnabled":
+			ui._set_voice_settings_open(true)
+		else:
+			ui._set_voice_settings_open(false)
+			state.current_room = roomClass.new(20, "Microphone touch test", 1)
+			ui.set_menu_open(path != "%InGameMicrophone")
+		ui._microphone_toggled(true)
+		await get_tree().process_frame
+		mic = ui.get_node(path)
+		check(mic.is_visible_in_tree(), "Microphone fixture is not visible: " + path)
+		_tap(panel, mic, panel.hand_contacts.left.pointer)
+		check(not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "Microphone did not mute on first contact: " + path)
+		for other in ["%QuickMicrophoneEnabled", "%LobbyMicrophoneEnabled", "%MicrophoneEnabled", "%InGameMicrophone"]:
+			check(not ui.get_node(other).button_pressed, "Microphone state not synchronized: " + other)
+		await get_tree().create_timer(0.11).timeout
+		_tap(panel, mic, panel.hand_contacts.right.pointer)
+		check(PlayerProfile.microphone_enabled and not Networking.voice_chat.muted, "Microphone did not enable on next contact: " + path)
+	state.current_room = null
+	ui.set_menu_open(true)
+	ui._microphone_toggled(true)
+
+
+func _test_immediate_touch(game: Node3D, ui: Control, panel: Node3D) -> void:
+	var previous_panel = game.panel
+	game.panel = panel
+	game.xr_active = true
+	game.set_process(false)
+	var origin := XROrigin3D.new()
+	game.add_child(origin)
+	var head := XRCamera3D.new()
+	origin.add_child(head)
+	head.position.y = 1.7
+	panel.bind_rig(origin, head)
+	var tracker := XRHandTracker.new()
+	tracker.name = "/user/hand_tracker/right"
+	tracker.has_tracking_data = true
+	tracker.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED
+	tracker.set_hand_joint_flags(XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP, XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID)
+	XRServer.add_tracker(tracker)
+	var count := [0]
+	var capture := func(): count[0] += 1
+	panel.click_feedback.connect(capture)
+	ui.set_menu_open(false)
+	await get_tree().process_frame
+	check(panel.visible and panel.enabled and panel.compact, "Compact UI disabled its physical panel")
+	var button: Button = ui.get_node("%OpenRoomMenu")
+	check(button.action_mode == BaseButton.ACTION_MODE_BUTTON_PRESS, "VR buttons still wait for finger release")
+	var point: Vector3 = _panel_point(panel, button.get_global_rect().get_center())
+	_set_tip(tracker, origin, point + panel.global_basis.z * 0.03)
+	panel._process(0.0)
+	_set_tip(tracker, origin, point + panel.global_basis.z * 0.005)
+	panel._process(0.0)
+	check(ui.menu_open, "Menu button did not activate immediately on fingertip contact")
+	check(count[0] == 1, "Initial contact repeated its feedback during UI change")
+	for frame in 5:
+		panel._process(0.016)
+	check(ui.menu_open and count[0] == 1 and not panel.hand_contacts.right.armed, "A resting finger repeated its action after menu change")
+	tracker.has_tracking_data = false
+	panel._process(0.0)
+	tracker.has_tracking_data = true
+	panel._process(0.0)
+	check(count[0] == 1 and not panel.hand_contacts.right.armed, "Tracking loss repeated a resting finger click")
+	_set_tip(tracker, origin, point + panel.global_basis.z * 0.06)
+	panel._process(0.0)
+	check(panel.hand_contacts.right.armed, "Production UI did not rearm after finger withdrawal")
+	await get_tree().process_frame
+	var left := XRHandTracker.new()
+	left.name = "/user/hand_tracker/left"
+	left.has_tracking_data = true
+	left.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED
+	left.set_hand_joint_flags(XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP, XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID)
+	var mic: BaseButton = ui.get_node("%MicrophoneEnabled")
+	ui._microphone_toggled(true)
+	var mic_point := _panel_point(panel, mic.get_global_rect().get_center())
+	_set_tip(left, origin, mic_point + panel.global_basis.z * 0.014)
+	XRServer.add_tracker(left)
+	panel._process(0.0)
+	_set_tip(left, origin, mic_point + panel.global_basis.z * 0.005)
+	panel._process(0.0)
+	check(count[0] == 2 and Networking.voice_chat.muted, "Tracked left fingertip did not toggle microphone once")
+	_set_tip(tracker, origin, mic_point + panel.global_basis.z * 0.005)
+	panel._process(0.0)
+	check(count[0] == 2 and Networking.voice_chat.muted, "Tracked right fingertip bypassed same-button debounce")
+	panel.release_touch()
+	panel.click_feedback.disconnect(capture)
+	game.xr_active = false
+	game.panel = previous_panel
+	game.set_process(true)
+	XRServer.remove_tracker(tracker)
+	XRServer.remove_tracker(left)
+	origin.free()
+	panel._process(0.0)
+
+
+func _set_tip(tracker: XRHandTracker, origin: XROrigin3D, point: Vector3) -> void:
+	var tracking_point := (origin.global_transform * XRServer.get_reference_frame()).affine_inverse() * point / XRServer.world_scale
+	tracker.set_hand_joint_transform(XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP, Transform3D(Basis.IDENTITY, tracking_point))
+
+
+func _test_feedback(ui: Control, panel: Node3D) -> void:
+	var count := [0]
+	var capture := func(): count[0] += 1
+	panel.click_feedback.connect(capture)
+	var saved_interface := XRServer.primary_interface
+	var interface := FocusedOpenXR.new()
+	XRServer.add_interface(interface)
+	XRServer.primary_interface = interface
+	var tracker := XRControllerTracker.new()
+	tracker.name = "left_hand"
+	tracker.type = XRServer.TRACKER_CONTROLLER
+	tracker.set_pose("default", Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+	XRServer.add_tracker(tracker)
+	var controller := XRController3D.new()
+	controller.tracker = "left_hand"
+	panel.add_child(controller)
+	var pointer := Node3D.new()
+	controller.add_child(pointer)
+	panel.input_pointer = pointer
+	check(controller.get_is_active(), "Feedback controller fixture is inactive")
+	ui.vr_mode = true
+	ui.get_node("%Resume").pressed.emit()
+	check(count[0] == 1, "VR button did not produce click feedback")
+	check(panel.click_audio.playing, "VR click tone did not play")
+	check(interface.pulses.size() == 1 and interface.pulses[0] == ["haptic", &"left_hand", 0.0, 0.25, 0.035, 0.0], "VR feedback did not route a pulse to the selecting controller")
+	ui.vr_mode = false
+	ui.get_node("%Resume").pressed.emit()
+	check(count[0] == 1, "Desktop button produced VR feedback")
+	check(interface.pulses.size() == 1, "Desktop button triggered haptics")
+	check(ui.get_node("%Resume").action_mode == BaseButton.ACTION_MODE_BUTTON_RELEASE, "Desktop action mode was not restored")
+	ui.vr_mode = true
+	panel.input_pointer = panel.hand_contacts.right.pointer
+	ui.get_node("%Resume").pressed.emit()
+	check(count[0] == 2 and interface.pulses.size() == 1, "Bare-hand clicks should play tone without controller haptics")
+	panel.click_audio.stop()
+	controller.free()
+	XRServer.remove_tracker(tracker)
+	XRServer.primary_interface = saved_interface
+	XRServer.remove_interface(interface)
+	panel.click_feedback.disconnect(capture)

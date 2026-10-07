@@ -8,8 +8,6 @@ var panel: XRToolsViewport2DIn3D
 var ui: Control
 var xr_active := false
 var pointers: Array[Node3D] = []
-var menu_pinch_time := 0.0
-var menu_pinch_latched := false
 var _world_load_generation := 0
 
 
@@ -57,7 +55,7 @@ func _enable_xr_lobby() -> void:
 	panel.pointer_event.connect(ui.get_node("Navigation").pointer_event)
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.set_menu_open(ui.menu_open)
-	panel.bind_rig(lobby_origin, lobby_camera, lobby_origin.get_node("LeftHand"))
+	panel.bind_rig(lobby_origin, lobby_camera)
 	if is_instance_valid($PlayerManager.local_player):
 		$PlayerManager.local_player.set_control_mode(true)
 		_activate_player_rig()
@@ -66,9 +64,9 @@ func _enable_xr_lobby() -> void:
 
 func _disable_xr_lobby() -> void:
 	# Native OpenXR reports temporary focus loss (including its system menu)
-	# through xr_ended. Keep the rig and XR rendering alive in that case.
+	# through xr_ended. Keep the rig, rendering, and app menu state intact:
+	# opening the runtime dashboard is not an application menu action.
 	if $StartXR.xr_interface != null and $StartXR.xr_interface.get_name() == "OpenXR" and $StartXR.xr_interface.is_initialized():
-		ui.set_menu_open(true)
 		return
 	xr_active = false
 	get_viewport().use_xr = false
@@ -141,7 +139,7 @@ func _activate_player_rig() -> void:
 	controls.head.current = true
 	_attach_pointer(controls.left_hand)
 	_attach_pointer(controls.right_hand)
-	panel.bind_rig(controls.get_node("Origin"), controls.head, controls.left_hand)
+	panel.bind_rig(controls.get_node("Origin"), controls.head)
 
 
 func _left() -> void:
@@ -157,7 +155,7 @@ func _left() -> void:
 		lobby_origin.current = true
 		lobby_origin.show()
 		lobby_camera.current = true
-		panel.bind_rig(lobby_origin, lobby_camera, lobby_origin.get_node("LeftHand"))
+		panel.bind_rig(lobby_origin, lobby_camera)
 	_menu_changed(true)
 
 
@@ -185,28 +183,16 @@ func _attach_pointer(controller: XRController3D) -> void:
 	aim.add_child(pointer)
 	pointer.enabled = false
 	pointers.append(pointer)
-	controller.button_pressed.connect(_controller_button_pressed)
-	var tracked := Node3D.new()
+	controller.button_pressed.connect(_controller_button_pressed.bind(controller.tracker))
+	var tracked := XRNode3D.new()
 	tracked.set_script(TRACKED_HAND)
 	tracked.hand = "left" if controller.tracker == &"left_hand" else "right"
 	controller.get_parent().add_child(tracked)
 
 
-func _controller_button_pressed(action: String) -> void:
-	if action in ["menu_button", "menu", "select_button"] and Networking.room_networking.current_room != null:
-		_leave_vr_room()
-
-
-func _leave_vr_room() -> void:
-	if room_leave_pending():
-		return
-	var result := Networking.room_networking.leave_room()
-	if result != OK:
-		Networking.network_error.emit(error_string(result))
-
-
-func room_leave_pending() -> bool:
-	return Networking.room_networking.pending_operation != RoomNetworking.Operation.NONE
+func _controller_button_pressed(action: String, controller_tracker: StringName) -> void:
+	if action == "menu_button" and controller_tracker == &"left_hand" and Networking.room_networking.current_room != null:
+		ui.set_menu_open(not ui.menu_open)
 
 
 func _menu_changed(open: bool) -> void:
@@ -216,8 +202,10 @@ func _menu_changed(open: bool) -> void:
 	if xr_active:
 		if not is_instance_valid(panel):
 			return
-		panel.visible = open
-		panel.enabled = open
+		var in_room := Networking.room_networking.current_room != null
+		panel.set_room_mode(in_room, in_room and not open)
+		panel.visible = open or in_room
+		panel.enabled = panel.visible
 		_update_pointers()
 		if not open:
 			panel.release_touch()
@@ -234,7 +222,7 @@ func _update_pointers() -> void:
 		var correct_rig := in_lobby == (Networking.room_networking.current_room == null)
 		var hand := "left" if controller.tracker == &"left_hand" else "right"
 		var tracked := PlatformXRInput.hand_tracker(hand)
-		pointer.enabled = ui.menu_open and panel.visible and correct_rig and controller.get_is_active() and not PlatformXRInput.optical_hand(tracked)
+		pointer.enabled = panel.visible and correct_rig and controller.get_is_active() and not PlatformXRInput.optical_hand(tracked)
 		# Legacy controller hands stay local to the moving rig. Optical hands
 		# are rendered from joint data by the tracked-hand sibling instead.
 		var grip := controller.get_parent().get_node_or_null("LeftHand" if hand == "left" else "RightHand")
@@ -245,7 +233,6 @@ func _update_pointers() -> void:
 func _process(delta: float) -> void:
 	if not xr_active:
 		return
-	_hand_menu_gesture(delta)
 	var stick := Vector2.ZERO
 	var point := Vector2(-1, -1)
 	var body = panel.get_node("StaticBody3D")
@@ -258,24 +245,3 @@ func _process(delta: float) -> void:
 			stick = input
 			point = body.global_to_viewport(ray.get_collision_point())
 	ui.get_node("Navigation").handle_stick(stick, point, delta)
-
-
-func _hand_menu_gesture(delta: float) -> void:
-	# Hands-only fallback for runtimes that reserve the hardware menu button.
-	# A held left thumb/ring pinch is distinct from thumb/index locomotion.
-	var tracker := PlatformXRInput.hand_tracker("left")
-	var thumb := XRHandTracker.HAND_JOINT_THUMB_TIP
-	var ring := XRHandTracker.HAND_JOINT_RING_FINGER_TIP
-	if Networking.room_networking.current_room == null or not PlatformXRInput.optical_hand(tracker) or not PlatformXRInput.joint_valid(tracker, thumb) or not PlatformXRInput.joint_valid(tracker, ring):
-		menu_pinch_time = 0.0
-		menu_pinch_latched = false
-		return
-	var distance := tracker.get_hand_joint_transform(thumb).origin.distance_to(tracker.get_hand_joint_transform(ring).origin)
-	if distance > 0.04:
-		menu_pinch_time = 0.0
-		menu_pinch_latched = false
-	elif distance < 0.02 and not menu_pinch_latched:
-		menu_pinch_time += delta
-		if menu_pinch_time >= 0.4:
-			menu_pinch_latched = true
-			_leave_vr_room()

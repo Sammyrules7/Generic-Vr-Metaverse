@@ -1,54 +1,38 @@
-extends Node3D
-## Drive the bundled legacy XR hand skeleton directly from tracked joints.
-## No controller grip offsets or canned finger animations are used in this rig.
+extends XRNode3D
+## Native Godot hand tracking with a humanoid-rigged mesh. The engine owns
+## joint poses, parent relationships, and skin updates; no axis offsets here.
 
 @export_enum("left", "right") var hand := "left"
-const JOINT_NAMES := ["Palm", "Wrist", "Thumb_Metacarpal", "Thumb_Proximal", "Thumb_Distal", "Thumb_Tip", "Index_Metacarpal", "Index_Proximal", "Index_Intermediate", "Index_Distal", "Index_Tip", "Middle_Metacarpal", "Middle_Proximal", "Middle_Intermediate", "Middle_Distal", "Middle_Tip", "Ring_Metacarpal", "Ring_Proximal", "Ring_Intermediate", "Ring_Distal", "Ring_Tip", "Little_Metacarpal", "Little_Proximal", "Little_Intermediate", "Little_Distal", "Little_Tip"]
-# XRHandTracker uses Godot humanoid axes; the bundled meshes use OpenXR axes.
-const LEGACY_AXES := Basis(Vector3(-1, 0, 0), Vector3(0, 0, -1), Vector3(0, -1, 0))
 var skeleton: Skeleton3D
-var bone_joints: Dictionary[int, int] = {}
+var modifier: XRHandModifier3D
 
 
 func _ready() -> void:
-	var path := "res://addons/godot-xr-tools/hands/model/Hand_Nails_low_%s.gltf" % ("L" if hand == "left" else "R")
-	var model := (load(path) as PackedScene).instantiate()
+	tracker = StringName("/user/hand_tracker/" + hand)
+	pose = &"default"
+	var side := "Left" if hand == "left" else "Right"
+	var model := (load("res://player/hands/%sHandHumanoid.gltf" % side) as PackedScene).instantiate()
 	add_child(model)
 	skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
-	var suffix := "_L" if hand == "left" else "_R"
-	for joint in JOINT_NAMES.size():
-		var bone := skeleton.find_bone(JOINT_NAMES[joint] + suffix)
-		if bone >= 0:
-			bone_joints[bone] = joint
-	for mesh in model.find_children("*", "MeshInstance3D", true, false):
-		mesh.material_override = load("res://addons/godot-xr-tools/hands/materials/caucasian_hand.tres")
-	process_priority = 5
+	modifier = XRHandModifier3D.new()
+	modifier.hand_tracker = tracker
+	modifier.bone_update = XRHandModifier3D.BONE_UPDATE_FULL
+	skeleton.add_child(modifier)
+	skeleton.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
+	process_priority = -5
 	hide()
 
 
 func _process(_delta: float) -> void:
-	var tracker := PlatformXRInput.hand_tracker(hand)
-	visible = PlatformXRInput.optical_hand(tracker) and PlatformXRInput.joint_valid(tracker, XRHandTracker.HAND_JOINT_PALM) and (tracker.get_hand_joint_flags(XRHandTracker.HAND_JOINT_PALM) & XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID) != 0
-	if not visible:
-		return
-	var origin := get_parent() as XROrigin3D
-	global_transform = PlatformXRInput.joint_world(origin, tracker, XRHandTracker.HAND_JOINT_PALM)
-	global_basis *= LEGACY_AXES
-	var poses: Dictionary[int, Transform3D] = {}
-	for bone: int in bone_joints:
-		var joint: int = bone_joints[bone]
-		if not PlatformXRInput.joint_valid(tracker, joint) or (tracker.get_hand_joint_flags(joint) & XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID) == 0:
-			continue
-		var world_pose := PlatformXRInput.joint_world(origin, tracker, joint)
-		world_pose.basis *= LEGACY_AXES
-		poses[bone] = skeleton.global_transform.affine_inverse() * world_pose
-	for bone: int in poses:
-		var parent := skeleton.get_bone_parent(bone)
-		var pose: Transform3D = poses[bone]
-		if parent >= 0:
-			var parent_pose: Transform3D = poses.get(parent, skeleton.get_bone_global_pose(parent))
-			pose = parent_pose.affine_inverse() * pose
-		# Preserve the mesh's authored bone lengths. Applying tracked positions to
-		# every bone stretches the skinned mesh into the user's raw joint spacing.
-		# Godot 4 expects the local rotation relative to the parent bone.
-		skeleton.set_bone_pose_rotation(bone, pose.basis.orthonormalized().get_rotation_quaternion())
+	var hand_tracker := PlatformXRInput.hand_tracker(hand)
+	var valid := PlatformXRInput.optical_hand(hand_tracker)
+	# A full native update needs all orientations. Hold the mesh hidden during
+	# partial tracking rather than handing invalid transforms to the modifier.
+	if valid:
+		for joint in XRHandTracker.HAND_JOINT_MAX:
+			if not PlatformXRInput.joint_valid(hand_tracker, joint) or (hand_tracker.get_hand_joint_flags(joint) & XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID) == 0:
+				valid = false
+				break
+	visible = valid
+	modifier.active = valid
+	skeleton.scale = Vector3.ONE * XRServer.world_scale

@@ -180,6 +180,8 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 			_stop_mesh()
 			if was_in_room:
 				room_left.emit()
+				if pending_operation != Operation.LEAVE:
+					network_error.emit("The room server ended this session")
 		Packets.ServerPacket.PayloadCase.PEER_JOINED:
 			if rtc_mesh != null:
 				rtc_mesh.add_peer(packet.get_peer_joined().get_peer(), false)

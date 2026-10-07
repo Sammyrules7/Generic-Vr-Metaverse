@@ -5,7 +5,13 @@ signal xr_requested
 
 const ROOM_ELEMENT := preload("res://UI/room_element.tscn")
 var room_networking: RoomNetworking
-var vr_mode := false
+var vr_mode := false:
+	set(value):
+		vr_mode = value
+		if is_node_ready():
+			_update_mode_badge()
+			_configure_buttons(self)
+var webxr_supported := false
 var menu_open := true
 var keyboard_target: LineEdit
 var uppercase := false
@@ -29,6 +35,7 @@ func _ready() -> void:
 	%VoiceVolume.value = PlayerProfile.voice_volume * 100.0
 	%LobbyMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
 	%QuickMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
+	%InGameMicrophone.button_pressed = PlayerProfile.microphone_enabled
 	%LobbyPushToTalk.button_pressed = PlayerProfile.push_to_talk
 	%LobbyInputGain.value = PlayerProfile.input_gain * 100.0
 	%LobbyVoiceVolume.value = PlayerProfile.voice_volume * 100.0
@@ -44,6 +51,8 @@ func _ready() -> void:
 	%VoiceVolume.value_changed.connect(_voice_volume_changed)
 	%LobbyMicrophoneEnabled.toggled.connect(_microphone_toggled)
 	%QuickMicrophoneEnabled.toggled.connect(_microphone_toggled)
+	%InGameMicrophone.toggled.connect(_microphone_toggled)
+	%OpenRoomMenu.pressed.connect(func(): set_menu_open(true))
 	%LobbyPushToTalk.toggled.connect(_push_to_talk_toggled)
 	%LobbyInputGain.value_changed.connect(_input_gain_changed)
 	%LobbyInputDevice.item_selected.connect(_lobby_input_device_selected)
@@ -93,6 +102,7 @@ func _ready() -> void:
 		_browser_document = JavaScriptBridge.get_interface("document")
 		_pointer_lock_callback = JavaScriptBridge.create_callback(_pointer_lock_changed)
 		_browser_document.addEventListener("pointerlockchange", _pointer_lock_callback)
+	_configure_buttons(self)
 
 
 func _enter_tree() -> void:
@@ -160,6 +170,9 @@ func _fit_ui() -> void:
 	$VBoxContainer.scale = Vector2.ONE * factor
 	$VBoxContainer.size = available / factor
 	$VBoxContainer.position = Vector2.ZERO
+	var quick := $QuickSession as Control
+	quick.size = quick.get_combined_minimum_size().max(Vector2(540, 120))
+	quick.position = (available - quick.size) * 0.5
 	for card: Control in [$Session, %VoiceSettings]:
 		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700))
 		card.scale = Vector2.ONE * minf(1.0, minf(available.x / (card_size.x + 32), available.y / (card_size.y + 32)))
@@ -190,13 +203,18 @@ func _select_world(id: String) -> void:
 
 
 func set_webxr_supported(supported: bool) -> void:
+	webxr_supported = supported
+	_update_mode_badge()
+
+
+func _update_mode_badge() -> void:
 	%VRSupportBadge.show()
-	%VRModeText.text = "VR" if supported else "Desktop"
-	%VRModeText.add_theme_color_override("font_color", Color("#72d69c") if supported else Color("#a0bdd4"))
+	%VRModeText.text = "VR" if vr_mode else ("VR available" if webxr_supported else "Desktop")
+	%VRModeText.add_theme_color_override("font_color", Color("#72d69c") if vr_mode else Color("#a0bdd4"))
 
 
 func xr_point_is_visible(point: Vector2) -> bool:
-	for card: Control in [$Session, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse]:
+	for card: Control in [$Session, $QuickSession, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse]:
 		if card.is_visible_in_tree() and card.get_global_rect().has_point(point):
 			return true
 	return false
@@ -220,6 +238,7 @@ func _microphone_toggled(enabled: bool) -> void:
 	%MicrophoneEnabled.set_pressed_no_signal(enabled)
 	%LobbyMicrophoneEnabled.set_pressed_no_signal(enabled)
 	%QuickMicrophoneEnabled.set_pressed_no_signal(enabled)
+	%InGameMicrophone.set_pressed_no_signal(enabled)
 	Networking.voice_chat.set_muted(not enabled)
 	PlayerProfile.save()
 	_local_speaking_changed(false)
@@ -368,6 +387,7 @@ func _add_room(room: roomClass) -> void:
 			_check_request(room_networking.join_room(room_id))
 	)
 	%roomList.add_child(element)
+	_configure_buttons(element)
 	element.set_available(_available())
 
 
@@ -385,6 +405,7 @@ func _room_joined(_room: roomClass) -> void:
 
 func _update_session() -> void:
 	var room := room_networking.current_room
+	%QuickRoomInfo.text = "%s · %d people" % [room.room_name, multiplayer.get_peers().size() + 1]
 	%SessionInfo.text = "%s\n%s · %d people" % [room.room_name, WorldCatalog.title(room.world_id), multiplayer.get_peers().size() + 1]
 
 
@@ -404,12 +425,15 @@ func set_menu_open(open: bool) -> void:
 	var in_room := room_networking.current_room != null
 	$VBoxContainer.visible = not in_room
 	$Session.visible = in_room and open
+	$QuickSession.visible = in_room and not open and vr_mode
+	if in_room:
+		_update_session()
 	$MenuHint.visible = in_room and not open and not vr_mode
 	$Background.visible = not vr_mode and not in_room
 	_fit_ui()
 	if not open:
 		%VoiceSettings.hide()
-	mouse_filter = Control.MOUSE_FILTER_STOP if open else Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_STOP if open or vr_mode else Control.MOUSE_FILTER_IGNORE
 	if not vr_mode:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED)
 	menu_changed.emit(open)
@@ -572,3 +596,33 @@ func _set_keyboard_visible(show_keyboard: bool) -> void:
 	%Search.visible = not show_keyboard or keyboard_target == %Search
 	%Scroll.visible = not show_keyboard
 	%BrowseTitle.text = "Type " + str(keyboard_target.name).to_snake_case().replace("_", " ") if show_keyboard and keyboard_target != null else "Available rooms"
+
+
+func _configure_buttons(node: Node) -> void:
+	if node is BaseButton:
+		if not node.has_meta("desktop_action_mode"):
+			node.set_meta("desktop_action_mode", node.action_mode)
+		node.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS if vr_mode else node.get_meta("desktop_action_mode")
+		if not node.pressed.is_connected(_button_feedback):
+			node.pressed.connect(_button_feedback)
+	for child in node.get_children():
+		_configure_buttons(child)
+
+
+func _button_feedback() -> void:
+	if vr_mode:
+		var surface := get_viewport().get_parent()
+		if surface.has_method("play_click_feedback"):
+			surface.play_click_feedback()
+
+
+func xr_button_at(point: Vector2, node: Node = null) -> BaseButton:
+	if node == null:
+		node = self
+	if node is BaseButton and node.is_visible_in_tree() and not node.disabled and node.get_global_rect().has_point(point):
+		return node
+	for child in node.get_children():
+		var found := xr_button_at(point, child)
+		if found != null:
+			return found
+	return null

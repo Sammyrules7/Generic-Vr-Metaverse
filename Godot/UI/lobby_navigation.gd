@@ -38,6 +38,11 @@ func _active() -> bool:
 
 
 func _region_at(point: Vector2) -> Region:
+	var panel := get_viewport().get_parent()
+	# Direct finger contact activates buttons immediately. Dragging the empty
+	# list/preview and controller-ray drag buffering retain their existing path.
+	if ui.vr_mode and panel.has_method("is_hand_pointer") and panel.is_hand_pointer(panel.input_pointer) and ui.xr_button_at(point) != null:
+		return Region.NONE
 	if rooms.is_visible_in_tree() and rooms.get_global_rect().has_point(point):
 		# Keep the native scrollbar draggable as well.
 		var bar := rooms.get_v_scroll_bar()
@@ -115,12 +120,13 @@ func _end_drag(point: Vector2) -> void:
 	var region := _region
 	var was_dragged := _dragged
 	var movement := point - _start
+	var pointer := _drag_pointer
 	_cancel_drag()
 	if was_dragged:
 		if region == Region.WORLDS and absf(movement.x) >= SWIPE_THRESHOLD and absf(movement.x) > absf(movement.y):
 			ui._step_world(-1 if movement.x > 0 else 1)
 	elif region == Region.ROOMS and rooms.get_global_rect().has_point(point):
-		_click.call_deferred(point)
+		_click.call_deferred(point, pointer)
 
 
 func _cancel_drag() -> void:
@@ -142,9 +148,14 @@ func pointer_event(event: XRToolsPointerEvent) -> void:
 		_cancel_drag()
 
 
-func _click(point: Vector2) -> void:
+func _click(point: Vector2, pointer: Node3D = null) -> void:
 	if not _active():
 		return
+	var body := get_viewport().get_parent().get_node_or_null("StaticBody3D")
+	if ui.vr_mode and body != null and body.has_method("accept_button_press") and not body.accept_button_press(point):
+		return
+	if body != null and is_instance_valid(pointer):
+		body.get_parent().input_pointer = pointer
 	_forwarding_click = true
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
