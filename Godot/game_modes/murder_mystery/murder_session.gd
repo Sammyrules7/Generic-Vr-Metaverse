@@ -174,7 +174,7 @@ func _process(_delta: float) -> void:
 			rules.set_participating(multiplayer.get_unique_id(), wants_to_play)
 		else:
 			request_sync.rpc_id(authority_id, room_id, wants_to_play)
-	_update_hint()
+	_update_interaction()
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -256,16 +256,12 @@ func _voice_allowed(sender_id: int, listener_id: int) -> bool:
 	return sender_living or not listener_living
 
 
-func _update_hint() -> void:
+func _update_interaction() -> void:
 	var player := manager.local_player
 	var controls := player.controls
 	_at_table = player.global_position.distance_to(map.table_position()) < 2.6
 	_target_item = ""
-	var hint := ""
-	var interact := "Right grip" if player.use_vr else "E"
-	if _at_table:
-		hint = "%s · %s" % [interact, "Leave game" if wants_to_play else "Join next game · 3+ players"]
-	elif snapshot.get("self", {}).get("participating", false):
+	if not _at_table and snapshot.get("self", {}).get("participating", false):
 		var state: Dictionary = snapshot.get("self", {})
 		if state.get("alive", false) and snapshot.get("phase", "") == "active":
 			var nearest := 2.0
@@ -275,13 +271,6 @@ func _update_hint() -> void:
 				if distance < nearest and _line_clear(controls.head.global_position, item.position):
 					nearest = distance
 					_target_item = id
-			if not _target_item.is_empty():
-				hint = "%s · Collect %s" % [interact, snapshot.items[_target_item].kind]
-			elif not str(state.get("weapon", "")).is_empty():
-				hint = "L grip · Draw/holster   L trigger · Drop" if player.use_vr else "R · Draw/holster   Q · Drop"
-				if state.get("equipped", false):
-					hint = ("R trigger · Use   " if player.use_vr else "Click · Use   ") + hint
-	presentation.set_hint(hint if controls.input_enabled else "")
 	presentation.focus_item(_target_item if controls.input_enabled else "")
 
 
@@ -370,16 +359,12 @@ func _handle_command(id: int, round_number: int, action: String, item: String, o
 				_broadcast()
 		"drop":
 			equipped[id] = false
-			if rules.drop_weapon(id):
-				_feedback(id, "Weapon dropped")
+			rules.drop_weapon(id)
 		"pickup":
 			if rules.items.has(item):
 				var position: Vector3 = rules.items[item].position
 				if origin.distance_to(position) <= 2.2 and _line_clear(origin, position):
-					if rules.take_item(id, item):
-						_feedback(id, "Collected")
-					else:
-						_feedback(id, "You cannot carry this")
+					rules.take_item(id, item)
 		"attack":
 			if not equipped.get(id, false) or direction.length_squared() < 0.9 or direction.length_squared() > 1.1:
 				return
@@ -392,21 +377,6 @@ func _handle_command(id: int, round_number: int, action: String, item: String, o
 			var target := _hit_player(id, origin, direction.normalized(), reach, weapon == "knife")
 			if target != 0:
 				rules.attack(id, target, weapon)
-				_feedback(id, "Hit")
-
-
-func _feedback(id: int, message: String) -> void:
-	if id == multiplayer.get_unique_id():
-		if is_instance_valid(presentation):
-			presentation.show_feedback(message)
-	else:
-		receive_feedback.rpc_id(id, room_id, message)
-
-
-@rpc("any_peer", "call_remote", "reliable")
-func receive_feedback(in_room: int, message: String) -> void:
-	if in_room == room_id and multiplayer.get_remote_sender_id() == authority_id and is_instance_valid(presentation):
-		presentation.show_feedback(message)
 
 
 func _attack_effect(id: int, origin: Vector3, direction: Vector3, weapon: String) -> void:

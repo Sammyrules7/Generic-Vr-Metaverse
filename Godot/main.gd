@@ -52,7 +52,6 @@ func _enable_xr_lobby() -> void:
 	add_child(panel)
 	ui.reparent(panel.get_node("Viewport"))
 	ui.vr_mode = true
-	panel.pointer_event.connect(ui.get_node("Navigation").pointer_event)
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.set_menu_open(ui.menu_open)
 	panel.bind_rig(lobby_origin, lobby_camera)

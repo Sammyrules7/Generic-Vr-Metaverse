@@ -12,13 +12,13 @@ enum Region { NONE, ROOMS, WORLDS }
 @onready var rooms: ScrollContainer = ui.get_node("%Scroll")
 @onready var world: Control = ui.get_node("%WorldPreviewFrame")
 
+var _dragging := false
 var _touch_index := -1
 var _region := Region.NONE
 var _start := Vector2.ZERO
 var _drag_pointer: Node3D
 var _start_scroll := 0
 var _dragged := false
-var _forwarding_click := false
 var _stick_direction := 0
 var _stick_repeat := 0.0
 var _scroll_fraction := 0.0
@@ -55,21 +55,19 @@ func _region_at(point: Vector2) -> Region:
 
 
 func _input(event: InputEvent) -> void:
-	if _forwarding_click:
-		return
 	if not _active():
 		_cancel_drag()
 		return
 	if event is InputEventKey:
 		_key_input(event)
 		return
-	# XR Tools emits both touch and mouse events for the same controller action.
-	# Buffer touch presses in scrollable regions so a drag cannot click Join.
+	# Native touchscreen input uses the same gesture state as XR pointers.
 	if event is InputEventScreenTouch:
-		if event.pressed and _touch_index == -1:
+		if event.pressed and not _dragging:
 			var region := _region_at(event.position)
 			if region != Region.NONE:
-				_begin_drag(event.index, region, event.position)
+				_begin_drag(region, event.position)
+				_touch_index = event.index
 				get_viewport().set_input_as_handled()
 		elif not event.pressed and event.index == _touch_index:
 			if event.canceled:
@@ -77,27 +75,24 @@ func _input(event: InputEvent) -> void:
 			else:
 				_end_drag(event.position)
 			get_viewport().set_input_as_handled()
-	elif event is InputEventScreenDrag and event.index == _touch_index and _touch_index != -1:
+	elif event is InputEventScreenDrag and event.index == _touch_index:
 		_drag_to(event.position)
 		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton:
-		if ui.vr_mode and event.button_index == MOUSE_BUTTON_LEFT and (_touch_index != -1 or _region_at(event.position) != Region.NONE):
+	elif event is InputEventMouseButton and not ui.vr_mode and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and _region_at(event.position) == Region.WORLDS:
+			_begin_drag(Region.WORLDS, event.position)
 			get_viewport().set_input_as_handled()
-		elif not ui.vr_mode and event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed and _region_at(event.position) == Region.WORLDS:
-				_begin_drag(-2, Region.WORLDS, event.position)
-				get_viewport().set_input_as_handled()
-			elif not event.pressed and _touch_index == -2:
-				_end_drag(event.position)
-				get_viewport().set_input_as_handled()
-	elif event is InputEventMouseMotion and _touch_index != -1:
-		if _touch_index == -2:
+		elif not event.pressed and _dragging:
+			_end_drag(event.position)
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _dragging:
+		if _drag_pointer == null:
 			_drag_to(event.position)
 		get_viewport().set_input_as_handled()
 
 
-func _begin_drag(index: int, region: Region, point: Vector2) -> void:
-	_touch_index = index
+func _begin_drag(region: Region, point: Vector2) -> void:
+	_dragging = true
 	_region = region
 	_start = point
 	_start_scroll = rooms.scroll_vertical
@@ -130,6 +125,7 @@ func _end_drag(point: Vector2) -> void:
 
 
 func _cancel_drag() -> void:
+	_dragging = false
 	_touch_index = -1
 	_region = Region.NONE
 	_dragged = false
@@ -141,11 +137,28 @@ func cancel_pointer_drag() -> void:
 	_cancel_drag()
 
 
-func pointer_event(event: XRToolsPointerEvent) -> void:
-	if event.event_type == XRToolsPointerEvent.Type.PRESSED and _touch_index != -1 and _drag_pointer == null:
-		_drag_pointer = event.pointer
-	elif event.event_type == XRToolsPointerEvent.Type.EXITED and event.pointer == _drag_pointer:
+func pointer_event(event: XRToolsPointerEvent, point: Vector2) -> bool:
+	# Consume XR gestures directly, before the body forwards ordinary GUI input.
+	if not _active():
+		var consumed := event.pointer == _drag_pointer
 		_cancel_drag()
+		return consumed
+	if event.event_type == XRToolsPointerEvent.Type.PRESSED:
+		_cancel_drag()
+		var region := _region_at(point)
+		if region == Region.NONE:
+			return false
+		_begin_drag(region, point)
+		_drag_pointer = event.pointer
+	elif event.pointer != _drag_pointer:
+		return false
+	elif event.event_type == XRToolsPointerEvent.Type.MOVED:
+		_drag_to(point)
+	elif event.event_type == XRToolsPointerEvent.Type.RELEASED:
+		_end_drag(point)
+	elif event.event_type == XRToolsPointerEvent.Type.EXITED:
+		_cancel_drag()
+	return true
 
 
 func _click(point: Vector2, pointer: Node3D = null) -> void:
@@ -156,20 +169,10 @@ func _click(point: Vector2, pointer: Node3D = null) -> void:
 		return
 	if body != null and is_instance_valid(pointer):
 		body.get_parent().input_pointer = pointer
-	_forwarding_click = true
-	var motion := InputEventMouseMotion.new()
-	motion.position = point
-	motion.global_position = point
-	get_viewport().push_input(motion, true)
-	for pressed: bool in [true, false]:
-		var click := InputEventMouseButton.new()
-		click.position = point
-		click.global_position = point
-		click.button_index = MOUSE_BUTTON_LEFT
-		click.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
-		click.pressed = pressed
-		get_viewport().push_input(click, true)
-	_forwarding_click = false
+	var button := ui.xr_button_at(point) as Button
+	if button != null and not button.disabled and rooms.is_ancestor_of(button):
+		button.grab_focus()
+		button.pressed.emit()
 
 
 func _key_input(event: InputEventKey) -> void:
@@ -233,7 +236,7 @@ func _scroll_by(pixels: float) -> void:
 
 
 func handle_stick(stick: Vector2, point: Vector2, delta: float) -> void:
-	if not _active() or _touch_index != -1 or ui.get_node("%Keyboard").visible:
+	if not _active() or _dragging or ui.get_node("%Keyboard").visible:
 		_reset_stick()
 		return
 	match _region_at(point):

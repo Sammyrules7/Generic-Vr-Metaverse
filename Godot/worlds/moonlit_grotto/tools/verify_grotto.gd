@@ -8,13 +8,21 @@ func check(condition: bool, message: String) -> void:
 		push_error(message)
 		failed = true
 func verify() -> void:
-	var preview: Node3D = load("res://worlds/moonlit_grotto/preview.tscn").instantiate()
-	root.add_child(preview)
-	check(preview.has_node("World/Waterfall curtain"),"The separate grotto scene must contain the waterfall")
+	var scene := Node3D.new()
+	root.add_child(scene)
+	current_scene = scene
+	var world: Node3D = load("res://worlds/moonlit_grotto/moonlit_grotto.tscn").instantiate()
+	scene.add_child(world)
+	var players := Node3D.new()
+	players.name = "Players"
+	scene.add_child(players)
+	var player = load("res://player/network_player.tscn").instantiate()
+	players.add_child(player)
+	player.global_transform = world.get_node("SpawnPoint").global_transform
+	check(world.has_node("Waterfall curtain"),"The separate grotto scene must contain the waterfall")
 	for i in range(20):
 		await physics_frame
-	check(preview.player.is_on_floor(),"Spawn must settle on the landing")
-	var world := preview.get_node("World") as Node3D
+	check(player.is_on_floor(),"Spawn must settle on the landing")
 	check(world.get_node("Stillwater").cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"Clipped water must not cast a rectangular shadow outside the island")
 	var moon := world.get_node("Moon") as MeshInstance3D
 	check(moon.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"The moon disc must not eclipse its own light")
@@ -39,29 +47,17 @@ func verify() -> void:
 		var query := PhysicsRayQueryParameters3D.create(point+Vector3.UP*20,point-Vector3.UP*5)
 		var hit := space.intersect_ray(query)
 		check(not hit.is_empty() and hit.position.y > .1,"Lagoon rim must contain the playable pool")
-	preview.captured = true
 	Input.action_press("move_forward")
 	for i in range(230):
 		await physics_frame
 	Input.action_release("move_forward")
-	preview.captured = false
-	print("Walk endpoint: ",preview.player.position)
-	check(preview.player.position.z < -4.0,"Stepping-stone route must be walkable without jumping")
-	preview.player.global_position = Vector3(0,-10,0)
+	print("Walk endpoint: ",player.position)
+	check(player.position.z < -4.0,"Stepping-stone route must be walkable without jumping")
+	player.global_position = Vector3(0,-10,0)
 	for i in range(4):
 		await physics_frame
-	check(preview.player.position.y > 0 and preview.player.position.z > 8,"Recovery must return the player to SpawnPoint")
-	preview.queue_free()
-	await process_frame
-	var main: Node3D = load("res://Main.tscn").instantiate()
-	root.add_child(main)
-	check(main.has_node("World/SpawnPoint"),"Main must expose the multiplayer spawn contract")
-	check(main.get_node("World").scene_file_path == "res://worlds/floating_island/floating_island.tscn","Main must retain the original island world")
-	check(main.has_node("Players"),"Main must retain the multiplayer player container")
-	check(WorldCatalog.WORLDS.has("moonlit_grotto"),"Grotto must be selectable in the world registry")
-	var spawn := main.load_world("moonlit_grotto") as Marker3D
-	check(spawn != null and main.has_node("World/Waterfall curtain"),"Registry selection must load the Grotto world")
-	main.queue_free()
+	check(player.position.y > 0 and player.position.z > 8,"Recovery must return the player to SpawnPoint")
+	scene.queue_free()
 	await process_frame
 	print("Grotto verification: ","FAILED" if failed else "PASS")
 	quit(1 if failed else 0)

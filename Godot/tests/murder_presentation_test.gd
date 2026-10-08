@@ -18,6 +18,9 @@ func check(condition: bool, message: String) -> void:
 func _run() -> void:
 	var world := Node3D.new()
 	root.add_child(world)
+	var anchor := Marker3D.new()
+	anchor.name = "GameDisplay"
+	world.add_child(anchor)
 	var players := Node3D.new()
 	world.add_child(players)
 	# Load after autoload setup: the player scene includes the XR Tools globals.
@@ -44,6 +47,7 @@ func _run() -> void:
 	var presentation = load("res://game_modes/murder_mystery/murder_presentation.gd").new()
 	world.add_child(presentation)
 	presentation.setup(players, local, world)
+	var display: Node = presentation._scene_display
 	var state := {"phase": "active", "remaining": 42.0,
 		"self": {"alive": true, "participating": true, "role": "detective", "weapon": "gun", "equipped": false},
 		"players": {2: {"alive": true, "participating": true, "weapon": "knife"}},
@@ -53,17 +57,35 @@ func _run() -> void:
 	check(not local.get_node("Avatar").visible, "Local duplicate avatar remains hidden")
 	check(not presentation._held.has(1), "Holstered local weapon is absent")
 	check(presentation._held.has(2), "Equipped remote weapon rendered")
-	check(not presentation._crosshair.visible, "Holstered weapon has no crosshair")
-	check(presentation._hud.text.contains("Innocent hits kill you too"), "Gun role explains innocent-fire consequence")
+	check(display.card.visible, "Round start reveals private role card")
+	check(display.card_text.text.contains("Shoot an innocent, you die too"), "Gun role explains innocent-fire consequence")
 	check(presentation.item_visuals.size() == 1, "Map pickup visual created")
 	state.self.equipped = true
 	presentation.apply_snapshot(state)
 	check(presentation._held.has(1), "Drawing local weapon creates visual")
-	check(presentation._crosshair.visible, "Drawing weapon shows desktop aim dot")
-	local.use_vr = true
-	presentation.apply_snapshot(state)
-	check(not presentation._crosshair.visible, "VR has no head-locked aim dot")
-	local.use_vr = false
+	check(local.controls.head.get_node_or_null("MurderAim") == null, "Physical presentation needs no aim dot")
+	display._process(5.0)
+	check(not display.card.visible, "Automatic card reveal expires")
+	presentation.toggle_journal()
+	check(display.card.visible, "Inspect opens the private card")
+	for vr: bool in [true, false]:
+		var old_card: Node3D = display.card
+		local.set_control_mode(vr)
+		local.controls.process_mode = Node.PROCESS_MODE_DISABLED
+		check(not is_instance_valid(old_card), "Control switch frees the old rig's card")
+		check(is_instance_valid(display.card_text) and display.card.visible, "Control switch rebuilds the inspected private card")
+		check(display.card_text.text.contains("THE DETECTIVE"), "Control switch preserves the role")
+		check(display.card.get_parent() == (local.controls.left_hand if vr else local.controls.head), "Card attaches to the active controls")
+		check(display.card_text.text.contains("R grip:" if vr else "E collect"), "Card instructions follow control mode")
+		presentation.apply_snapshot(state)
+	presentation.toggle_journal()
+	check(not display.card.visible, "Inspect closes the private card")
+	local.controls.input_enabled = false
+	display.toggle_card()
+	check(not display.card.visible, "Room menu suppresses the card")
+	local.controls.input_enabled = true
+	display._process(0.0)
+	check(display.card.visible, "Resuming restores the inspected card")
 	state.players[2].alive = false
 	presentation.apply_snapshot(state)
 	check(not remote.get_node("Avatar").is_visible_in_tree(), "Living viewer cannot see ghost avatar")
@@ -86,45 +108,53 @@ func _run() -> void:
 	check(remote.get_node("NameTag").visible, "Ghost viewers see ghost names")
 	check(body.material_override.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and body.material_override.albedo_color.a < 0.5, "Ghost avatars are translucent")
 	check(ghost_details.visible, "Only ghost viewer sees environmental detail")
-	check(not presentation._held.has(1) and not presentation._crosshair.visible, "Local death clears held weapon and aim dot")
-	check(presentation._hud.text.contains("Only ghosts can see you"), "Ghost status is explained quietly")
+	check(not presentation._held.has(1), "Local death clears held weapon")
+	check(display.card_text.text.contains("Only ghosts can see you"), "Ghost status is explained quietly")
 	state.phase = "results"
 	state.result = "innocents"
 	presentation.apply_snapshot(state)
-	check(presentation._hud.text == "Innocents win", "Innocent outcome is readable")
+	check(display.ledger_text.text.begins_with("Innocents survive"), "Innocent outcome is readable")
 	state.result = "murderer"
 	presentation.apply_snapshot(state)
-	check(presentation._hud.text == "Murderer wins", "Murderer outcome is readable")
+	check(display.ledger_text.text.begins_with("The murderer prevails"), "Murderer outcome is readable")
 	state.phase = "waiting"
 	state.self.participating = false
 	state.items.clear()
 	presentation.apply_snapshot(state)
-	check(not presentation._hud.visible, "Social visitors have no persistent HUD")
+	check(not display.card.visible, "Social visitors have no private role card")
 	check(presentation.item_visuals.is_empty(), "Removed pickups disappear")
 	check(body.material_override == original_material, "Round reset restores avatar material")
 	check(body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED, "Round reset restores shadow setting")
-	presentation.set_hint("E · Join next game")
-	check(presentation._hud.visible and presentation._hud.text == "E · Join next game", "Visitor sees nearby join hint only")
-	presentation.set_hint("")
-	check(not presentation._hud.visible, "Leaving join board hides visitor HUD")
-	presentation.show_feedback("Miss")
-	check(presentation._hud.text == "Miss", "Feedback appears unobtrusively in status")
-	presentation._process(1.3)
-	check(not presentation._hud.visible, "Feedback expires")
+	presentation.toggle_journal()
+	check(not display.card.visible, "Visitor cannot inspect a role card")
+	check(display.ledger_text.text.contains("Three to begin"), "Guest book explains how to start a round")
 	presentation.play_attack(1, Vector3.ZERO, Vector3.FORWARD, "gun")
 	presentation.play_attack(1, Vector3.ZERO, Vector3.FORWARD, "knife")
 	check(presentation._attack_sounds.size() == 2, "Both attack sounds synthesized and cached")
 	state.phase = "active"
 	state.self.participating = true
 	presentation.apply_snapshot(state)
-	var old_hud: Label3D = presentation._hud
-	var old_crosshair: Label3D = presentation._crosshair
+	var old_book: Node3D = display.ledger
+	var old_card: Node3D = display.card
 	presentation.clear()
 	check(remote.get_node("Avatar").visible and remote.get_node("NameTag").visible, "Leaving game restores avatar and late name visibility")
 	check(body.material_override == original_material, "Leaving game restores original material")
 	check(body.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED, "Leaving game restores shadows")
 	check(not ghost_details.visible, "Leaving game restores original environmental visibility")
-	check(old_hud.is_queued_for_deletion() and old_crosshair.is_queued_for_deletion(), "Leaving game removes HUD and crosshair")
+	check(old_book.is_queued_for_deletion() and old_card.is_queued_for_deletion(), "Leaving game removes the guest book and private card")
+	var map = load("res://game_modes/murder_mystery/murder_map.gd").new()
+	world.add_child(map)
+	var spawns := Node3D.new()
+	spawns.name = "GameSpawns"
+	world.add_child(spawns)
+	for index in 3:
+		spawns.add_child(Marker3D.new())
+	var table := Marker3D.new()
+	table.name = "GameTable"
+	world.add_child(table)
+	check(map.valid(), "Physical display anchor satisfies the map contract")
+	anchor.free()
+	check(not map.valid(), "Missing display anchor rejects an unsupported map")
 	world.queue_free()
 	await process_frame
 	await process_frame

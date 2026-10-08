@@ -1,10 +1,10 @@
 extends "res://addons/godot-xr-tools/objects/viewport_2d_in_3d_body.gd"
-## One GUI press per XR action. Touch events go only to drag navigation;
-## ordinary Controls receive the mouse stream, never both event streams.
+## Navigation owns XR gestures. Ordinary Controls receive only mouse input.
 
 @export_range(0, 500) var button_debounce_ms := 100
 var last_button_press_ms: Dictionary[int, int] = {}
 var ignored_presses: Dictionary[Node3D, bool] = {}
+var _buffering_mouse := false
 
 func _on_pointer_event(event: XRToolsPointerEvent) -> void:
 	if event.event_type == XRToolsPointerEvent.Type.PRESSED:
@@ -23,14 +23,17 @@ func _on_pointer_event(event: XRToolsPointerEvent) -> void:
 		if is_instance_valid(_mouse) and _mouse != event.pointer and _presses.has(_mouse):
 			_report_mouse_up(_mouse_last)
 		_mouse = event.pointer
-		_report_mouse_move(false, at, at)
 	elif ignored_presses.has(event.pointer):
 		if event.event_type in [XRToolsPointerEvent.Type.RELEASED, XRToolsPointerEvent.Type.EXITED]:
 			ignored_presses.erase(event.pointer)
 			if event.event_type == XRToolsPointerEvent.Type.EXITED:
 				super._on_pointer_event(event)
 		return
+	var navigation := _viewport.get_child(0).get_node_or_null("Navigation")
+	var at := global_to_viewport(event.position)
+	_buffering_mouse = navigation != null and navigation.pointer_event(event, at)
 	super._on_pointer_event(event)
+	_buffering_mouse = false
 	if event.pointer == _mouse:
 		_mouse_last = global_to_viewport(event.position)
 
@@ -53,30 +56,29 @@ func accept_button_press(at: Vector2) -> bool:
 	return true
 
 
-func _report_touch_down(index: int, at: Vector2) -> void:
-	_navigation_touch(index, at, true)
+func _report_mouse_down(at: Vector2) -> void:
+	if not _buffering_mouse:
+		super._report_mouse_down(at)
 
 
-func _report_touch_up(index: int, at: Vector2) -> void:
-	_navigation_touch(index, at, false)
+func _report_mouse_up(at: Vector2) -> void:
+	if not _buffering_mouse:
+		super._report_mouse_up(at)
 
 
-func _navigation_touch(index: int, at: Vector2, pressed: bool) -> void:
-	var navigation := _viewport.get_child(0).get_node_or_null("Navigation")
-	if navigation != null:
-		var event := InputEventScreenTouch.new()
-		event.index = index
-		event.position = at
-		event.pressed = pressed
-		navigation._input(event)
+func _report_mouse_move(pressed: bool, from: Vector2, to: Vector2) -> void:
+	if not _buffering_mouse:
+		super._report_mouse_move(pressed, from, to)
 
 
-func _report_touch_move(index: int, pressed: bool, from: Vector2, to: Vector2) -> void:
-	var navigation := _viewport.get_child(0).get_node_or_null("Navigation")
-	if navigation != null:
-		var event := InputEventScreenDrag.new()
-		event.index = index
-		event.position = to
-		event.pressure = 1.0 if pressed else 0.0
-		event.relative = to - from
-		navigation._input(event)
+# XR Tools also emits touch input. Gestures have already been handled above.
+func _report_touch_down(_index: int, _at: Vector2) -> void:
+	pass
+
+
+func _report_touch_up(_index: int, _at: Vector2) -> void:
+	pass
+
+
+func _report_touch_move(_index: int, _pressed: bool, _from: Vector2, _to: Vector2) -> void:
+	pass

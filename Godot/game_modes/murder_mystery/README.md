@@ -39,7 +39,7 @@ In Blackthorn, use the entry table's physical guest book to join and check the r
 Your private card briefly appears at round start; bring it back with Tab or left A/X
 to inspect your role, time and five clue marks. Nearby pickups subtly brighten.
 The desktop gun's modeled sight replaces an aim dot; VR uses the right controller.
-Maps without a `GameDisplay` anchor retain the compact fallback HUD.
+Every murder map supplies a `GameDisplay` anchor for the guest book.
 Existing movement and menu controls remain available. Optical
 hand tracking still supports platform locomotion; game actions currently require
 controllers or keyboard/mouse.
@@ -61,7 +61,7 @@ controllers or keyboard/mouse.
   emits generic lifecycle signals and has no murder-specific dependencies.
 - `MurderPresentation` owns per-viewer ghost visibility, original mesh props,
   the display adapter, and local effects. `MurderSceneDisplay` supplies the physical
-  book and private card in maps with a `GameDisplay` anchor. Clearing the mode
+  book and private card from editable scenes at the map’s `GameDisplay` anchor. Clearing the mode
   restores avatar materials/visibility and removes the book and card.
 
 Authority changes cancel the current round and preserve each connected client's
@@ -80,8 +80,8 @@ anti-cheat server. Rules do not run on the Go signaling server.
 4. Add a `GameTable` Marker3D where the join interaction should appear. The adapter's
    exported paths allow alternative node layouts. Marker positions are converted to
    global space, so translated/rotated map roots work too.
-   Add an optional root `GameDisplay` Marker3D on the table to use the physical
-   guest book/card presentation instead of the fallback HUD. Its local +Z is the
+   Add a required root `GameDisplay` Marker3D on the table for the physical
+   guest book/card presentation. Its local +Z is the
    page front; tilt it toward the reader and leave room for an 82 × 48 cm book.
 5. Optionally add `GhostDetails` (initially hidden) for ghost-only scenery. Keep its
    details noninteractive so ghosts cannot affect a live round.

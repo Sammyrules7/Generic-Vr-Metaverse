@@ -253,72 +253,16 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Room"
 
-[node name="VoiceSeparator" type="HSeparator" parent="Session/Content"]
-layout_mode = 2
-
-[node name="VoiceTitle" type="Label" parent="Session/Content"]
-layout_mode = 2
-text = "Voice chat"
-theme_override_font_sizes/font_size = 22
-
-[node name="VoiceActivity" type="Label" parent="Session/Content"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Microphone idle"
-theme_override_colors/font_color = Color(0.63, 0.74, 0.83, 1)
-
-[node name="MicrophoneEnabled" type="CheckButton" parent="Session/Content"]
+[node name="SessionMicrophoneEnabled" type="CheckButton" parent="Session/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Microphone enabled"
 button_pressed = true
 
-[node name="PushToTalk" type="CheckButton" parent="Session/Content"]
+[node name="OpenSessionVoiceSettings" type="Button" parent="Session/Content"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Push to talk (V)"
-
-[node name="InputDeviceLabel" type="Label" parent="Session/Content"]
-layout_mode = 2
-text = "Microphone input"
-
-[node name="InputDevice" type="OptionButton" parent="Session/Content"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="InputGainRow" type="HBoxContainer" parent="Session/Content"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Label" type="Label" parent="Session/Content/InputGainRow"]
-layout_mode = 2
-text = "Input level"
-
-[node name="InputGain" type="HSlider" parent="Session/Content/InputGainRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-max_value = 200.0
-step = 5.0
-value = 100.0
-tooltip_text = "Microphone amplification"
-
-[node name="VoiceVolumeRow" type="HBoxContainer" parent="Session/Content"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Label" type="Label" parent="Session/Content/VoiceVolumeRow"]
-layout_mode = 2
-text = "Voice volume"
-
-[node name="VoiceVolume" type="HSlider" parent="Session/Content/VoiceVolumeRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-max_value = 100.0
-step = 5.0
-value = 80.0
-tooltip_text = "Volume of other players"
+text = "Voice settings"
 
 [node name="Resume" type="Button" parent="Session/Content"]
 unique_name_in_owner = true
@@ -407,15 +351,15 @@ theme_override_font_sizes/font_size = 26
 
 [node name="Description" type="Label" parent="VoiceSettings/Content"]
 layout_mode = 2
-text = "Configure voice chat before joining a room."
+text = "Configure your microphone and voice playback."
 autowrap_mode = 2
 
-[node name="LobbyMicrophoneEnabled" type="CheckButton" parent="VoiceSettings/Content"]
+[node name="MicrophoneEnabled" type="CheckButton" parent="VoiceSettings/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Microphone enabled"
 
-[node name="LobbyPushToTalk" type="CheckButton" parent="VoiceSettings/Content"]
+[node name="PushToTalk" type="CheckButton" parent="VoiceSettings/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Push to talk (V)"
@@ -424,7 +368,7 @@ text = "Push to talk (V)"
 layout_mode = 2
 text = "Microphone input"
 
-[node name="LobbyInputDevice" type="OptionButton" parent="VoiceSettings/Content"]
+[node name="InputDevice" type="OptionButton" parent="VoiceSettings/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 
@@ -432,7 +376,7 @@ layout_mode = 2
 layout_mode = 2
 text = "Input level"
 
-[node name="LobbyInputGain" type="HSlider" parent="VoiceSettings/Content"]
+[node name="InputGain" type="HSlider" parent="VoiceSettings/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 max_value = 200.0
@@ -442,11 +386,17 @@ step = 5.0
 layout_mode = 2
 text = "Voice volume"
 
-[node name="LobbyVoiceVolume" type="HSlider" parent="VoiceSettings/Content"]
+[node name="VoiceVolume" type="HSlider" parent="VoiceSettings/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 max_value = 100.0
 step = 5.0
+
+[node name="VoiceActivity" type="Label" parent="VoiceSettings/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Microphone idle"
+theme_override_colors/font_color = Color(0.63, 0.74, 0.83, 1)
 
 [node name="CloseVoiceSettings" type="Button" parent="VoiceSettings/Content"]
 unique_name_in_owner = true

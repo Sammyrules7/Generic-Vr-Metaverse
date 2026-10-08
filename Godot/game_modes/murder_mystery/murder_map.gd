@@ -9,7 +9,7 @@ extends Node
 
 
 func valid() -> bool:
-	return spawn_positions().size() >= 3 and get_node_or_null(table_path) is Node3D
+	return spawn_positions().size() >= 3 and get_node_or_null(table_path) is Node3D and get_node_or_null("../GameDisplay") is Node3D
 
 
 func item_layout() -> Dictionary:

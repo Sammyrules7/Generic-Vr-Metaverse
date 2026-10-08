@@ -1,5 +1,5 @@
 extends SceneTree
-## Integration checks; --capture also writes three real Godot renders to /tmp.
+## Production scene, collision, locomotion, globe interaction and recovery checks.
 
 var failures: Array[String] = []
 
@@ -15,11 +15,18 @@ func _initialize() -> void:
 
 
 func run() -> void:
-	var scene := load("res://worlds/starlight_observatory/preview.tscn").instantiate() as Node3D
+	var scene := Node3D.new()
 	root.add_child(scene)
 	current_scene = scene
-	var player := scene.get_node("Players/PreviewPlayer") as CharacterBody3D
-	var globe := scene.get_node("World/StarGlobe")
+	var world: Node3D = load("res://worlds/starlight_observatory/observatory.tscn").instantiate()
+	scene.add_child(world)
+	var players := Node3D.new()
+	players.name = "Players"
+	scene.add_child(players)
+	var player = load("res://player/network_player.tscn").instantiate()
+	players.add_child(player)
+	player.global_transform = world.get_node("SpawnPoint").global_transform
+	var globe := world.get_node("StarGlobe")
 	for i in 90:
 		await physics_frame
 	check(player.is_on_floor(), "Spawn must settle on the terrace")
@@ -80,32 +87,6 @@ func run() -> void:
 	await physics_frame
 	check(player.position.z > 11 and player.position.y > -1, "Out-of-bounds recovery must return to spawn")
 	print("OBSERVATORY CHECKS: ", "PASS" if failures.is_empty() else failures, " | static bodies: ", bodies.size())
-	if "--capture" in OS.get_cmdline_user_args():
-		player.set_physics_process(false)
-		player.get_node("HUD").visible = false
-		var viewport := SubViewport.new()
-		viewport.size = Vector2i(1600, 1000)
-		viewport.world_3d = scene.get_world_3d()
-		viewport.msaa_3d = Viewport.MSAA_4X
-		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-		root.add_child(viewport)
-		var camera := Camera3D.new()
-		camera.fov = 65
-		camera.far = 400
-		viewport.add_child(camera)
-		var shots := [
-			["arrival", Vector3(0, 2.0, 12), Vector3(0, 3, -5)],
-			["lounge", Vector3(7, 3.6, 7), Vector3(0, 2.5, -3)],
-			["overview", Vector3(24, 18, 27), Vector3(0, 1.8, 0)]
-		]
-		for shot in shots:
-			camera.global_position = shot[1]
-			camera.look_at(shot[2])
-			for i in 12:
-				await process_frame
-			await RenderingServer.frame_post_draw
-			var path := "/tmp/observatory-" + str(shot[0]) + ".png"
-			check(viewport.get_texture().get_image().save_png(path) == OK, "Screenshot save failed")
-			print("Captured ", path)
-		print("Draw calls: ", Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), " | primitives: ", Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
+	scene.queue_free()
+	await process_frame
 	quit(0 if failures.is_empty() else 1)

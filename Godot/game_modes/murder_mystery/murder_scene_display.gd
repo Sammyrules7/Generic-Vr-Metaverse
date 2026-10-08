@@ -12,50 +12,37 @@ var _inspect := false
 var _pips: Array[MeshInstance3D] = []
 var _ink: StandardMaterial3D
 var _gold: StandardMaterial3D
-var _paper: StandardMaterial3D
 var _was_alive := false
+
+const GUEST_BOOK := preload("res://game_modes/murder_mystery/guest_book.tscn")
+const PRIVATE_CARD := preload("res://game_modes/murder_mystery/private_card.tscn")
 
 func setup(player: NetworkPlayer, anchor: Node3D) -> void:
 	_player = player
-	_ink = _material(Color("283139"))
-	_gold = _material(Color("986e39"))
-	_paper = _material(Color("d4c29a"))
-	ledger = Node3D.new()
-	ledger.name = "GuestBook"
+	_ink = StandardMaterial3D.new()
+	_ink.albedo_color = Color("283139")
+	_ink.roughness = 0.95
+	ledger = GUEST_BOOK.instantiate()
 	anchor.add_child(ledger)
-	_box(ledger, Vector3(0.82, 0.48, 0.035), Vector3.ZERO, _material(Color("382927")))
-	_box(ledger, Vector3(0.38, 0.43, 0.02), Vector3(-0.2, 0, 0.027), _paper)
-	_box(ledger, Vector3(0.38, 0.43, 0.02), Vector3(0.2, 0, 0.027), _paper)
-	_box(ledger, Vector3(0.015, 0.43, 0.006), Vector3(0, 0, 0.041), _gold)
-	var title := _label(ledger, "THE EVENING GAME", Vector3(-0.2, 0.165, 0.043), 0.0011, 27)
-	title.modulate = Color("704a34")
-	_label(ledger, "Sign the guest book\nE / right grip\n\nThree guests to begin\n\nYour private card\nTab / left A or X\n\nVisitors welcome.", Vector3(-0.2, -0.023, 0.043), 0.001, 26)
-	ledger_text = _label(ledger, "Awaiting guests", Vector3(0.2, 0.025, 0.043), 0.001, 27)
-	# The card is private because it only exists on this client's controls rig.
-	card = Node3D.new()
-	card.name = "PrivateCaseCard"
+	ledger_text = ledger.get_node("Status")
+	_player.controls_changed.connect(_attach_card)
+	_attach_card()
+
+func _attach_card() -> void:
+	# Switching control modes replaces the rig and frees its old private card.
+	card = PRIVATE_CARD.instantiate()
 	var hand := _player.controls.left_hand
-	var anchor_node := hand if is_instance_valid(hand) else _player.controls.head
-	anchor_node.add_child(card)
+	var anchor := hand if is_instance_valid(hand) else _player.controls.head
+	anchor.add_child(card)
 	if is_instance_valid(hand):
 		card.position = Vector3(0, 0.075, -0.09)
-		card.rotation.x = -0.8
-	else:
-		card.position = Vector3(-0.12, -0.18, -0.53)
-		card.rotation_degrees = Vector3(-8, 6, -4)
-	var card_paper := _paper.duplicate() as StandardMaterial3D
-	card_paper.emission_enabled = true
-	card_paper.emission = Color("776c50")
-	card_paper.emission_energy_multiplier = 0.2
-	_box(card, Vector3(0.34, 0.25, 0.004), Vector3.ZERO, card_paper)
-	_box(card, Vector3(0.30, 0.002, 0.001), Vector3(0, 0.085, 0.004), _gold)
-	_box(card, Vector3(0.30, 0.002, 0.001), Vector3(0, -0.08, 0.004), _gold)
-	_label(card, "PRIVATE · YOUR PART", Vector3(0, 0.103, 0.004), 0.00055, 24)
-	card_text = _label(card, "", Vector3(0, 0.009, 0.004), 0.00062, 27)
+		card.rotation = Vector3(-0.8, 0, 0)
+	card_text = card.get_node("Status")
+	_pips.clear()
 	for index in 5:
-		var mark := _box(card, Vector3(0.013, 0.009, 0.001), Vector3(-0.042 + index * 0.021, -0.097, 0.004), _gold)
-		_pips.append(mark)
-	card.visible = false
+		_pips.append(card.get_node("Pip%d" % index))
+	_gold = _pips[0].material_override
+	update_state(_snapshot)
 
 func update_state(snapshot: Dictionary) -> void:
 	_snapshot = snapshot
@@ -118,37 +105,9 @@ func _update_visibility() -> void:
 	if is_instance_valid(card):
 		card.visible = (_inspect or _card_seconds > 0) and is_instance_valid(_player) and _player.controls.input_enabled
 
-func _material(color: Color) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.95
-	return mat
-
-func _box(parent: Node3D, size: Vector3, at: Vector3, mat: Material) -> MeshInstance3D:
-	var instance := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	instance.mesh = mesh
-	instance.material_override = mat
-	parent.add_child(instance)
-	instance.position = at
-	return instance
-
-func _label(parent: Node3D, text: String, at: Vector3, pixel: float, font_size: int) -> Label3D:
-	var label := Label3D.new()
-	label.text = text
-	label.font_size = font_size
-	label.pixel_size = pixel
-	label.modulate = Color("2c302c")
-	label.outline_size = 0
-	label.shaded = true
-	label.double_sided = false
-	label.no_depth_test = false
-	parent.add_child(label)
-	label.position = at
-	return label
-
 func _exit_tree() -> void:
+	if is_instance_valid(_player) and _player.controls_changed.is_connected(_attach_card):
+		_player.controls_changed.disconnect(_attach_card)
 	if is_instance_valid(ledger):
 		ledger.queue_free()
 	if is_instance_valid(card):

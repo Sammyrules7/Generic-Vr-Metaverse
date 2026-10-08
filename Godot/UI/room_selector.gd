@@ -33,12 +33,9 @@ func _ready() -> void:
 	%PushToTalk.button_pressed = PlayerProfile.push_to_talk
 	%InputGain.value = PlayerProfile.input_gain * 100.0
 	%VoiceVolume.value = PlayerProfile.voice_volume * 100.0
-	%LobbyMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
+	%SessionMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
 	%QuickMicrophoneEnabled.button_pressed = PlayerProfile.microphone_enabled
 	%InGameMicrophone.button_pressed = PlayerProfile.microphone_enabled
-	%LobbyPushToTalk.button_pressed = PlayerProfile.push_to_talk
-	%LobbyInputGain.value = PlayerProfile.input_gain * 100.0
-	%LobbyVoiceVolume.value = PlayerProfile.voice_volume * 100.0
 	Networking.voice_chat.set_muted(not PlayerProfile.microphone_enabled)
 	Networking.voice_chat.set_push_to_talk(PlayerProfile.push_to_talk)
 	Networking.voice_chat.set_input_gain(PlayerProfile.input_gain)
@@ -49,19 +46,12 @@ func _ready() -> void:
 	%InputGain.value_changed.connect(_input_gain_changed)
 	%InputDevice.item_selected.connect(_input_device_selected)
 	%VoiceVolume.value_changed.connect(_voice_volume_changed)
-	%LobbyMicrophoneEnabled.toggled.connect(_microphone_toggled)
+	%SessionMicrophoneEnabled.toggled.connect(_microphone_toggled)
 	%QuickMicrophoneEnabled.toggled.connect(_microphone_toggled)
 	%InGameMicrophone.toggled.connect(_microphone_toggled)
 	%OpenRoomMenu.pressed.connect(func(): set_menu_open(true))
-	%LobbyPushToTalk.toggled.connect(_push_to_talk_toggled)
-	%LobbyInputGain.value_changed.connect(_input_gain_changed)
-	%LobbyInputDevice.item_selected.connect(_lobby_input_device_selected)
-	%LobbyVoiceVolume.value_changed.connect(_voice_volume_changed)
-	%OpenVoiceSettings.pressed.connect(func():
-		_request_microphone_permission()
-		_populate_input_devices()
-		_set_voice_settings_open(true)
-	)
+	%OpenVoiceSettings.pressed.connect(_open_voice_settings)
+	%OpenSessionVoiceSettings.pressed.connect(_open_voice_settings)
 	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
 	Networking.voice_chat.local_speaking_changed.connect(_local_speaking_changed)
 	Networking.voice_chat.input_devices_changed.connect(func(_devices): _populate_input_devices())
@@ -174,7 +164,7 @@ func _fit_ui() -> void:
 	quick.size = quick.get_combined_minimum_size().max(Vector2(540, 120))
 	quick.position = (available - quick.size) * 0.5
 	for card: Control in [$Session, %VoiceSettings]:
-		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700))
+		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700 if card == %VoiceSettings else 320))
 		card.scale = Vector2.ONE * minf(1.0, minf(available.x / (card_size.x + 32), available.y / (card_size.y + 32)))
 		card.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		card.size = card_size
@@ -236,7 +226,7 @@ func _remember_preferences() -> void:
 func _microphone_toggled(enabled: bool) -> void:
 	PlayerProfile.microphone_enabled = enabled
 	%MicrophoneEnabled.set_pressed_no_signal(enabled)
-	%LobbyMicrophoneEnabled.set_pressed_no_signal(enabled)
+	%SessionMicrophoneEnabled.set_pressed_no_signal(enabled)
 	%QuickMicrophoneEnabled.set_pressed_no_signal(enabled)
 	%InGameMicrophone.set_pressed_no_signal(enabled)
 	Networking.voice_chat.set_muted(not enabled)
@@ -249,7 +239,6 @@ func _microphone_toggled(enabled: bool) -> void:
 func _push_to_talk_toggled(enabled: bool) -> void:
 	PlayerProfile.push_to_talk = enabled
 	%PushToTalk.set_pressed_no_signal(enabled)
-	%LobbyPushToTalk.set_pressed_no_signal(enabled)
 	Networking.voice_chat.set_push_to_talk(enabled)
 	PlayerProfile.save()
 
@@ -257,36 +246,24 @@ func _push_to_talk_toggled(enabled: bool) -> void:
 func _input_gain_changed(value: float) -> void:
 	PlayerProfile.input_gain = value / 100.0
 	%InputGain.set_value_no_signal(value)
-	%LobbyInputGain.set_value_no_signal(value)
 	Networking.voice_chat.set_input_gain(PlayerProfile.input_gain)
 	PlayerProfile.save()
 
 
 func _populate_input_devices() -> void:
 	%InputDevice.clear()
-	%LobbyInputDevice.clear()
 	var devices := Networking.voice_chat.get_input_devices()
 	if devices.is_empty():
 		devices = PackedStringArray(["Default"])
 	for device: String in devices:
 		%InputDevice.add_item(device)
-		%LobbyInputDevice.add_item(device)
 	var selected := devices.find(PlayerProfile.input_device)
 	%InputDevice.select(maxi(0, selected))
-	%LobbyInputDevice.select(maxi(0, selected))
 	Networking.voice_chat.set_input_device(devices[maxi(0, selected)])
 
 
 func _input_device_selected(index: int) -> void:
 	PlayerProfile.input_device = %InputDevice.get_item_text(index)
-	%LobbyInputDevice.select(index)
-	Networking.voice_chat.set_input_device(PlayerProfile.input_device)
-	PlayerProfile.save()
-
-
-func _lobby_input_device_selected(index: int) -> void:
-	PlayerProfile.input_device = %LobbyInputDevice.get_item_text(index)
-	%InputDevice.select(index)
 	Networking.voice_chat.set_input_device(PlayerProfile.input_device)
 	PlayerProfile.save()
 
@@ -296,20 +273,18 @@ func _local_speaking_changed(active: bool) -> void:
 	%VoiceActivity.add_theme_color_override("font_color", Color("#72d69c") if active else Color("#a0bdd4"))
 
 
-func _request_microphone_permission() -> bool:
+func _request_microphone_permission() -> void:
 	if not PlayerProfile.microphone_enabled:
-		return true
+		return
 	if Networking.voice_chat.is_input_ready():
-		return true
+		return
 	# This runs only from an explicit voice control, never as an entry gate.
 	Networking.voice_chat.prepare_microphone()
-	return true
 
 
 func _voice_volume_changed(value: float) -> void:
 	PlayerProfile.voice_volume = value / 100.0
 	%VoiceVolume.set_value_no_signal(value)
-	%LobbyVoiceVolume.set_value_no_signal(value)
 	Networking.voice_chat.set_output_volume(PlayerProfile.voice_volume)
 	PlayerProfile.save()
 
@@ -431,20 +406,29 @@ func set_menu_open(open: bool) -> void:
 	$MenuHint.visible = in_room and not open and not vr_mode
 	$Background.visible = not vr_mode and not in_room
 	_fit_ui()
-	if not open:
-		%VoiceSettings.hide()
+	%VoiceSettings.hide()
 	mouse_filter = Control.MOUSE_FILTER_STOP if open or vr_mode else Control.MOUSE_FILTER_IGNORE
 	if not vr_mode:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED)
 	menu_changed.emit(open)
 
 
+func _open_voice_settings() -> void:
+	_request_microphone_permission()
+	_populate_input_devices()
+	_set_voice_settings_open(true)
+
+
 func _set_voice_settings_open(open: bool) -> void:
 	var in_room := room_networking != null and room_networking.current_room != null
-	%VoiceSettings.visible = open and not in_room
+	%VoiceSettings.visible = open
 	$VBoxContainer.visible = not in_room and not open
+	$Session.visible = in_room and menu_open and not open
+	_fit_ui()
 	if open:
 		%CloseVoiceSettings.grab_focus()
+	elif in_room:
+		%OpenSessionVoiceSettings.grab_focus()
 	else:
 		%OpenVoiceSettings.grab_focus()
 

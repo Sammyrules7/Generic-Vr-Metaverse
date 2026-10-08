@@ -76,6 +76,9 @@ func make_peer(server: bool) -> Dictionary:
 	table.name = "GameTable"
 	table.position = Vector3(50, 0, 50)
 	world.add_child(table)
+	var display := Marker3D.new()
+	display.name = "GameDisplay"
+	world.add_child(display)
 	var details := Node3D.new()
 	details.name = "GhostDetails"
 	details.visible = false
@@ -165,7 +168,7 @@ func _run() -> void:
 	check(host.session.rules.phase == "waiting", "World entry does not opt players into the game")
 	for peer: Dictionary in peers:
 		check(not peer.session.snapshot.self.participating, "Opt-in defaults off")
-		check(not peer.manager.local_player.controls.head.get_node("MurderStatus").visible, "Unjoined guest has no game HUD away from table")
+		check(not peer.session.presentation._scene_display.card.visible, "Unjoined guest has no private role card")
 		host.session.rules.countdown_duration = 30.0
 		peer.session.wants_to_play = true
 		peer.session._sync_clock = 0.0
@@ -275,7 +278,7 @@ func _run() -> void:
 	await process_frame
 	check(ghost_avatar.visible and ghost_avatar.get_node("Body").material_override == null, "Leaving mid-round restores a currently translucent ghost avatar")
 	check(ghost_avatar.get_node("Body").cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "Leaving mid-round restores ghost shadows")
-	check(late.manager.local_player.controls.head.get_node_or_null("MurderStatus") == null and late.world.get_node_or_null("MurderPickups") == null, "Leaving mid-round removes HUD and item visuals")
+	check(late.world.get_node("GameDisplay").get_child_count() == 0 and late.world.get_node_or_null("MurderPickups") == null, "Leaving mid-round removes guest book and item visuals")
 	late.manager.local_player_spawned.emit()
 	late.session.wants_to_play = true
 	await until(func(): return late.session.snapshot.get("phase", "") == "active", "Same scene can rebind after clear")
@@ -312,7 +315,7 @@ func _run() -> void:
 	check(ghost_avatar.visible and ghost_avatar.get_node("Body").material_override == null, "Clear restores remote avatar and original material")
 	check(ghost_avatar.get_node("Body").cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "Clear restores normal shadows")
 	for peer: Dictionary in peers:
-		check(peer.manager.local_player.controls.head.get_node_or_null("MurderStatus") == null, "Clear removes mode HUD")
+		check(peer.world.get_node("GameDisplay").get_child_count() == 0, "Clear removes the guest book")
 		check(peer.world.get_node_or_null("MurderPickups") == null and not peer.world.get_node("GhostDetails").visible, "Clear removes pickups and restores lore visibility")
 	await finish()
 

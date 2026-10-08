@@ -79,7 +79,7 @@ func _run() -> void:
 	ui.get_node("%OpenVoiceSettings").pressed.emit()
 	check(ui.get_node("%VoiceSettings").visible and not ui.get_node("VBoxContainer").visible, "Main-menu voice settings did not replace the room menu")
 	check(ui.theme.has_stylebox("normal", "OptionButton") and ui.theme.has_stylebox("panel", "PopupMenu"), "Microphone selector does not use the menu theme")
-	ui.get_node("%LobbyInputGain").value = 125
+	ui.get_node("%InputGain").value = 125
 	check(is_equal_approx(PlayerProfile.input_gain, 1.25) and is_equal_approx(ui.get_node("%InputGain").value, 125.0), "Main-menu voice settings did not synchronize")
 	ui.get_node("%CloseVoiceSettings").pressed.emit()
 	check(not ui.get_node("%VoiceSettings").visible and ui.get_node("VBoxContainer").visible, "Main-menu voice settings did not return to the room menu")
@@ -189,6 +189,18 @@ func _run() -> void:
 	game._controller_button_pressed("menu_button", &"left_hand")
 	check(not ui.menu_open and ui.get_node("QuickSession").visible, "Closing the menu did not restore compact VR UI")
 	check(ui.xr_point_is_visible(ui.get_node("%InGameMicrophone").get_global_rect().get_center()), "Compact VR microphone is not touchable")
+	ui.set_menu_open(true)
+	ui.get_node("%OpenSessionVoiceSettings").pressed.emit()
+	check(ui.get_node("%VoiceSettings").visible and not ui.get_node("Session").visible, "Session voice settings did not replace the room menu")
+	check(is_equal_approx(ui.get_node("%InputGain").value, 145.0), "Shared voice form lost microphone gain after joining")
+	ui.get_node("%VoiceVolume").value = 55
+	check(is_equal_approx(Networking.voice_chat.output_volume, 0.55), "Session voice settings did not update playback")
+	ui.get_node("%CloseVoiceSettings").pressed.emit()
+	check(not ui.get_node("%VoiceSettings").visible and ui.get_node("Session").visible, "Closing session voice settings did not restore the room menu")
+	ui.get_node("%OpenSessionVoiceSettings").pressed.emit()
+	ui.set_menu_open(false)
+	check(not ui.get_node("%VoiceSettings").visible and ui.get_node("QuickSession").visible, "Closing the room menu left voice settings open")
+
 	check(not game.has_method("_hand_menu_gesture"), "Menu still has a hand gesture binding")
 	await _test_immediate_touch(game, ui, panel)
 	await _test_feedback(ui, panel)
@@ -282,6 +294,27 @@ func _test_navigation(ui: Control, panel: Node3D, state: RoomNetworking) -> void
 	check(PlayerProfile.world_id != before, "World wheel navigation failed")
 	wheel.pressed = false
 	capture_viewport.push_input(wheel, true)
+	var touch := InputEventScreenTouch.new()
+	touch.index = 7
+	touch.position = world.get_global_rect().get_center()
+	touch.pressed = true
+	before = PlayerProfile.world_id
+	nav._input(touch)
+	var drag := InputEventScreenDrag.new()
+	drag.index = touch.index
+	drag.position = touch.position - Vector2(100, 0)
+	nav._input(drag)
+	touch.position = drag.position
+	touch.pressed = false
+	nav._input(touch)
+	check(PlayerProfile.world_id != before and not nav._dragging, "Native touchscreen world swipe failed")
+	before = PlayerProfile.world_id
+	touch.pressed = true
+	nav._input(touch)
+	touch.pressed = false
+	touch.canceled = true
+	nav._input(touch)
+	check(PlayerProfile.world_id == before and not nav._dragging, "Canceled native touch changed the selected world")
 	ui.vr_mode = true
 	ui._set_keyboard_visible(false)
 	scroll.scroll_vertical = 0
@@ -299,7 +332,6 @@ func _test_navigation(ui: Control, panel: Node3D, state: RoomNetworking) -> void
 	join.pressed.connect(func(): clicks[0] += 1)
 	var pointer := Node3D.new()
 	panel.add_child(pointer)
-	panel.pointer_event.connect(nav.pointer_event)
 	var target: Node3D = panel.get_node("StaticBody3D")
 	var center := join.get_global_rect().get_center()
 	var start := _panel_point(panel, center)
@@ -318,7 +350,24 @@ func _test_navigation(ui: Control, panel: Node3D, state: RoomNetworking) -> void
 	check(clicks[0] == 1, "VR tap must activate Join exactly once")
 	XRToolsPointerEvent.pressed(pointer, target, start)
 	XRToolsPointerEvent.exited(pointer, target, start)
-	check(nav._touch_index == -1 and clicks[0] == 1, "Pointer exit failed to cancel drag")
+	check(not nav._dragging and clicks[0] == 1, "Pointer exit failed to cancel drag")
+	await get_tree().create_timer(0.11).timeout
+	var second_pointer := Node3D.new()
+	panel.add_child(second_pointer)
+	XRToolsPointerEvent.entered(pointer, target, start)
+	XRToolsPointerEvent.pressed(pointer, target, start)
+	XRToolsPointerEvent.moved(pointer, target, end, start)
+	scroll.scroll_vertical = 0
+	await get_tree().process_frame
+	XRToolsPointerEvent.entered(second_pointer, target, start)
+	XRToolsPointerEvent.pressed(second_pointer, target, start)
+	XRToolsPointerEvent.released(second_pointer, target, start)
+	XRToolsPointerEvent.released(pointer, target, start)
+	await get_tree().process_frame
+	check(clicks[0] == 2 and not nav._dragging, "Second pointer takeover repeated or lost the room tap")
+	XRToolsPointerEvent.exited(second_pointer, target, start)
+	second_pointer.queue_free()
+
 	before = PlayerProfile.world_id
 	var world_point := world.get_global_rect().get_center()
 	nav.handle_stick(Vector2.RIGHT, world_point, 0.01)
@@ -383,8 +432,8 @@ func _test_single_activation(ui: Control, panel: Node3D) -> void:
 		_tap(panel, next, panel.hand_contacts["left" if index % 2 == 0 else "right"].pointer)
 		check(ui.world_index == posmod(before + index + 2, WorldCatalog.WORLDS.size()), "Rapid intentional world tap was dropped or doubled")
 	var state: RoomNetworking = Networking.room_networking
-	for path in ["%LobbyMicrophoneEnabled", "%MicrophoneEnabled", "%InGameMicrophone"]:
-		if path == "%LobbyMicrophoneEnabled":
+	for path in ["%MicrophoneEnabled", "%SessionMicrophoneEnabled", "%InGameMicrophone"]:
+		if path == "%MicrophoneEnabled":
 			ui._set_voice_settings_open(true)
 		else:
 			ui._set_voice_settings_open(false)
@@ -396,7 +445,7 @@ func _test_single_activation(ui: Control, panel: Node3D) -> void:
 		check(mic.is_visible_in_tree(), "Microphone fixture is not visible: " + path)
 		_tap(panel, mic, panel.hand_contacts.left.pointer)
 		check(not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "Microphone did not mute on first contact: " + path)
-		for other in ["%QuickMicrophoneEnabled", "%LobbyMicrophoneEnabled", "%MicrophoneEnabled", "%InGameMicrophone"]:
+		for other in ["%QuickMicrophoneEnabled", "%SessionMicrophoneEnabled", "%MicrophoneEnabled", "%InGameMicrophone"]:
 			check(not ui.get_node(other).button_pressed, "Microphone state not synchronized: " + other)
 		await get_tree().create_timer(0.11).timeout
 		_tap(panel, mic, panel.hand_contacts.right.pointer)
@@ -455,7 +504,7 @@ func _test_immediate_touch(game: Node3D, ui: Control, panel: Node3D) -> void:
 	left.has_tracking_data = true
 	left.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED
 	left.set_hand_joint_flags(XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP, XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID)
-	var mic: BaseButton = ui.get_node("%MicrophoneEnabled")
+	var mic: BaseButton = ui.get_node("%SessionMicrophoneEnabled")
 	ui._microphone_toggled(true)
 	var mic_point := _panel_point(panel, mic.get_global_rect().get_center())
 	_set_tip(left, origin, mic_point + panel.global_basis.z * 0.014)
