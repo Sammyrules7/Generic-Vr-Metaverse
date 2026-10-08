@@ -2,7 +2,8 @@
 
 A free and open source social VR platform built with Godot and Go. Explore seven
 worlds using desktop controls, OpenXR, or WebXR, with peer-to-peer multiplayer,
-positional voice, and an optional murder mystery game.
+positional Opus voice via [TwoVoip](Godot/addons/twovoip/README.md), and an optional
+murder mystery game.
 
 [Play in a browser](https://app.vr.maio-tech.com) ·
 [Itch.io](https://sammyrules7.itch.io/generic-vr-metaverse) ·

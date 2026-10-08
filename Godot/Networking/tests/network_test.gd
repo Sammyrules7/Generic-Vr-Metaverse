@@ -145,37 +145,45 @@ func _run() -> void:
 		return
 	# Voice uses the mesh's explicitly configured fourth data channel. Exercising
 	# the actual RPC catches confusing transfer-channel/physical-channel mappings.
-	var voice_frame := PackedByteArray()
-	voice_frame.resize(VoiceChat.BYTES_PER_FRAME)
+	var codec: TwovoipOpusEncoder = a.voice_chat._create_encoder(VoiceChat.SAMPLE_RATE)
+	var speech := PackedVector2Array()
+	speech.resize(VoiceChat.SAMPLES_PER_FRAME)
+	speech.fill(Vector2(0.1, 0.1))
+	codec.process_chunk(speech)
+	var voice_frame: PackedByteArray = codec.encode_chunk()
+	if not _check(not voice_frame.is_empty() and voice_frame.size() < VoiceChat.SAMPLES_PER_FRAME * 2, "TwoVoip did not compress the voice frame"):
+		return
 	b.voice_chat.set_audience_policy(func(_sender, _listener): return false)
 	a.voice_chat.send_voice(voice_frame)
 	await get_tree().create_timer(0.2).timeout
-	if not _check(b.voice_chat.jobs.is_empty(), "Receiver accepted voice outside its audience"):
+	if not _check(not b.voice_chat.speakers.has(a.client_id), "Receiver accepted voice outside its audience"):
 		return
 	b.voice_chat.set_audience_policy(Callable())
 	a.voice_chat.set_audience_policy(func(_sender, _listener): return false)
 	a.voice_chat.send_voice(voice_frame)
 	await get_tree().create_timer(0.2).timeout
-	if not _check(b.voice_chat.jobs.is_empty(), "Sender broadcast voice outside its audience"):
+	if not _check(not b.voice_chat.speakers.has(a.client_id), "Sender broadcast voice outside its audience"):
 		return
 	a.voice_chat.set_audience_policy(Callable())
 	a.voice_chat.voice_packet.rpc_id(b.client_id, voice_frame)
-	if not await _wait_until(func(): return not b.voice_chat.jobs.is_empty(), "voice packet on dedicated channel"):
+	if not await _wait_until(func(): return b.voice_chat.peer_activity_deadlines.has(a.client_id), "Opus decoded from dedicated voice channel"):
 		return
 	if not _check(a.room_networking.rtc_mesh.multiplayer_peer.get_peer(b.client_id).channels.size() == 4, "Voice data channel was not negotiated"):
 		return
-	var silence := PackedVector2Array()
-	silence.resize(VoiceChat.SAMPLES_PER_FRAME)
-	var speech := PackedVector2Array()
-	speech.resize(VoiceChat.SAMPLES_PER_FRAME)
-	speech.fill(Vector2(0.1, 0.1))
-	if not _check(a.voice_chat._encode_pcm(silence).level < VoiceChat.SILENCE_THRESHOLD and a.voice_chat._encode_pcm(speech).level > VoiceChat.SILENCE_THRESHOLD, "Voice activity detection did not distinguish silence"):
-		return
-	var audio := PackedVector2Array()
-	audio.resize(VoiceChat.SAMPLES_PER_FRAME)
-	a.voice_chat._push_audio(b.client_id, audio)
+	a.voice_chat._speaker_playback(b.client_id)
 	var remote_head := am.players.get_node(str(b.client_id) + "/Avatar/Head")
 	if not _check(a.voice_chat.speakers.has(b.client_id) and a.voice_chat.speakers[b.client_id].get_parent() == remote_head, "Remote voice was not attached to the avatar head"):
+		return
+	b.voice_chat.set_audience_policy(func(_sender, _listener): return false)
+	if not _check(not b.voice_chat.speakers.has(a.client_id), "Audience change retained queued voice playback"):
+		return
+	b.voice_chat.set_audience_policy(Callable())
+	var oversized := PackedByteArray()
+	oversized.resize(VoiceChat.MAX_PACKET_BYTES + 1)
+	a.voice_chat.voice_packet.rpc_id(b.client_id, oversized)
+	a.voice_chat.voice_packet.rpc_id(b.client_id, PackedByteArray())
+	await get_tree().create_timer(0.2).timeout
+	if not _check(not b.voice_chat.speakers.has(a.client_id), "Invalid voice packet created native playback"):
 		return
 	if not _check(a.room_networking.current_room.world_id == "moon_garden" and b.room_networking.current_room.world_id == "moon_garden", "Peers received different world choices"):
 		return

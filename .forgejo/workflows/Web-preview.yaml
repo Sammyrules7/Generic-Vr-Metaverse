@@ -78,6 +78,11 @@ jobs:
       - name: Import project
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
 
+      - name: Test native voice codec and audiences
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_codec_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_audience_test.gd
+
       - name: Test player movement
         run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/movement_test.gd
 

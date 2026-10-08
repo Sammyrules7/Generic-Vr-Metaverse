@@ -1,18 +1,21 @@
 class_name VoiceChat
 extends Node
 
-# Voice uses a separate unreliable WebRTC channel so a late audio frame can never
-# delay player poses. AudioServer and scene nodes remain on the main thread; the
-# comparatively expensive PCM conversion runs on a dedicated worker.
-const SAMPLE_RATE := 24000
+# Godot owns microphone capture; TwoVoip owns resampling, denoising, Opus, and
+# the playback ring. Encoding and decoding stay on one worker. Only AudioServer,
+# scene nodes, controls, and multiplayer RPCs are accessed on the main thread.
+const SAMPLE_RATE := 48000
 const FRAME_MS := 20
 const SAMPLES_PER_FRAME := SAMPLE_RATE * FRAME_MS / 1000
-const BYTES_PER_FRAME := SAMPLES_PER_FRAME * 2
-const MAX_PENDING_JOBS := 32
+const BIT_RATE := 24000
+const MAX_PACKET_BYTES := 1275
+const MAX_PENDING_JOBS := 16
 const MAX_READY_FRAMES := 16
 const SILENCE_THRESHOLD := 0.003
 const SILENCE_HANGOVER_FRAMES := 12
 const REMOTE_ACTIVITY_TIMEOUT_MS := 350
+const PLAYBACK_BUFFER_SECONDS := 0.2
+const PLAYBACK_START_FRAMES := SAMPLES_PER_FRAME * 3
 
 signal local_speaking_changed(active: bool)
 signal peer_speaking_changed(peer_id: int, active: bool)
@@ -27,23 +30,22 @@ var muted := false
 var output_volume := 0.8
 var input_gain := 1.0
 var push_to_talk := false
-var capture: AudioEffectCapture
-var microphone: AudioStreamPlayer
-var capture_bus := -1
+var encoder: TwovoipOpusEncoder
 var capture_frames := 0
+var capturing := false
 var worker := Thread.new()
 var worker_mutex := Mutex.new()
 var worker_wakeup := Semaphore.new()
 var worker_running := false
-var jobs: Array = []
-var encoded_frames: Array = []
-var decoded_frames: Array = []
+var jobs: Array[Dictionary] = []
+var encoded_frames: Array[Dictionary] = []
+var decoded_packets: Array[Dictionary] = []
 var speakers: Dictionary[int, AudioStreamPlayer3D] = {}
 var voice_generation := 0
+var capture_generation := 0
 var peer_anchors: Dictionary[int, Node3D] = {}
 var peer_activity_deadlines: Dictionary[int, int] = {}
 var local_speaking := false
-var silence_frames := 0
 var input_ready := false
 var input_permission_requested := false
 var audience_policy := Callable()
@@ -68,15 +70,12 @@ func send_voice(packet: PackedByteArray) -> void:
 
 func _ready() -> void:
 	room_networking = get_parent().room_networking
-	room_networking.room_left.connect(func(): set_audience_policy(Callable()))
-	# Headless integration clients share one AudioServer and have no microphone.
-	# Keeping voice dormant there also makes server-side test runs deterministic.
-	if DisplayServer.get_name() == "headless":
-		set_process(false)
-		return
 	room_networking.room_joined.connect(_start_voice)
 	room_networking.room_left.connect(_stop_voice)
+	room_networking.room_left.connect(func(): set_audience_policy(Callable()))
 	multiplayer.peer_disconnected.connect(_remove_speaker)
+	if OS.has_feature("android"):
+		get_tree().on_request_permissions_result.connect(_on_permission_result)
 	worker_running = true
 	if worker.start(_worker_loop) != OK:
 		worker_running = false
@@ -101,8 +100,8 @@ func set_muted(value: bool) -> void:
 	if muted == value:
 		return
 	muted = value
-	if capture != null and muted:
-		capture.clear_buffer()
+	if muted:
+		_stop_capture()
 	muted_changed.emit(muted)
 	_set_local_speaking(false)
 
@@ -125,9 +124,13 @@ func set_push_to_talk(value: bool) -> void:
 
 
 func set_input_device(device: String) -> void:
+	var restart := capturing
+	_stop_capture()
 	var available := AudioServer.get_input_device_list()
 	AudioServer.input_device = device if available.has(device) else "Default"
 	input_device_changed.emit(AudioServer.input_device)
+	if restart:
+		prepare_microphone()
 
 
 func get_input_devices() -> PackedStringArray:
@@ -158,103 +161,129 @@ func remove_peer_anchor(peer_id: int) -> void:
 
 func _start_voice(_room: roomClass) -> void:
 	_stop_voice()
-	# Permission is requested by the voice toggle/settings gesture. Joining a
-	# room must not launch a competing permission prompt during WebXR startup.
+	# Web microphone permission must originate in the voice/settings gesture,
+	# without competing with the WebXR permission prompt when joining a room.
 	if not muted and (not OS.has_feature("web") or input_permission_requested):
 		prepare_microphone()
 
 
+func _create_encoder(input_rate: float) -> TwovoipOpusEncoder:
+	var codec := TwovoipOpusEncoder.new()
+	var error := codec.initialize(input_rate, SAMPLE_RATE, 1,
+		TwovoipOpusEncoder.DENOISER_RNNOISE, TwovoipOpusEncoder.AGC_DISABLED,
+		SAMPLES_PER_FRAME)
+	if error != OK or not codec.create_opus_encoder(BIT_RATE, 5, true):
+		push_error("Could not initialize TwoVoip: %s" % error_string(error))
+		return null
+	return codec
+
+
 func prepare_microphone() -> bool:
-	if DisplayServer.get_name() == "headless":
+	if DisplayServer.get_name() == "headless" or not worker_running or muted:
 		return false
 	input_permission_requested = true
-	if microphone != null:
+	if capturing:
 		return input_ready
-	if OS.has_feature("android"):
-		OS.request_permission("RECORD_AUDIO")
-	capture_bus = AudioServer.bus_count
-	AudioServer.add_bus(capture_bus)
-	AudioServer.set_bus_name(capture_bus, "VoiceCapture%d" % get_instance_id())
-	AudioServer.set_bus_mute(capture_bus, true)
-	capture = AudioEffectCapture.new()
-	capture.buffer_length = 0.1
-	AudioServer.add_bus_effect(capture_bus, capture)
-	capture_frames = maxi(1, roundi(AudioServer.get_mix_rate() * FRAME_MS / 1000.0))
-	microphone = AudioStreamPlayer.new()
-	microphone.name = "Microphone"
-	microphone.stream = AudioStreamMicrophone.new()
-	microphone.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
-	microphone.bus = AudioServer.get_bus_name(capture_bus)
-	add_child(microphone)
-	microphone.play()
-	# Browsers hide device names until microphone permission is granted. Refresh
-	# twice after the prompt so the menu gains the real device list without reload.
+	if OS.has_feature("android") and not OS.request_permission("android.permission.RECORD_AUDIO"):
+		return false
+	var error := AudioServer.set_input_device_active(true)
+	if error != OK:
+		push_warning("Could not start microphone: %s" % error_string(error))
+		return false
+	encoder = _create_encoder(AudioServer.get_input_mix_rate())
+	if encoder == null:
+		AudioServer.set_input_device_active(false)
+		return false
+	capture_frames = encoder.get_required_input_chunk_size()
+	capturing = true
+	# Device labels become available after the browser permission prompt.
 	get_tree().create_timer(1.0).timeout.connect(refresh_input_devices)
 	get_tree().create_timer(3.0).timeout.connect(refresh_input_devices)
 	return input_ready
 
 
-func _stop_voice() -> void:
-	if microphone != null:
-		microphone.stop()
-		microphone.queue_free()
-		microphone = null
-	for peer_id in speakers.keys():
-		_remove_speaker(peer_id)
-	if capture_bus >= 0:
-		AudioServer.remove_bus(capture_bus)
-	capture_bus = -1
-	capture = null
+func _on_permission_result(permission: String, granted: bool) -> void:
+	if permission == "android.permission.RECORD_AUDIO" and granted and input_permission_requested and not muted:
+		prepare_microphone()
+
+
+func _stop_capture() -> void:
+	if capturing:
+		AudioServer.set_input_device_active(false)
+	capturing = false
+	encoder = null
 	if input_ready:
 		input_ready = false
 		input_ready_changed.emit(false)
 	worker_mutex.lock()
-	voice_generation += 1
-	silence_frames = 0
-	jobs.clear()
+	capture_generation += 1
 	encoded_frames.clear()
-	decoded_frames.clear()
 	worker_mutex.unlock()
 	_set_local_speaking(false)
 
 
+func _stop_voice() -> void:
+	_stop_capture()
+	for peer_id in speakers.keys():
+		_remove_speaker(peer_id)
+	worker_mutex.lock()
+	voice_generation += 1
+	jobs.clear()
+	encoded_frames.clear()
+	decoded_packets.clear()
+	worker_mutex.unlock()
+
+
+func _can_transmit() -> bool:
+	return room_networking != null and room_networking.current_room != null and not muted and (not push_to_talk or Input.is_action_pressed("voice_push_to_talk"))
+
+
 func _process(_delta: float) -> void:
-	if capture != null and not input_ready and capture.get_frames_available() > 0:
-		input_ready = true
-		input_ready_changed.emit(true)
-	if capture != null and not muted:
-		# Bound work during a hitch: old speech is less useful than current speech.
-		while capture.get_frames_available() >= capture_frames:
-			_queue_job({
-				"encode": capture.get_buffer(capture_frames),
-				"generation": voice_generation,
-				"gain": input_gain,
-				"transmit": not push_to_talk or Input.is_action_pressed("voice_push_to_talk")
-			})
-	elif capture != null:
-		capture.clear_buffer()
+	if not _can_transmit():
+		_set_local_speaking(false)
+	if capturing:
+		# Discard old capture after a hitch instead of transmitting stale speech.
+		var excess := AudioServer.get_input_frames_available() - capture_frames * 4
+		if excess > 0:
+			AudioServer.get_input_frames(excess)
+		while true:
+			var frames := AudioServer.get_input_frames(capture_frames)
+			if frames.is_empty():
+				break
+			if not input_ready:
+				input_ready = true
+				input_ready_changed.emit(true)
+			_queue_job({"encode": frames, "encoder": encoder, "generation": voice_generation,
+				"capture_generation": capture_generation, "gain": input_gain, "transmit": _can_transmit()})
 
 	worker_mutex.lock()
 	var outgoing := encoded_frames.duplicate()
-	var incoming := decoded_frames.duplicate()
+	var incoming := decoded_packets.duplicate()
 	encoded_frames.clear()
-	decoded_frames.clear()
+	decoded_packets.clear()
 	worker_mutex.unlock()
-	if room_networking == null or room_networking.current_room == null:
-		return
 	for result: Dictionary in outgoing:
-		# Worker results may predate a mute or push-to-talk release. Check the
-		# current controls at the last possible point before sending audio.
-		var active: bool = result.active and not muted and (not push_to_talk or Input.is_action_pressed("voice_push_to_talk"))
+		if result.capture_generation != capture_generation:
+			continue
+		var active: bool = result.active and _can_transmit()
 		_set_local_speaking(active)
 		if active:
 			send_voice(result.packet)
-	for item: Dictionary in incoming:
-		if can_hear(item.peer_id, multiplayer.get_unique_id()):
-			_push_audio(item.peer_id, item.frames)
+	for result: Dictionary in incoming:
+		var speaker := speakers.get(result.peer_id) as AudioStreamPlayer3D
+		if result.frames > 0 and is_instance_valid(speaker) and speaker.get_stream_playback() == result.playback:
+			if result.playback.queue_length_frames() >= PLAYBACK_START_FRAMES:
+				result.playback.mark_end_opus_stream(true)
+			if not peer_activity_deadlines.has(result.peer_id):
+				peer_speaking_changed.emit(result.peer_id, true)
+			peer_activity_deadlines[result.peer_id] = Time.get_ticks_msec() + REMOTE_ACTIVITY_TIMEOUT_MS
 	var now := Time.get_ticks_msec()
 	for peer_id: int in peer_activity_deadlines.keys():
 		if now >= peer_activity_deadlines[peer_id]:
+			var playback := speakers[peer_id].get_stream_playback() as AudioStreamPlaybackOpus
+			# Also release utterances shorter than the initial buffering target.
+			playback.mark_end_opus_stream(true)
+			_queue_job({"end": playback, "generation": voice_generation})
 			peer_activity_deadlines.erase(peer_id)
 			peer_speaking_changed.emit(peer_id, false)
 
@@ -269,83 +298,85 @@ func _queue_job(job: Dictionary) -> void:
 
 
 func _worker_loop() -> void:
+	var codec: TwovoipOpusEncoder
+	var pending_input := PackedVector2Array()
+	var silence_frames := 0
+	var was_active := false
 	while true:
 		worker_wakeup.wait()
 		worker_mutex.lock()
 		var running := worker_running
 		var job: Dictionary = jobs.pop_front() if not jobs.is_empty() else {}
+		var current_generation := voice_generation
+		var current_capture := capture_generation
 		worker_mutex.unlock()
 		if not running:
 			return
+		if job.is_empty() or job.generation != current_generation:
+			continue
 		if job.has("encode"):
-			var result := _encode_pcm(job.encode, job.gain)
-			worker_mutex.lock()
-			var active: bool = job.transmit and result.level >= SILENCE_THRESHOLD
-			if active:
-				silence_frames = SILENCE_HANGOVER_FRAMES
-			elif silence_frames > 0 and job.transmit:
-				silence_frames -= 1
-				active = true
-			if job.generation == voice_generation and encoded_frames.size() < MAX_READY_FRAMES:
-				encoded_frames.append({"packet": result.packet, "active": active})
-			worker_mutex.unlock()
+			if job.capture_generation != current_capture:
+				continue
+			if codec != job.encoder:
+				codec = job.encoder
+				pending_input.clear()
+				silence_frames = 0
+				was_active = false
+			codec.set_gain(job.gain)
+			pending_input.append_array(job.encode)
+			while pending_input.size() >= codec.get_required_input_chunk_size():
+				var consumed := codec.process_chunk(pending_input)
+				if consumed <= 0:
+					pending_input.clear()
+					break
+				# Speex can consume fewer input samples at fractional device rates.
+				pending_input = pending_input.slice(consumed)
+				var active: bool = job.transmit and codec.get_rms() >= SILENCE_THRESHOLD
+				if active:
+					silence_frames = SILENCE_HANGOVER_FRAMES
+				elif silence_frames > 0 and job.transmit:
+					silence_frames -= 1
+					active = true
+				if active and not was_active:
+					codec.reset_opus_encoder()
+				was_active = active
+				var packet := codec.encode_chunk() if active else PackedByteArray()
+				worker_mutex.lock()
+				if job.generation == voice_generation and job.capture_generation == capture_generation and encoded_frames.size() < MAX_READY_FRAMES:
+					encoded_frames.append({"packet": packet, "active": active and not packet.is_empty(), "capture_generation": job.capture_generation})
+				worker_mutex.unlock()
 		elif job.has("decode"):
-			var frames := _decode_pcm(job.decode)
+			var frames: int = job.playback.push_opus_packet(job.decode, 0, 0)
 			worker_mutex.lock()
-			if job.generation == voice_generation and decoded_frames.size() < MAX_READY_FRAMES:
-				decoded_frames.append({"peer_id": job.peer_id, "frames": frames})
+			if job.generation == voice_generation and decoded_packets.size() < MAX_READY_FRAMES:
+				decoded_packets.append({"peer_id": job.peer_id, "playback": job.playback, "frames": frames})
 			worker_mutex.unlock()
-
-
-func _encode_pcm(source: PackedVector2Array, gain := 1.0) -> Dictionary:
-	var packet := PackedByteArray()
-	packet.resize(BYTES_PER_FRAME)
-	var energy := 0.0
-	for index in SAMPLES_PER_FRAME:
-		# Capture runs at the output mix rate. This also handles non-48 kHz devices.
-		var source_index := mini(source.size() - 1, index * source.size() / SAMPLES_PER_FRAME)
-		var stereo := source[source_index]
-		var mono := clampf((stereo.x + stereo.y) * 0.5 * gain, -1.0, 1.0)
-		energy += mono * mono
-		packet.encode_s16(index * 2, roundi(mono * 32767.0))
-	return {"packet": packet, "level": sqrt(energy / SAMPLES_PER_FRAME)}
-
-
-func _decode_pcm(packet: PackedByteArray) -> PackedVector2Array:
-	var frames := PackedVector2Array()
-	frames.resize(SAMPLES_PER_FRAME)
-	for index in SAMPLES_PER_FRAME:
-		var sample := packet.decode_s16(index * 2) / 32768.0
-		frames[index] = Vector2(sample, sample)
-	return frames
+		elif job.has("end"):
+			# This resets the native decoder as well as marking the ring's tail,
+			# so it must run on the same worker that calls push_opus_packet().
+			job.end.mark_end_opus_stream(false)
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", 1)
 func voice_packet(packet: PackedByteArray) -> void:
 	var peer_id := multiplayer.get_remote_sender_id()
-	if packet.size() != BYTES_PER_FRAME or not multiplayer.get_peers().has(peer_id) or not can_hear(peer_id, multiplayer.get_unique_id()):
+	if packet.is_empty() or packet.size() > MAX_PACKET_BYTES or not multiplayer.get_peers().has(peer_id) or not can_hear(peer_id, multiplayer.get_unique_id()) or not worker_running:
 		return
-	# Keep transport assertions usable headlessly without starting capture/audio.
-	if DisplayServer.get_name() == "headless":
-		_queue_job({"decode": packet, "peer_id": peer_id, "generation": voice_generation})
-		return
-	if not worker_running:
-		return
-	if not peer_activity_deadlines.has(peer_id):
-		peer_speaking_changed.emit(peer_id, true)
-	peer_activity_deadlines[peer_id] = Time.get_ticks_msec() + REMOTE_ACTIVITY_TIMEOUT_MS
-	_queue_job({"decode": packet, "peer_id": peer_id, "generation": voice_generation})
+	var playback := _speaker_playback(peer_id)
+	if playback != null:
+		_queue_job({"decode": packet, "peer_id": peer_id, "playback": playback, "generation": voice_generation})
 
 
-func _push_audio(peer_id: int, frames: PackedVector2Array) -> void:
+func _speaker_playback(peer_id: int) -> AudioStreamPlaybackOpus:
 	var anchor := peer_anchors.get(peer_id) as Node3D
 	if not is_instance_valid(anchor):
-		return
+		return null
 	var speaker := speakers.get(peer_id) as AudioStreamPlayer3D
 	if speaker == null:
-		var stream := AudioStreamGenerator.new()
-		stream.mix_rate = SAMPLE_RATE
-		stream.buffer_length = 0.12
+		var stream := AudioStreamOpus.new()
+		stream.opus_sample_rate = SAMPLE_RATE
+		stream.opus_channels = 1
+		stream.buffer_length = PLAYBACK_BUFFER_SECONDS
 		speaker = AudioStreamPlayer3D.new()
 		speaker.name = "Speaker%d" % peer_id
 		speaker.stream = stream
@@ -357,14 +388,13 @@ func _push_audio(peer_id: int, frames: PackedVector2Array) -> void:
 		anchor.add_child(speaker)
 		speaker.play()
 		speakers[peer_id] = speaker
-	var playback := speaker.get_stream_playback() as AudioStreamGeneratorPlayback
-	if playback != null and playback.can_push_buffer(frames.size()):
-		playback.push_buffer(frames)
+	return speaker.get_stream_playback() as AudioStreamPlaybackOpus
 
 
 func _remove_speaker(peer_id: int) -> void:
 	var speaker := speakers.get(peer_id) as AudioStreamPlayer3D
 	if is_instance_valid(speaker):
+		speaker.stop()
 		speaker.queue_free()
 	speakers.erase(peer_id)
 	if peer_activity_deadlines.erase(peer_id):
