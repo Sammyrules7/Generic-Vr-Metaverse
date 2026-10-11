@@ -39,6 +39,7 @@ func _ready() -> void:
 	Networking.voice_chat.set_muted(not PlayerProfile.microphone_enabled)
 	Networking.voice_chat.set_push_to_talk(PlayerProfile.push_to_talk)
 	Networking.voice_chat.set_input_gain(PlayerProfile.input_gain)
+	Networking.voice_chat.set_input_device(PlayerProfile.input_device)
 	_populate_input_devices()
 	Networking.voice_chat.set_output_volume(PlayerProfile.voice_volume)
 	%MicrophoneEnabled.toggled.connect(_microphone_toggled)
@@ -257,9 +258,9 @@ func _populate_input_devices() -> void:
 		devices = PackedStringArray(["Default"])
 	for device: String in devices:
 		%InputDevice.add_item(device)
-	var selected := devices.find(PlayerProfile.input_device)
+	# Refresh labels after permission without reopening the active microphone.
+	var selected := devices.find(AudioServer.input_device)
 	%InputDevice.select(maxi(0, selected))
-	Networking.voice_chat.set_input_device(devices[maxi(0, selected)])
 
 
 func _input_device_selected(index: int) -> void:

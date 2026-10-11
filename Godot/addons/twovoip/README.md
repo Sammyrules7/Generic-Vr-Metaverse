@@ -49,3 +49,15 @@ Run those targets sequentially because they change the process working directory
 
 Keep the upstream and bundled codec licenses alongside the binaries. Opus,
 RNNoise, and SpeexDSP notices are included in their respective `*-LICENSE` files.
+
+## Microphone lifecycle check
+
+From the repository root, run with a real display and audio driver:
+
+```sh
+godot --xr-mode off --path Godot --script res://tests/voice_microphone_test.gd
+```
+
+This checks live capture through device-list refreshes and eight mute/unmute
+cycles. It does not join a room or record audio. Device-list refreshes and
+reselecting the active device must leave capture running without reopening it.

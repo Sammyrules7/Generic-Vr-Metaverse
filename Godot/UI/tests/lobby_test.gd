@@ -92,6 +92,12 @@ func _run() -> void:
 	ui.get_node("%PushToTalk").button_pressed = true
 	check(PlayerProfile.push_to_talk and Networking.voice_chat.push_to_talk, "Push-to-talk control did not update voice mode")
 	check(ui.get_node("%InputDevice").item_count > 0, "Microphone device selector is empty")
+	var capture_generation := Networking.voice_chat.capture_generation
+	for refresh in range(4):
+		Networking.voice_chat.refresh_input_devices()
+	check(Networking.voice_chat.capture_generation == capture_generation, "Refreshing microphone labels restarted capture")
+	Networking.voice_chat.set_input_device(AudioServer.input_device)
+	check(Networking.voice_chat.capture_generation == capture_generation, "Reselecting the active microphone restarted capture")
 	var panel = load("res://UI/vr_panel.tscn").instantiate()
 	game.add_child(panel)
 	capture_viewport = panel.get_node("Viewport")

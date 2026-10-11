@@ -124,10 +124,13 @@ func set_push_to_talk(value: bool) -> void:
 
 
 func set_input_device(device: String) -> void:
+	var available := AudioServer.get_input_device_list()
+	var selected := device if available.has(device) else "Default"
+	if selected == AudioServer.input_device:
+		return
 	var restart := capturing
 	_stop_capture()
-	var available := AudioServer.get_input_device_list()
-	AudioServer.input_device = device if available.has(device) else "Default"
+	AudioServer.input_device = selected
 	input_device_changed.emit(AudioServer.input_device)
 	if restart:
 		prepare_microphone()
