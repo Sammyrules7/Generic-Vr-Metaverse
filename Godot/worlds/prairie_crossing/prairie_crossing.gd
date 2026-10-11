@@ -1,6 +1,8 @@
 extends Node3D
 ## Deterministic, texture-free prairie ravine. Geometry is batched by material.
 
+signal world_build_progress(progress: float)
+
 const SEED := 70926
 
 @export_enum("daylight", "rain", "night") var weather_preset: String = "rain"
@@ -10,6 +12,13 @@ var materials: Dictionary = {}
 var trails: Array[PackedVector3Array] = []
 var trail_widths: Array[float] = []
 var solid_vertices := PackedVector3Array()
+var _interactive_load := false
+var _build_deadline := 0
+var _build_cancelled := false
+
+
+func cancel_world_preparation() -> void:
+	_build_cancelled = true
 
 
 func height_at(x: float, z: float) -> float:
@@ -23,15 +32,34 @@ func ground(x: float, z: float, lift: float = 0.0) -> Vector3:
 
 
 func _ready() -> void:
+	if not get_meta("defer_world_build", false):
+		_build_world()
+
+
+## Room entry yields between geometry batches; offline previews build immediately.
+func prepare_world() -> void:
+	_interactive_load = true
+	_build_deadline = Time.get_ticks_usec() + 4000
+	await _build_world()
+
+
+func _build_world() -> void:
 	rng.seed = SEED
 	_palette()
 	_lighting()
 	_build_trails()
-	_terrain()
+	await _terrain()
+	if _build_cancelled:
+		return
 	_landmarks()
 	_weather_station()
-	_vegetation()
-	_flush()
+	await _build_frame()
+	await _vegetation()
+	if _build_cancelled:
+		return
+	await _flush()
+	if _build_cancelled:
+		return
 	$SpawnPoint.position = ground(12, 12, 0.15)
 	$SpawnPoint.rotation.y = 0.7
 	$SpawnPoint.scale = Vector3.ONE / scale.x
@@ -46,6 +74,12 @@ func _ready() -> void:
 	control.set_script(load("res://worlds/prairie_crossing/weather_control.gd"))
 	control.position = ground(14, 9)
 	add_child(control)
+
+
+func _build_frame() -> void:
+	if _interactive_load and Time.get_ticks_usec() >= _build_deadline:
+		await get_tree().process_frame
+		_build_deadline = Time.get_ticks_usec() + 4000
 
 
 func _palette() -> void:
@@ -165,6 +199,11 @@ func _beam(a: Vector3, b: Vector3, radius: float, key: String, solid: bool = fal
 
 func _terrain() -> void:
 	for x in range(-200, 121, 3):
+		await _build_frame()
+		if _build_cancelled:
+			return
+		if _interactive_load:
+			world_build_progress.emit(0.25 * float(x + 200) / 321.0)
 		for z in range(-170, 171, 3):
 			var key: String = ["meadow", "meadow_light", "meadow_dark"][int(clampf((sin(x * 0.13) + cos(z * 0.09)) * 0.8 + 1.0, 0, 2))]
 			if x < -20 and x > -48:
@@ -354,6 +393,12 @@ func _tree(p: Vector3, size: float, pine: bool) -> void:
 
 func _vegetation() -> void:
 	for i in 650:
+		if i % 8 == 0:
+			await _build_frame()
+			if _interactive_load:
+				world_build_progress.emit(0.25 + 0.2 * float(i) / 650.0)
+		if _build_cancelled:
+			return
 		var x := rng.randf_range(-183, 103)
 		var z := rng.randf_range(-155, 155)
 		var p := ground(x, z)
@@ -366,6 +411,12 @@ func _vegetation() -> void:
 		_tree(ground(p.x, p.y), 1.1, false)
 	# Thousands of crossed, tapered blades share two meshes rather than nodes.
 	for i in 12500:
+		if i % 32 == 0:
+			await _build_frame()
+			if _interactive_load:
+				world_build_progress.emit(0.45 + 0.45 * float(i) / 12500.0)
+		if _build_cancelled:
+			return
 		var x := rng.randf_range(-65, 78)
 		var z := rng.randf_range(-95, 95)
 		var p := ground(x, z, 0.02)
@@ -380,13 +431,24 @@ func _vegetation() -> void:
 		if i % 31 == 0:
 			_ball(p + Vector3(0, h, 0), Vector3(0.13, 0.08, 0.13), "flower")
 	for i in 140:
+		if i % 8 == 0:
+			await _build_frame()
+		if _build_cancelled:
+			return
 		var p := ground(rng.randf_range(-45, -12), rng.randf_range(-90, 90))
 		if not _near_trail(p, 1.2):
 			_ball(p + Vector3.UP * 0.65, Vector3(1.2, 1.05, 1.15), "silver")
 
 
 func _flush() -> void:
+	var completed_batches := 0
 	for key: String in batches:
+		await _build_frame()
+		if _build_cancelled:
+			return
+		if _interactive_load:
+			world_build_progress.emit(0.9 + 0.1 * float(completed_batches) / batches.size())
+		completed_batches += 1
 		var instance := MeshInstance3D.new()
 		instance.name = key.to_pascal_case()
 		instance.mesh = batches[key].commit()

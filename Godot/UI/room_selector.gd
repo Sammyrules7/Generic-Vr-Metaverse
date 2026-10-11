@@ -13,6 +13,7 @@ var vr_mode := false:
 			_configure_buttons(self)
 var webxr_supported := false
 var menu_open := true
+var world_loading := false
 var keyboard_target: LineEdit
 var uppercase := false
 var world_index := 0
@@ -82,6 +83,7 @@ func _ready() -> void:
 	%CreateRoom.pressed.connect(_create_room)
 	%LeaveRoom.pressed.connect(func(): _check_request(room_networking.leave_room()))
 	%Resume.pressed.connect(func(): set_menu_open(false))
+	%CancelWorldLoading.pressed.connect(func(): _check_request(room_networking.leave_room()))
 	%Search.text_changed.connect(func(_text): _replace_rooms(room_networking.rooms.values()))
 	%DisplayName.text_changed.connect(func(_text): _update_controls())
 	%RoomName.text_submitted.connect(func(_text): _create_room())
@@ -205,6 +207,8 @@ func _update_mode_badge() -> void:
 
 
 func xr_point_is_visible(point: Vector2) -> bool:
+	if world_loading:
+		return %WorldLoading.get_global_rect().has_point(point)
 	for card: Control in [$Session, $QuickSession, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse]:
 		if card.is_visible_in_tree() and card.get_global_rect().has_point(point):
 			return true
@@ -253,13 +257,13 @@ func _input_gain_changed(value: float) -> void:
 
 func _populate_input_devices() -> void:
 	%InputDevice.clear()
-	var devices := Networking.voice_chat.get_input_devices()
+	var devices: PackedStringArray = Networking.voice_chat.get_input_devices()
 	if devices.is_empty():
 		devices = PackedStringArray(["Default"])
 	for device: String in devices:
 		%InputDevice.add_item(device)
 	# Refresh labels after permission without reopening the active microphone.
-	var selected := devices.find(AudioServer.input_device)
+	var selected: int = devices.find(AudioServer.input_device)
 	%InputDevice.select(maxi(0, selected))
 
 
@@ -375,7 +379,7 @@ func _room_joined(_room: roomClass) -> void:
 	_set_voice_settings_open(false)
 	_set_keyboard_visible(false)
 	_update_session()
-	set_menu_open(false)
+	begin_world_loading(_room.world_id)
 	_update_controls()
 
 
@@ -391,12 +395,16 @@ func _refresh_session_count() -> void:
 
 
 func _room_left() -> void:
+	world_loading = false
+	%WorldLoading.hide()
+	%Resume.disabled = false
 	%SessionStatus.text = ""
 	set_menu_open(true)
 	_update_controls()
 
 
 func set_menu_open(open: bool) -> void:
+	open = open or world_loading
 	menu_open = open
 	var in_room := room_networking.current_room != null
 	$VBoxContainer.visible = not in_room
@@ -406,12 +414,40 @@ func set_menu_open(open: bool) -> void:
 		_update_session()
 	$MenuHint.visible = in_room and not open and not vr_mode
 	$Background.visible = not vr_mode and not in_room
+	if world_loading:
+		$VBoxContainer.hide()
+		$Session.hide()
+		$QuickSession.hide()
+		$MenuHint.hide()
 	_fit_ui()
 	%VoiceSettings.hide()
 	mouse_filter = Control.MOUSE_FILTER_STOP if open or vr_mode else Control.MOUSE_FILTER_IGNORE
 	if not vr_mode:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED)
 	menu_changed.emit(open)
+
+
+func begin_world_loading(world_id: String) -> void:
+	world_loading = true
+	%Resume.disabled = true
+	%WorldLoading.show()
+	%LoadingWorldTitle.text = "Loading " + WorldCatalog.title(world_id)
+	set_world_loading_progress("Loading world…", 0.0)
+	set_menu_open(true)
+
+
+func set_world_loading_progress(message: String, progress: float) -> void:
+	%WorldLoadingStatus.text = message
+	%WorldLoadingProgress.value = clampf(progress, 0.0, 1.0) * 100.0
+
+
+func finish_world_loading(success: bool = true) -> void:
+	world_loading = false
+	%WorldLoading.hide()
+	%Resume.disabled = not success
+	set_menu_open(not success)
+	if not success:
+		_show_error("Could not load this world. Leave the room and try again.")
 
 
 func _open_voice_settings() -> void:
@@ -421,6 +457,9 @@ func _open_voice_settings() -> void:
 
 
 func _set_voice_settings_open(open: bool) -> void:
+	if world_loading:
+		%VoiceSettings.hide()
+		return
 	var in_room := room_networking != null and room_networking.current_room != null
 	%VoiceSettings.visible = open
 	$VBoxContainer.visible = not in_room and not open

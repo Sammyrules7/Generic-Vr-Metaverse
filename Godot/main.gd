@@ -85,10 +85,24 @@ func _disable_xr_lobby() -> void:
 func load_world(world_id: String) -> Marker3D:
 	_world_load_generation += 1
 	var generation := _world_load_generation
+	# PlayerManager can join an existing room while children are still entering
+	# the tree, before Main and the selector have run their _ready callbacks.
+	if ui == null:
+		await get_tree().process_frame
+	if generation != _world_load_generation or not is_inside_tree():
+		return null
 	# Room IDs resolve only to bundled scenes, never to arbitrary network paths.
 	var id := world_id if WorldCatalog.WORLDS.has(world_id) else WorldCatalog.default_id()
 	if id.is_empty():
 		push_error("Could not load world: the world catalog is empty")
+		ui.finish_world_loading(false)
+		return null
+	ui.begin_world_loading(id)
+	# Give both the desktop and XR panel a rendered loading frame before any
+	# cached resource, scene instantiation, or synchronous fallback can run.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if generation != _world_load_generation or not is_inside_tree():
 		return null
 	var path: String = WorldCatalog.WORLDS[id].scene_path
 	var error := ResourceLoader.load_threaded_request(path)
@@ -101,6 +115,10 @@ func load_world(world_id: String) -> Marker3D:
 	if error == OK:
 		var status := ResourceLoader.load_threaded_get_status(path)
 		while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			var progress := []
+			ResourceLoader.load_threaded_get_status(path, progress)
+			if generation == _world_load_generation:
+				ui.set_world_loading_progress("Loading world…", float(progress[0]) * 0.7 if not progress.is_empty() else 0.0)
 			await get_tree().process_frame
 			status = ResourceLoader.load_threaded_get_status(path)
 		if status == ResourceLoader.THREAD_LOAD_LOADED:
@@ -112,21 +130,58 @@ func load_world(world_id: String) -> Marker3D:
 		return null
 	if packed == null:
 		push_error("Could not load world: " + path)
+		ui.finish_world_loading(false)
 		return null
+	ui.set_world_loading_progress("Preparing world…", 0.7)
+	await get_tree().process_frame
+	if generation != _world_load_generation or not is_inside_tree():
+		return null
+	var world := packed.instantiate() as Node3D
+	if world == null:
+		ui.finish_world_loading(false)
+		return null
+	world.set_meta("defer_world_build", true)
+	if world.has_signal("world_build_progress"):
+		world.connect("world_build_progress", func(progress: float):
+			if generation == _world_load_generation:
+				ui.set_world_loading_progress("Preparing world…", 0.7 + progress * 0.25)
+		)
+	world.name = "World"
 	var old_world := get_node_or_null("World")
 	if old_world != null:
-		old_world.free()
-	var world: Node3D = packed.instantiate()
-	world.name = "World"
+		_retire_world(old_world)
 	add_child(world)
-	return world.get_node("SpawnPoint")
+	if world.has_method("prepare_world"):
+		world.set_meta("preparation_pending", true)
+		await world.prepare_world()
+		if is_instance_valid(world):
+			world.set_meta("preparation_pending", false)
+	if generation != _world_load_generation or not is_inside_tree() or not is_instance_valid(world):
+		if is_instance_valid(world):
+			world.queue_free()
+		return null
+	var spawn := world.get_node_or_null("SpawnPoint") as Marker3D
+	if spawn == null:
+		world.queue_free()
+		ui.finish_world_loading(false)
+		return null
+	ui.set_world_loading_progress("Entering world…", 0.95)
+	return spawn
 
 
 func _player_spawned() -> void:
+	var generation := _world_load_generation
+	var player: NetworkPlayer = $PlayerManager.local_player
 	if xr_active:
 		$PlayerManager.local_player.set_control_mode(true)
 		_activate_player_rig()
-	_menu_changed(false)
+	_menu_changed(true)
+	# Keep feedback over the world's first rendered frame and camera handoff.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if generation != _world_load_generation or not is_instance_valid(player):
+		return
+	ui.finish_world_loading()
 
 
 func _activate_player_rig() -> void:
@@ -145,7 +200,7 @@ func _left() -> void:
 	_world_load_generation += 1
 	var world := get_node_or_null("World")
 	if world != null:
-		world.free()
+		_retire_world(world)
 	if $StartXR.xr_interface != null and $StartXR.xr_interface.get_name() == "WebXR" and $StartXR.xr_interface.is_initialized():
 		$StartXR.end_xr()
 		return
@@ -156,6 +211,17 @@ func _left() -> void:
 		lobby_camera.current = true
 		panel.bind_rig(lobby_origin, lobby_camera)
 	_menu_changed(true)
+
+
+func _retire_world(world: Node3D) -> void:
+	# Let an in-flight procedural build return before releasing its coroutine.
+	if world.has_method("cancel_world_preparation") and world.get_meta("preparation_pending", false):
+		world.cancel_world_preparation()
+		world.name = "CancelledWorld"
+		world.hide()
+		world.process_mode = Node.PROCESS_MODE_DISABLED
+	else:
+		world.free()
 
 
 func _attach_pointer(controller: XRController3D) -> void:
@@ -201,7 +267,7 @@ func _menu_changed(open: bool) -> void:
 	if xr_active:
 		if not is_instance_valid(panel):
 			return
-		var in_room := Networking.room_networking.current_room != null
+		var in_room: bool = Networking.room_networking.current_room != null and not ui.world_loading
 		panel.set_room_mode(in_room, in_room and not open)
 		panel.visible = open or in_room
 		panel.enabled = panel.visible
@@ -218,7 +284,7 @@ func _update_pointers() -> void:
 			continue
 		var controller := pointer.get_parent() as XRController3D
 		var in_lobby := controller.get_parent() == lobby_origin
-		var correct_rig := in_lobby == (Networking.room_networking.current_room == null)
+		var correct_rig: bool = in_lobby == (Networking.room_networking.current_room == null or ui.world_loading)
 		var hand := "left" if controller.tracker == &"left_hand" else "right"
 		var tracked := PlatformXRInput.hand_tracker(hand)
 		pointer.enabled = panel.visible and correct_rig and controller.get_is_active() and not PlatformXRInput.optical_hand(tracked)
