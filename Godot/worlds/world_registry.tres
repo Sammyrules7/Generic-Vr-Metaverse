@@ -1,22 +1,14 @@
-[gd_resource type="Resource" script_class="WorldRegistry" format=3]
+[gd_resource type="Resource" script_class="WorldRegistry" format=3 uid="uid://vv335jga1dfu"]
 
-[ext_resource type="Script" path="res://worlds/world_registry.gd" id="registry"]
-[ext_resource type="Script" path="res://worlds/world_definition.gd" id="definition"]
-[ext_resource type="Texture2D" path="res://worlds/previews/floating_island.png" id="island_preview"]
-[ext_resource type="Texture2D" path="res://worlds/previews/moon_garden.png" id="garden_preview"]
-[ext_resource type="Texture2D" path="res://worlds/previews/moonlit_grotto.png" id="grotto_preview"]
-[ext_resource type="Texture2D" path="res://worlds/previews/starlight_observatory.png" id="observatory_preview"]
-[ext_resource type="Texture2D" path="res://worlds/blackthorn_house/preview.png" id="blackthorn_preview"]
-[ext_resource type="Texture2D" path="res://worlds/briarwick_manor/preview.png" id="briarwick_preview"]
-[ext_resource type="Texture2D" path="res://worlds/previews/prairie_crossing.png" id="prairie_preview"]
-
-[sub_resource type="Resource" id="prairie"]
-script = ExtResource("definition")
-id = "prairie_crossing"
-title = "Prairie Crossing"
-description = "A prairie ravine overlook with physical controls for daylight, rain, and night lights."
-scene_path = "res://worlds/prairie_crossing/prairie_crossing.tscn"
-preview = ExtResource("prairie_preview")
+[ext_resource type="Texture2D" uid="uid://cai5yrsqocble" path="res://worlds/blackthorn_house/preview.png" id="blackthorn_preview"]
+[ext_resource type="Texture2D" uid="uid://cw3am17yq2wwj" path="res://worlds/briarwick_manor/preview.png" id="briarwick_preview"]
+[ext_resource type="Script" uid="uid://yjergouxrq8c" path="res://worlds/world_definition.gd" id="definition"]
+[ext_resource type="Texture2D" uid="uid://dlhpnnkui2cmk" path="res://worlds/previews/moon_garden.png" id="garden_preview"]
+[ext_resource type="Texture2D" uid="uid://bl8c0dl0xe5rf" path="res://worlds/previews/moonlit_grotto.png" id="grotto_preview"]
+[ext_resource type="Texture2D" uid="uid://bbh3m4fu6dnue" path="res://worlds/previews/floating_island.png" id="island_preview"]
+[ext_resource type="Texture2D" uid="uid://be1iae8xslcsg" path="res://worlds/previews/starlight_observatory.png" id="observatory_preview"]
+[ext_resource type="Texture2D" uid="uid://beq61jcvww5of" path="res://worlds/previews/prairie_crossing.png" id="prairie_preview"]
+[ext_resource type="Script" uid="uid://dcimhdv3uvmrx" path="res://worlds/world_registry.gd" id="registry"]
 
 [sub_resource type="Resource" id="island"]
 script = ExtResource("definition")
@@ -34,14 +26,6 @@ description = "Open courtyard with trees and benches."
 scene_path = "res://worlds/moon_garden/moon_garden.tscn"
 preview = ExtResource("garden_preview")
 
-[sub_resource type="Resource" id="observatory"]
-script = ExtResource("definition")
-id = "starlight_observatory"
-title = "Starlight Observatory"
-description = "Moonlit alpine terrace with a brass observatory and interactive star globe."
-scene_path = "res://worlds/starlight_observatory/observatory.tscn"
-preview = ExtResource("observatory_preview")
-
 [sub_resource type="Resource" id="grotto"]
 script = ExtResource("definition")
 id = "moonlit_grotto"
@@ -49,6 +33,14 @@ title = "Moonlit Grotto"
 description = "Rocky island sanctuary with a waterfall, lagoon, quartz shrine, and glowcap mushrooms."
 scene_path = "res://worlds/moonlit_grotto/moonlit_grotto.tscn"
 preview = ExtResource("grotto_preview")
+
+[sub_resource type="Resource" id="observatory"]
+script = ExtResource("definition")
+id = "starlight_observatory"
+title = "Starlight Observatory"
+description = "Moonlit alpine terrace with a brass observatory and interactive star globe."
+scene_path = "res://worlds/starlight_observatory/observatory.tscn"
+preview = ExtResource("observatory_preview")
 
 [sub_resource type="Resource" id="blackthorn"]
 script = ExtResource("definition")
@@ -62,9 +54,17 @@ preview = ExtResource("blackthorn_preview")
 script = ExtResource("definition")
 id = "briarwick_manor"
 title = "Briarwick Manor"
-description = "A painted storybook manor at blue hour. Candlelit rooms, a winter gallery, and an optional mystery at the guestbook."
+description = "A painted storybook manor at blue hour. With Murder Mystery Support."
 scene_path = "res://worlds/briarwick_manor/briarwick_manor.tscn"
 preview = ExtResource("briarwick_preview")
+
+[sub_resource type="Resource" id="prairie"]
+script = ExtResource("definition")
+id = "prairie_crossing"
+title = "Prairie Crossing"
+description = "A prairie ravine overlook with physical controls for daylight, rain, and night lights."
+scene_path = "res://worlds/prairie_crossing/prairie_crossing.tscn"
+preview = ExtResource("prairie_preview")
 
 [resource]
 script = ExtResource("registry")
