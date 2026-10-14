@@ -32,5 +32,16 @@
 *.res filter=lfs diff=lfs merge=lfs -text
 *.lmbake filter=lfs diff=lfs merge=lfs -text
 
+# Native libraries and vendor binaries (GDExtension .so/.dll/.dylib,
+# Android .aar, Web .wasm). These are large, change rarely, and must never
+# be stored as direct git blobs.
+*.so filter=lfs diff=lfs merge=lfs -text
+*.dll filter=lfs diff=lfs merge=lfs -text
+*.dylib filter=lfs diff=lfs merge=lfs -text
+*.a filter=lfs diff=lfs merge=lfs -text
+*.lib filter=lfs diff=lfs merge=lfs -text
+*.aar filter=lfs diff=lfs merge=lfs -text
+*.wasm filter=lfs diff=lfs merge=lfs -text
+
 # Prevent .import
 *.import text eol=lf -filter -diff
