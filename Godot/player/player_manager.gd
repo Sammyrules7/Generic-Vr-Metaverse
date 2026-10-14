@@ -18,6 +18,19 @@ var replication: PlayerReplication
 var voice_chat: VoiceChat
 var local_player: NetworkPlayer
 var _spawn_generation := 0
+var _peer_cache: Dictionary = {}
+
+
+func get_player(peer_id: int) -> NetworkPlayer:
+	var cached = _peer_cache.get(peer_id)
+	if is_instance_valid(cached):
+		return cached
+	var player := players.get_node_or_null(str(peer_id)) as NetworkPlayer if is_instance_valid(players) else null
+	if player != null:
+		_peer_cache[peer_id] = player
+	else:
+		_peer_cache.erase(peer_id)
+	return player
 
 
 func _ready() -> void:
@@ -71,6 +84,7 @@ func _spawn(peer_id: int, use_vr: bool, initial_pose: Transform3D) -> NetworkPla
 	player.set_multiplayer_authority(peer_id)
 	players.add_child(player)
 	player.global_transform = initial_pose
+	_peer_cache[peer_id] = player
 	if peer_id != multiplayer.get_unique_id():
 		voice_chat.set_peer_anchor(peer_id, player.get_node("Avatar/Head"))
 	return player
@@ -79,16 +93,17 @@ func _spawn(peer_id: int, use_vr: bool, initial_pose: Transform3D) -> NetworkPla
 func _spawn_remote(peer_id: int, use_vr: bool, initial_pose: Transform3D) -> void:
 	if local_player == null:
 		return
-	var existing := players.get_node_or_null(str(peer_id)) as NetworkPlayer
+	var existing := get_player(peer_id)
 	if existing != null and existing.use_vr != use_vr:
 		existing.free()
+		_peer_cache.erase(peer_id)
 		existing = null
 	if existing == null:
 		_spawn(peer_id, use_vr, initial_pose)
 
 
 func _apply_pose(peer_id: int, body_pose: Transform3D, head_pose: Transform3D, left_pose: Transform3D, right_pose: Transform3D) -> void:
-	var player := players.get_node_or_null(str(peer_id)) as NetworkPlayer
+	var player := get_player(peer_id)
 	# Unreliable poses can precede the reliable spawn message.
 	if player != null and player != local_player:
 		player.apply_pose(body_pose, head_pose, left_pose, right_pose)
@@ -96,6 +111,7 @@ func _apply_pose(peer_id: int, body_pose: Transform3D, head_pose: Transform3D, l
 
 func _remove_remote(peer_id: int) -> void:
 	voice_chat.remove_peer_anchor(peer_id)
+	_peer_cache.erase(peer_id)
 	var player := players.get_node_or_null(str(peer_id))
 	if player != null:
 		player.free()
@@ -104,6 +120,7 @@ func _remove_remote(peer_id: int) -> void:
 func _clear_players() -> void:
 	_spawn_generation += 1
 	players_clearing.emit()
+	_peer_cache.clear()
 	# An outgoing scene must not unregister a player installed by its replacement.
 	if is_instance_valid(replication) and replication.local_player == local_player:
 		replication.set_local_player(null)
@@ -115,6 +132,6 @@ func _clear_players() -> void:
 
 
 func _set_player_name(peer_id: int, display_name: String) -> void:
-	var player := players.get_node_or_null(str(peer_id)) as NetworkPlayer
+	var player := get_player(peer_id)
 	if player != null:
 		player.set_display_name(display_name)

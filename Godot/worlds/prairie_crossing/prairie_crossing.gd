@@ -474,11 +474,15 @@ func _flush() -> void:
 	solid_vertices.clear()
 
 
+var _players_cache: Node3D
+
+
 func _physics_process(_delta: float) -> void:
-	var players := get_parent().get_node_or_null("Players")
-	if players == null:
-		return
-	for player in players.get_children():
+	if _players_cache == null or not is_instance_valid(_players_cache):
+		_players_cache = get_parent().get_node_or_null("Players") as Node3D
+		if _players_cache == null:
+			return
+	for player in _players_cache.get_children():
 		if player is CharacterBody3D and player.is_multiplayer_authority():
 			var p := to_local(player.global_position)
 			if p.y < -5 or p.x < -10 or p.x > 24 or absf(p.z) > 20:

@@ -24,6 +24,11 @@ var _received_sequence := -1
 var _target_item := ""
 var _at_table := false
 var _controller_connections: Array[Dictionary] = []
+var _interact_accum := 0.0
+const INTERACT_HZ := 12.0
+var _excluded_rids: Array[RID] = []
+var _excluded_dirty := true
+var _excluded_count := -1
 
 
 func _ready() -> void:
@@ -111,6 +116,8 @@ func clear() -> void:
 
 func _peer_changed(_id: int) -> void:
 	_sync_clock = 0.0
+	_excluded_dirty = true
+	_elect_authority()
 
 
 func _peer_left(id: int) -> void:
@@ -119,10 +126,12 @@ func _peer_left(id: int) -> void:
 	equipped.erase(id)
 	cooldowns.erase(id)
 	_sync_clock = 0.0
+	_excluded_dirty = true
+	_elect_authority()
 
 
 func _elect_authority() -> void:
-	if not _transport_ready():
+	if not is_instance_valid(map) or not _transport_ready():
 		return
 	var elected := multiplayer.get_unique_id()
 	for id: int in multiplayer.get_peers():
@@ -162,10 +171,13 @@ func _process(_delta: float) -> void:
 	var now_usec := Time.get_ticks_usec()
 	var elapsed := 0.0 if _last_tick_usec < 0 else float(now_usec - _last_tick_usec) / 1_000_000.0
 	_last_tick_usec = now_usec
+	# Election itself is a cheap peer-minimum loop; it must react within a
+	# frame to authority loss (tests and gameplay depend on fast failover).
 	_elect_authority()
 	if rules != null:
 		for player: Node3D in manager.players.get_children():
-			rules.set_position(str(player.name).to_int(), player.global_position)
+			# Authority is the peer ID; no string alloc/parse on the hot path.
+			rules.set_position(player.get_multiplayer_authority(), player.global_position)
 		rules.tick(elapsed)
 	_sync_clock -= elapsed
 	if _sync_clock <= 0.0:
@@ -174,7 +186,10 @@ func _process(_delta: float) -> void:
 			rules.set_participating(multiplayer.get_unique_id(), wants_to_play)
 		else:
 			request_sync.rpc_id(authority_id, room_id, wants_to_play)
-	_update_interaction()
+	_interact_accum += elapsed
+	if _interact_accum >= 1.0 / INTERACT_HZ:
+		_interact_accum = 0.0
+		_update_interaction()
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -260,17 +275,25 @@ func _update_interaction() -> void:
 	var player := manager.local_player
 	var controls := player.controls
 	_at_table = player.global_position.distance_to(map.table_position()) < 2.6
-	_target_item = ""
+	var next_target := ""
 	if not _at_table and snapshot.get("self", {}).get("participating", false):
 		var state: Dictionary = snapshot.get("self", {})
 		if state.get("alive", false) and snapshot.get("phase", "") == "active":
-			var nearest := 2.0
-			for id: String in snapshot.get("items", {}):
-				var item: Dictionary = snapshot.items[id]
-				var distance := controls.head.global_position.distance_to(item.position)
-				if distance < nearest and _line_clear(controls.head.global_position, item.position):
-					nearest = distance
-					_target_item = id
+			var head_pos: Vector3 = controls.head.global_position
+			# Distance-sort first, then raycast ONLY the nearest candidate.
+			# Previously every item got its own intersect_ray per frame.
+			var best_id := ""
+			var best_dist := 2.0
+			var items: Dictionary = snapshot.get("items", {})
+			for id: String in items:
+				var item_pos: Vector3 = (items[id] as Dictionary).position
+				var distance := head_pos.distance_to(item_pos)
+				if distance < best_dist:
+					best_dist = distance
+					best_id = id
+			if not best_id.is_empty() and _line_clear(head_pos, (items[best_id] as Dictionary).position):
+				next_target = best_id
+	_target_item = next_target
 	presentation.focus_item(_target_item if controls.input_enabled else "")
 
 
@@ -345,7 +368,7 @@ func _handle_command(id: int, round_number: int, action: String, item: String, o
 	var state: Dictionary = rules.players[id]
 	if not state.alive or not state.participating:
 		return
-	var player := manager.players.get_node_or_null(str(id)) as Node3D
+	var player := manager.get_player(id) as Node3D
 	if player == null or not origin.is_finite() or not direction.is_finite() or origin.distance_to(player.global_position + Vector3.UP * 1.3) > 1.8:
 		return
 	var now := Time.get_ticks_msec()
@@ -395,10 +418,12 @@ func receive_attack(in_room: int, id: int, origin: Vector3, direction: Vector3, 
 func _hit_player(attacker: int, origin: Vector3, direction: Vector3, reach: float, knife: bool) -> int:
 	var nearest := reach
 	var target := 0
+	# Remote lookups are cached by PlayerManager; the capsule test below is
+	# pure math and _line_clear runs only for samples that pass it.
 	for id: int in rules.players:
 		if id == attacker or not rules.players[id].alive or not rules.players[id].participating:
 			continue
-		var player := manager.players.get_node_or_null(str(id)) as Node3D
+		var player := manager.get_player(id) as Node3D
 		if player == null:
 			continue
 		# Intersect a standing capsule approximation; remote colliders are disabled
@@ -418,8 +443,13 @@ func _line_clear(from: Vector3, to: Vector3) -> bool:
 	if not is_instance_valid(map):
 		return false
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
-	var excluded: Array[RID] = []
-	for player: CollisionObject3D in manager.players.get_children():
-		excluded.append(player.get_rid())
-	query.exclude = excluded
+	var count := manager.players.get_child_count() if is_instance_valid(manager) and is_instance_valid(manager.players) else -1
+	if _excluded_dirty or count != _excluded_count:
+		_excluded_dirty = false
+		_excluded_count = count
+		_excluded_rids.clear()
+		if is_instance_valid(manager) and is_instance_valid(manager.players):
+			for player: CollisionObject3D in manager.players.get_children():
+				_excluded_rids.append(player.get_rid())
+	query.exclude = _excluded_rids
 	return (map.get_parent() as Node3D).get_world_3d().direct_space_state.intersect_ray(query).is_empty()

@@ -11,10 +11,13 @@ func _ready() -> void:
 	if has_node("Glow"):
 		_base_energy = $Glow.light_energy
 	_apply(false)
+	# Static decor (curtains mid-tween excluded) needs no per-frame wakeup.
+	set_process(active and action in [0, 2, 3])
 
 func activate() -> void:
 	active = not active
 	_apply(true)
+	set_process(active and action in [0, 2, 3])
 
 func _apply(animate: bool) -> void:
 	if _tween != null:

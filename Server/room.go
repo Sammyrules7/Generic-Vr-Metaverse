@@ -10,6 +10,9 @@ import (
 
 const maxRoomPlayers = 16
 
+// World allowlist. Must match the IDs in Godot/worlds/world_registry.tres
+// (see WorldDefinition header). Adding a world = registry entry + this map + redeploy.
+
 var supportedWorlds = map[string]struct{}{
 	"floating_island":       {},
 	"moon_garden":           {},
@@ -94,10 +97,8 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 	if client.roomID != 0 && (client.meshID() != recovery.ClientId || client.sessionID != recovery.SessionId) {
 		return errorPacket("cannot replace an active recovered identity")
 	}
-	for _, other := range h.clients {
-		if other != client && (other.meshID() == recovery.ClientId || other.sessionID == recovery.SessionId) {
-			return errorPacket("recovered identity is already in use")
-		}
+	if h.identityInUse(client, recovery.ClientId, recovery.SessionId) {
+		return errorPacket("recovered identity is already in use")
 	}
 	if room != nil {
 		if room.name != strings.TrimSpace(recovery.RecoveryRoom.Name) || room.worldID != recovery.RecoveryRoom.WorldId ||
@@ -138,10 +139,19 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 	peers := room.peers(0)
 	client.peerID = recovery.ClientId
 	client.roomID = room.id
+	if client.sessionID != 0 && h.bySessionID[client.sessionID] == client {
+		delete(h.bySessionID, client.sessionID)
+	}
 	client.sessionID = recovery.SessionId
 	room.clients[client.meshID()] = client
-	for _, peer := range peers {
-		send(room.clients[peer.Id], peerJoinedPacket(client))
+	h.trackIdentity(client)
+	// One marshal shared by every notified peer, not N marshals under the lock.
+	if joined, ok := mustMarshal(peerJoinedPacket(client)); ok {
+		for _, peer := range peers {
+			if member := room.clients[peer.Id]; member != nil {
+				sendEncoded(member, joined)
+			}
+		}
 	}
 	h.broadcast(roomUpdatedPacket(room.packet()))
 	return roomJoinedPacket(room.packet(), peers, client.sessionID)
@@ -152,11 +162,19 @@ func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
 	// Renew even when rejoining the same room; room and peer IDs alone cannot
 	// distinguish delayed signaling from the previous connection attempt.
 	h.nextSessionID++
+	if client.sessionID != 0 && h.bySessionID[client.sessionID] == client {
+		delete(h.bySessionID, client.sessionID)
+	}
 	client.sessionID = h.nextSessionID
 	client.roomID = room.id
 	room.clients[client.meshID()] = client
-	for _, peer := range peers {
-		send(room.clients[peer.Id], peerJoinedPacket(client))
+	h.trackIdentity(client)
+	if joined, ok := mustMarshal(peerJoinedPacket(client)); ok {
+		for _, peer := range peers {
+			if member := room.clients[peer.Id]; member != nil {
+				sendEncoded(member, joined)
+			}
+		}
 	}
 	h.broadcast(roomUpdatedPacket(room.packet()))
 	return roomJoinedPacket(room.packet(), peers, client.sessionID)
@@ -165,14 +183,20 @@ func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
 func (h *Hub) leaveRoom(client *Client, signalingDisconnected ...bool) {
 	room := h.rooms[client.roomID]
 	client.roomID = 0
+	if client.sessionID != 0 && h.bySessionID[client.sessionID] == client {
+		delete(h.bySessionID, client.sessionID)
+	}
 	client.sessionID = 0
 	if room == nil {
 		return
 	}
 	peerID := client.meshID()
 	delete(room.clients, peerID)
-	for _, peer := range room.clients {
-		send(peer, peerLeftPacket(peerID, signalingDisconnected...))
+	// Marshal the farewell once; skip re-marshaling per remaining member.
+	if left, ok := mustMarshal(peerLeftPacket(peerID, signalingDisconnected...)); ok {
+		for _, peer := range room.clients {
+			sendEncoded(peer, left)
+		}
 	}
 	if len(room.clients) == 0 {
 		delete(h.rooms, room.id)

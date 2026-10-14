@@ -2,6 +2,7 @@ extends Node3D
 ## Cosmetic, local-only atmosphere. No round or networking state lives here.
 ## Particle counts are capped; only the moon and hearth use shadow maps.
 var _time := 0.0
+var _flicker_accum := 0.0
 var _lights: Array[Dictionary] = []
 var _pendulum: Node3D
 var _minute: Node3D
@@ -305,17 +306,27 @@ func _segment(parent: Node3D, from: Vector3, to: Vector3, radius: float, materia
 
 func _process(delta: float) -> void:
 	_time += delta
+	_flicker_accum += delta
+	# 15Hz flicker is visually identical, 4x fewer light_energy writes.
+	if _flicker_accum < 1.0 / 15.0:
+		_update_slow(delta)
+		return
+	_flicker_accum = 0.0
 	for record: Dictionary in _lights:
 		var light: OmniLight3D = record.light
 		light.light_energy = record.energy * (0.97 + 0.035 * sin(_time * 3.7 + record.phase) + 0.018 * sin(_time * 8.3 + record.phase))
+	for i in _flames.size():
+		_flames[i].scale = Vector3(1, 0.82 + 0.28 * sin(_time * 7 + i * 2.2), 1)
+	_update_slow(delta)
+
+
+func _update_slow(delta: float) -> void:
 	if is_instance_valid(_pendulum):
 		_pendulum.rotation.x = cos(_time * TAU) * 0.13
 		_minute.rotation.x = -_time * TAU / 3600.0
 		_hour.rotation.x = -PI / 2 - _time * TAU / 43200.0
 	if is_instance_valid(_record):
 		_record.rotation.y = fmod(_time * TAU * 0.55, TAU)
-	for i in _flames.size():
-		_flames[i].scale = Vector3(1, 0.82 + 0.28 * sin(_time * 7 + i * 2.2), 1)
 
 func _exit_tree() -> void:
 	for sound in _sound_players:

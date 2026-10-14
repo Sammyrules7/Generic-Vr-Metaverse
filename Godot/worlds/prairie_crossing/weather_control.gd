@@ -5,6 +5,8 @@ var buttons: Array[StaticBody3D] = []
 var caption: Label3D
 var held: Dictionary = {}
 var touched := -1
+var _manager_cache: PlayerManager
+var _touch_accum := 0.0
 
 func _ready() -> void:
 	weather = get_parent().get_node("Weather")
@@ -56,7 +58,9 @@ func select_button(index: int) -> void:
 		weather.set_weather(weather.PRESETS[index])
 
 func _controls() -> PlayerControls:
-	var manager := get_parent().get_parent().get_node_or_null("PlayerManager")
+	if _manager_cache == null or not is_instance_valid(_manager_cache):
+		_manager_cache = get_parent().get_parent().get_node_or_null("PlayerManager") as PlayerManager
+	var manager := _manager_cache
 	if manager != null and is_instance_valid(manager.local_player):
 		return manager.local_player.controls
 	return null
@@ -85,7 +89,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			select_button(index)
 			get_viewport().set_input_as_handled()
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	var controls := _controls()
 	if controls == null or not controls.input_enabled or not get_viewport().use_xr:
 		held.clear()
@@ -100,6 +104,11 @@ func _physics_process(_delta: float) -> void:
 			if aim != null:
 				select_button(_pick(aim.global_position, -aim.global_basis.z))
 		held[controller.name] = pressed
+	# Fingertip hover at ~20Hz is plenty; joint queries + to_local per tick wasted.
+	_touch_accum += delta
+	if _touch_accum < 0.05:
+		return
+	_touch_accum = 0.0
 	var tracker := PlatformXRInput.hand_tracker("right")
 	var joint := XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP
 	var contact := -1
