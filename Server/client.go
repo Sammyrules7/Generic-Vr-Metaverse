@@ -23,7 +23,10 @@ type rateLimit struct {
 }
 
 func (limit *rateLimit) allow(rate, burst float64) bool {
-	now := time.Now()
+	return limit.allowAt(time.Now(), rate, burst)
+}
+
+func (limit *rateLimit) allowAt(now time.Time, rate, burst float64) bool {
 	if limit.updated.IsZero() {
 		limit.tokens = burst
 	} else {
@@ -84,14 +87,15 @@ func readPump(client *Client) {
 		if err != nil {
 			return
 		}
-		if !packets.allow(packetsPerSecond, packetBurst) {
+		now := time.Now()
+		if !packets.allowAt(now, packetsPerSecond, packetBurst) {
 			return
 		}
 		if messageType != websocket.BinaryMessage {
 			return
 		}
 
-		handlePacket(packet, client)
+		handlePacketAt(now, packet, client)
 	}
 }
 

@@ -269,7 +269,8 @@ func _can_transmit() -> bool:
 
 
 func _process(_delta: float) -> void:
-	if not _can_transmit():
+	var transmit := _can_transmit()
+	if not transmit:
 		_set_local_speaking(false)
 	if capturing:
 		# Discard old capture after a hitch instead of transmitting stale speech.
@@ -284,18 +285,24 @@ func _process(_delta: float) -> void:
 				input_ready = true
 				input_ready_changed.emit(true)
 			_queue_job({"encode": frames, "encoder": encoder, "generation": voice_generation,
-				"capture_generation": capture_generation, "gain": input_gain, "transmit": _can_transmit()})
+				"capture_generation": capture_generation, "gain": input_gain, "transmit": transmit})
 
 	worker_mutex.lock()
-	var outgoing := encoded_frames.duplicate()
-	var incoming := decoded_packets.duplicate()
-	encoded_frames.clear()
-	decoded_packets.clear()
+	var has_outgoing := not encoded_frames.is_empty()
+	var has_incoming := not decoded_packets.is_empty()
+	var outgoing: Array = []
+	var incoming: Array = []
+	if has_outgoing:
+		outgoing = encoded_frames.duplicate()
+		encoded_frames.clear()
+	if has_incoming:
+		incoming = decoded_packets.duplicate()
+		decoded_packets.clear()
 	worker_mutex.unlock()
 	for result: Dictionary in outgoing:
 		if result.capture_generation != capture_generation:
 			continue
-		var active: bool = result.active and _can_transmit()
+		var active: bool = result.active and transmit
 		_set_local_speaking(active)
 		if active:
 			send_voice(result.packet)

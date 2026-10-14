@@ -9,6 +9,8 @@ var ui: Control
 var xr_active := false
 var pointers: Array[Node3D] = []
 var _world_load_generation := 0
+var _panel_body_cache: Node3D
+var _ray_cache: Dictionary = {}
 
 
 func _ready() -> void:
@@ -277,17 +279,22 @@ func _menu_changed(open: bool) -> void:
 
 
 func _update_pointers() -> void:
+	var in_room_cached: bool = Networking.room_networking.current_room != null and not ui.world_loading
+	var panel_visible := is_instance_valid(panel) and panel.visible
 	for index in range(pointers.size() - 1, -1, -1):
 		var pointer := pointers[index]
 		if not is_instance_valid(pointer):
 			pointers.remove_at(index)
+			_ray_cache.erase(pointer)
 			continue
 		var controller := pointer.get_parent() as XRController3D
-		var in_lobby := controller.get_parent() == lobby_origin
-		var correct_rig: bool = in_lobby == (Networking.room_networking.current_room == null or ui.world_loading)
+		if controller == null:
+			continue
+		var in_lobby := is_instance_valid(lobby_origin) and controller.get_parent() == lobby_origin
+		var correct_rig: bool = in_lobby != in_room_cached
 		var hand := "left" if controller.tracker == &"left_hand" else "right"
 		var tracked := PlatformXRInput.hand_tracker(hand)
-		pointer.enabled = panel.visible and correct_rig and controller.get_is_active() and not PlatformXRInput.optical_hand(tracked)
+		pointer.enabled = panel_visible and correct_rig and controller.get_is_active() and not PlatformXRInput.optical_hand(tracked)
 		# Legacy controller hands stay local to the moving rig. Optical hands
 		# are rendered from joint data by the tracked-hand sibling instead.
 		var grip := controller.get_parent().get_node_or_null("LeftHand" if hand == "left" else "RightHand")
@@ -296,17 +303,31 @@ func _update_pointers() -> void:
 
 
 func _process(delta: float) -> void:
-	if not xr_active:
+	if not xr_active or not is_instance_valid(panel) or not panel.visible:
 		return
 	var stick := Vector2.ZERO
 	var point := Vector2(-1, -1)
-	var body = panel.get_node("StaticBody3D")
+	if _panel_body_cache == null or not is_instance_valid(_panel_body_cache):
+		_panel_body_cache = panel.get_node("StaticBody3D")
+	var body = _panel_body_cache
 	_update_pointers()
 	for pointer in pointers:
+		if not is_instance_valid(pointer) or not pointer.enabled:
+			continue
 		var controller := pointer.get_parent() as XRController3D
-		var ray := pointer.get_node("RayCast") as RayCast3D
+		# is_instance_valid guards the freed-safe check; `as` errors on
+		# freed instances, so it must come second.
+		var ray: RayCast3D = null
+		var cached_ray: Variant = _ray_cache.get(pointer)
+		if cached_ray != null and is_instance_valid(cached_ray):
+			ray = cached_ray as RayCast3D
+		else:
+			ray = pointer.get_node("RayCast") as RayCast3D
+			_ray_cache[pointer] = ray
+		if ray == null or not ray.is_colliding() or ray.get_collider() != body:
+			continue
 		var input := PlatformXRInput.stick(controller)
-		if pointer.enabled and ray.is_colliding() and ray.get_collider() == body and input.length_squared() > stick.length_squared():
+		if input.length_squared() > stick.length_squared():
 			stick = input
 			point = body.global_to_viewport(ray.get_collision_point())
 	ui.get_node("Navigation").handle_stick(stick, point, delta)

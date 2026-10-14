@@ -1,11 +1,15 @@
 extends Node3D
 ## The normal room flow owns player creation. This world only handles recovery.
 
+var _players_cache: Node3D
+
+
 func _physics_process(_delta: float) -> void:
-	var players := get_node_or_null("../Players")
-	if players == null:
-		return
-	for player in players.get_children():
+	if _players_cache == null or not is_instance_valid(_players_cache):
+		_players_cache = get_node_or_null("../Players") as Node3D
+		if _players_cache == null:
+			return
+	for player in _players_cache.get_children():
 		if player is CharacterBody3D and player.is_multiplayer_authority():
 			var local_position := to_local(player.global_position)
 			if local_position.y < -4 or absf(local_position.x) > 15 or absf(local_position.z) > 22:

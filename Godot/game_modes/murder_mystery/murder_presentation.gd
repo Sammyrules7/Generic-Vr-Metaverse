@@ -18,6 +18,12 @@ var _held: Dictionary = {}
 var _ghost_material: StandardMaterial3D
 var _scene_display: Node
 var _focused_item := ""
+var _avatar_meshes: Dictionary = {}
+var _avatar_mesh_counts: Dictionary = {}
+var _avatar_refs: Dictionary = {}
+var _nametag_refs: Dictionary = {}
+var _player_style: Dictionary = {}
+var _mesh_watch: Dictionary = {}
 
 
 func setup(players_root: Node3D, local_player: NetworkPlayer, map: Node3D) -> void:
@@ -120,6 +126,8 @@ func _make_attack_sound(weapon: String) -> AudioStreamWAV:
 
 func _process(_delta: float) -> void:
 	# Names and avatars can arrive after a snapshot, or change asynchronously.
+	# The mesh lists below are cached per player, so the steady-state frame
+	# only restyles players whose ghost/visibility/weapon state actually changed.
 	_refresh_players()
 
 
@@ -142,6 +150,62 @@ func _remember(node: Node3D) -> Dictionary:
 	return _originals[id]
 
 
+func _avatar_meshes_cached(player: NetworkPlayer, avatar: Node3D) -> Array:
+	var id := player.get_instance_id()
+	var cached: Variant = _avatar_meshes.get(id)
+	var fresh_needed := true
+	if cached != null and cached is Array:
+		var list := cached as Array
+		if list.size() == int(_avatar_mesh_counts.get(id, -1)) and (list.is_empty() or is_instance_valid(list[0])):
+			fresh_needed = false
+			return list
+	if fresh_needed:
+		var fresh := avatar.find_children("*", "GeometryInstance3D", true, false)
+		_avatar_meshes[id] = fresh
+		_avatar_mesh_counts[id] = fresh.size()
+		return fresh
+	return []
+
+
+func _avatar_cached(player: NetworkPlayer) -> Node3D:
+	var id := player.get_instance_id()
+	# is_instance_valid is the only freed-safe check; `is`/`as` error on
+	# freed instances, so guard with it before touching the cached ref.
+	var cached: Variant = _avatar_refs.get(id)
+	if cached != null and is_instance_valid(cached):
+		return cached as Node3D
+	var avatar := player.get_node_or_null("Avatar") as Node3D
+	if avatar != null:
+		_avatar_refs[id] = avatar
+	return avatar
+
+
+func _nametag_cached(player: NetworkPlayer) -> Label3D:
+	var id := player.get_instance_id()
+	var cached: Variant = _nametag_refs.get(id)
+	if cached != null and is_instance_valid(cached):
+		return cached as Label3D
+	var tag := player.get_node_or_null("NameTag") as Label3D
+	if tag != null:
+		_nametag_refs[id] = tag
+	return tag
+
+
+func _watch_avatar(player_id: int, avatar: Node3D) -> void:
+	var aid := avatar.get_instance_id()
+	if _mesh_watch.has(aid):
+		return
+	_mesh_watch[aid] = player_id
+	avatar.child_entered_tree.connect(_on_avatar_child_changed.bind(player_id))
+	avatar.child_exiting_tree.connect(_on_avatar_child_changed.bind(player_id))
+
+
+func _on_avatar_child_changed(_node: Node, player_id: int) -> void:
+	_avatar_meshes.erase(player_id)
+	_avatar_mesh_counts.erase(player_id)
+	_player_style.erase(player_id)
+
+
 func _refresh_players() -> void:
 	if not is_instance_valid(_players_root):
 		return
@@ -160,24 +224,40 @@ func _refresh_players() -> void:
 			state = _self_state()
 		var ghost := _is_ghost(state)
 		var visible_to_viewer := not ghost or viewer_ghost
-		var avatar := player.get_node_or_null("Avatar") as Node3D
-		if avatar != null:
-			_remember(avatar)
-			avatar.visible = not local and visible_to_viewer
-			for mesh in avatar.find_children("*", "GeometryInstance3D", true, false):
-				var original := _remember(mesh)
-				mesh.material_override = _ghost_material if ghost else original["material"]
-				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if ghost else original["shadow"]
-		var name_tag := player.get_node_or_null("NameTag") as Label3D
-		if name_tag != null:
-			var original := _remember(name_tag)
-			name_tag.visible = not local and visible_to_viewer
-			name_tag.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if ghost else original["shadow"]
 		var weapon: String = str(state.get("weapon", ""))
 		if local and not state.get("equipped", false):
 			weapon = ""
 		if ghost or not state.get("participating", false) or _snapshot.get("phase", "") != "active":
 			weapon = ""
+		var avatar := _avatar_cached(player)
+		var name_tag := _nametag_cached(player)
+		if avatar != null:
+			_watch_avatar(player.get_instance_id(), avatar)
+		# Steady-state frames skip engine writes entirely. Node identity is
+		# part of the style so freed/recreated tags and late meshes restyle
+		# on arrival; any ghost/visibility/weapon change restyles immediately.
+		var style := [ghost, visible_to_viewer, weapon, avatar.get_instance_id() if avatar != null else 0, name_tag.get_instance_id() if name_tag != null else 0]
+		var meshes: Array = []
+		if avatar != null:
+			meshes = _avatar_meshes_cached(player, avatar)
+			style.append(meshes.size())
+		var last: Variant = _player_style.get(player.get_instance_id())
+		if last != null and last is Array and (last as Array) == style:
+			present[peer_id] = true
+			_refresh_held(player, peer_id, weapon, local)
+			continue
+		_player_style[player.get_instance_id()] = style
+		if avatar != null:
+			_remember(avatar)
+			avatar.visible = not local and visible_to_viewer
+			for mesh in meshes:
+				var original := _remember(mesh)
+				mesh.material_override = _ghost_material if ghost else original["material"]
+				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if ghost else original["shadow"]
+		if name_tag != null:
+			var original := _remember(name_tag)
+			name_tag.visible = not local and visible_to_viewer
+			name_tag.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if ghost else original["shadow"]
 		present[peer_id] = true
 		_refresh_held(player, peer_id, weapon, local)
 	for peer_id in _held.keys():
@@ -264,6 +344,12 @@ func clear() -> void:
 			node.material_override = record["material"]
 			node.cast_shadow = record["shadow"]
 	_originals.clear()
+	_avatar_meshes.clear()
+	_avatar_mesh_counts.clear()
+	_avatar_refs.clear()
+	_nametag_refs.clear()
+	_player_style.clear()
+	_mesh_watch.clear()
 	if is_instance_valid(_ghost_details):
 		_ghost_details.visible = _ghost_details_visible
 	if is_instance_valid(_items_root):

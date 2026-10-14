@@ -10,6 +10,9 @@ var pinching := false
 var pinch_release_time := 0.0
 var pinch_release_samples := 0
 var pinch_hand := ""
+var _origin: XROrigin3D
+var _right_hand: XRController3D
+var _left_hand: XRController3D
 
 
 func _ready() -> void:
@@ -17,6 +20,9 @@ func _ready() -> void:
 	head = $Origin/HMDView
 	left_hand = $Origin/LeftHand
 	right_hand = $Origin/RightHand
+	_origin = $Origin as XROrigin3D
+	_left_hand = $Origin/LeftHand
+	_right_hand = $Origin/RightHand
 	get_viewport().use_xr = true
 	$Origin/HMDView.current = true
 	$Origin/RightHand.button_pressed.connect(_button_pressed)
@@ -38,9 +44,19 @@ func update(delta: float) -> void:
 		pinch_hand = ""
 		return
 	sync_room_scale()
-	var look := PlatformXRInput.stick($Origin/RightHand)
+	var look := PlatformXRInput.stick(_right_hand)
 	rotate_around_head(-filtered_stick(Vector2(look.x, 0.0)).x * rotation_speed * delta)
-	var input := PlatformXRInput.stick($Origin/LeftHand)
+	var input := PlatformXRInput.stick(_left_hand)
+	var filtered := filtered_stick(input)
+	# Stick wins outright; skip the tracker + joint queries entirely.
+	if not filtered.is_zero_approx():
+		pinching = false
+		pinch_release_time = 0.0
+		pinch_release_samples = 0
+		pinch_hand = ""
+		# OpenXR stick up is positive Y; shared movement forward is negative Y.
+		movement = planar_direction(Vector2(filtered.x, -filtered.y), head.global_basis)
+		return
 	var hand := _hand_pinch()
 	movement = planar_direction(select_movement(input, hand.x > 0.5, hand.y, delta), head.global_basis)
 
@@ -112,7 +128,7 @@ func _hand_pinch() -> Vector2:
 
 
 func rotate_around_head(angle: float) -> void:
-	var origin := $Origin as XROrigin3D
+	var origin := _origin as XROrigin3D
 	var pivot := head.global_position
 	origin.global_transform = Transform3D(Basis(Vector3.UP, angle), pivot) * Transform3D(Basis.IDENTITY, -pivot) * origin.global_transform
 
@@ -125,4 +141,4 @@ func sync_room_scale() -> void:
 	if offset.length_squared() < 0.000001:
 		return
 	body.move_and_collide(offset)
-	$Origin.global_position -= offset
+	_origin.global_position -= offset
