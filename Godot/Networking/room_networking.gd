@@ -3,6 +3,9 @@ extends RefCounted
 
 # This is session state, not a scene component. Supplying MultiplayerAPI lets
 # the game and isolated tests use it without attaching it to the scene tree.
+# Room payloads decode into roomClass (res://UI/room_class.gd), the shared
+# UI/network model mirroring the Server Room packet. See its header before
+# adding fields.
 const Packets = preload("res://Networking/Generated/Packets.gd")
 const REQUEST_TIMEOUT_MS := 10000
 

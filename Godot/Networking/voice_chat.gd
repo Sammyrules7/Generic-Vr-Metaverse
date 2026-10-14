@@ -68,11 +68,34 @@ func send_voice(packet: PackedByteArray) -> void:
 			voice_packet.rpc_id(peer_id, packet)
 
 
+func bind_signaling(signaling: RoomNetworking) -> void:
+	if room_networking != null and room_networking != signaling:
+		if room_networking.room_joined.is_connected(_start_voice):
+			room_networking.room_joined.disconnect(_start_voice)
+		if room_networking.room_left.is_connected(_stop_voice):
+			room_networking.room_left.disconnect(_stop_voice)
+		if room_networking.room_left.is_connected(_reset_audience_policy):
+			room_networking.room_left.disconnect(_reset_audience_policy)
+	room_networking = signaling
+	if not room_networking.room_joined.is_connected(_start_voice):
+		room_networking.room_joined.connect(_start_voice)
+	if not room_networking.room_left.is_connected(_stop_voice):
+		room_networking.room_left.connect(_stop_voice)
+	if not room_networking.room_left.is_connected(_reset_audience_policy):
+		room_networking.room_left.connect(_reset_audience_policy)
+	if worker_running and is_inside_tree() and room_networking.current_room != null:
+		_start_voice(room_networking.current_room)
+
+
 func _ready() -> void:
-	room_networking = get_parent().room_networking
-	room_networking.room_joined.connect(_start_voice)
-	room_networking.room_left.connect(_stop_voice)
-	room_networking.room_left.connect(func(): set_audience_policy(Callable()))
+	if room_networking == null:
+		# Fallback for scenes/tests that instance VoiceChat without injection.
+		# Preferred path is the Networking autoload setting room_networking before add_child.
+		room_networking = get_parent().get("room_networking") as RoomNetworking
+	if room_networking == null:
+		push_error("VoiceChat has no RoomNetworking; voice will stay idle")
+		return
+	bind_signaling(room_networking)
 	multiplayer.peer_disconnected.connect(_remove_speaker)
 	if OS.has_feature("android"):
 		get_tree().on_request_permissions_result.connect(_on_permission_result)
@@ -160,6 +183,10 @@ func set_peer_anchor(peer_id: int, anchor: Node3D) -> void:
 func remove_peer_anchor(peer_id: int) -> void:
 	peer_anchors.erase(peer_id)
 	_remove_speaker(peer_id)
+
+
+func _reset_audience_policy() -> void:
+	set_audience_policy(Callable())
 
 
 func _start_voice(_room: roomClass) -> void:

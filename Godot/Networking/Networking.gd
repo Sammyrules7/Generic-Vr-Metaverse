@@ -41,6 +41,8 @@ func _ready() -> void:
 	add_child(player_replication)
 	voice_chat = VoiceChat.new()
 	voice_chat.name = "VoiceChat"
+	# Inject before add_child so _ready keeps it instead of reaching for the parent.
+	voice_chat.room_networking = room_networking
 	add_child(voice_chat)
 	_connect_websocket()
 

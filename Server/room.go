@@ -10,6 +10,9 @@ import (
 
 const maxRoomPlayers = 16
 
+// World allowlist. Must match the IDs in Godot/worlds/world_registry.tres
+// (see WorldDefinition header). Adding a world = registry entry + this map + redeploy.
+
 var supportedWorlds = map[string]struct{}{
 	"floating_island":       {},
 	"moon_garden":           {},
