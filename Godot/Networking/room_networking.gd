@@ -8,8 +8,11 @@ extends RefCounted
 # adding fields.
 const Packets = preload("res://Networking/Generated/Packets.gd")
 const REQUEST_TIMEOUT_MS := 10000
+const RECOVERY_RETRY_MS := 20000
+const MAX_RECOVERY_ATTEMPTS := 4
+const TURN_REFRESH_RETRY_MS := 2000
 
-enum Operation { NONE, CREATE, JOIN, LEAVE, RECOVER }
+enum Operation { NONE, CREATE, JOIN, LEAVE, RECOVER, REFRESH }
 
 signal rooms_replaced(rooms: Array)
 signal room_updated(room: roomClass)
@@ -51,6 +54,11 @@ var _recovering_peers: Dictionary[int, int] = {}
 # active re-offer on loss: a drop during the initial handshake is left to the
 # in-flight exchange instead of being stomped by a competing offer.
 var _stable_peers: Dictionary[int, bool] = {}
+var _recovery_next_attempt: Dictionary[int, int] = {}
+var _recovery_attempts: Dictionary[int, int] = {}
+var _turn_expires_at := 0
+var _turn_refresh_at := 0
+var _turn_refresh_retry_at := 0
 
 
 func _init(multiplayer_api: MultiplayerAPI) -> void:
@@ -215,6 +223,8 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 				else:
 					rtc_mesh.remove_peer(departure.get_peer_id())
 					_recovering_peers.erase(departure.get_peer_id())
+					_recovery_next_attempt.erase(departure.get_peer_id())
+					_recovery_attempts.erase(departure.get_peer_id())
 					_stable_peers.erase(departure.get_peer_id())
 					peer_departed.emit(departure.get_peer_id())
 		Packets.ServerPacket.PayloadCase.RELAY:
@@ -238,7 +248,8 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 		_apply_turn_credentials(joined)
 		for peer in joined.get_peers():
 			rtc_mesh.add_peer(peer, true)
-		client_id_recovered.emit(multiplayer.get_unique_id())
+		if pending_operation != Operation.REFRESH:
+			client_id_recovered.emit(multiplayer.get_unique_id())
 		room_updated.emit(current_room)
 		return ""
 	_stop_mesh()
@@ -265,6 +276,11 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 func _stop_mesh() -> void:
 	detached_session = false
 	_recovering_peers.clear()
+	_recovery_next_attempt.clear()
+	_recovery_attempts.clear()
+	_turn_expires_at = 0
+	_turn_refresh_at = 0
+	_turn_refresh_retry_at = 0
 	_stable_peers.clear()
 	if rtc_mesh != null:
 		rtc_mesh.close()
@@ -275,14 +291,39 @@ func _stop_mesh() -> void:
 
 
 func _apply_turn_credentials(joined: Packets.ServerRoomJoined) -> void:
-	if rtc_mesh == null or not joined.has_turn():
+	_turn_expires_at = 0
+	_turn_refresh_at = 0
+	_turn_refresh_retry_at = 0
+	if rtc_mesh == null:
+		return
+	if not joined.has_turn():
+		rtc_mesh.set_turn_servers([], "", "")
 		return
 	var turn := joined.get_turn()
 	rtc_mesh.set_turn_servers(turn.get_urls(), turn.get_username(), turn.get_password())
+	var ttl_ms: int = turn.get_ttl() * 1000
+	var now := Time.get_ticks_msec()
+	_turn_expires_at = now + ttl_ms
+	# Refresh early enough for a command round trip; scale down for short TTLs.
+	_turn_refresh_at = now + maxi(1, ttl_ms - mini(60000, ttl_ms / 5))
+
+
+func _refresh_turn_if_due(now: int) -> bool:
+	if _turn_expires_at == 0 or now < _turn_refresh_at:
+		return true
+	# Keep established channels alive, but do not allocate with aging credentials.
+	if connected and not detached_session and current_room != null and pending_operation == Operation.NONE and now >= _turn_refresh_retry_at:
+		var packet := Packets.ClientPacket.new()
+		packet.new_room_join().set_room_id(current_room.id)
+		_turn_refresh_retry_at = now + TURN_REFRESH_RETRY_MS
+		_request(Operation.REFRESH, packet)
+	return false
 
 
 func _on_peer_connected(peer_id: int) -> void:
 	_stable_peers[peer_id] = true
+	_recovery_next_attempt.erase(peer_id)
+	_recovery_attempts.erase(peer_id)
 	if _recovering_peers.erase(peer_id):
 		peer_transport_recovered.emit(peer_id)
 
@@ -299,29 +340,36 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if _recovering_peers.has(peer_id):
 		return
 	_recovering_peers[peer_id] = Time.get_ticks_msec() + WebRTCMesh.TRANSPORT_RECOVERY_MS
-	# Both sides observe the same drop; the lower mesh ID re-offers so the two
-	# new offers never cross. Unstable (never-connected) peers get the timeout
-	# but no competing offer: the initial exchange may still complete.
-	if _stable_peers.has(peer_id) and _mesh_local_id != 0 and _mesh_local_id < peer_id:
-		if not rtc_mesh.reconnect_peer(peer_id):
-			_recovering_peers.erase(peer_id)
-			_stable_peers.erase(peer_id)
-			peer_departed.emit(peer_id)
-			return
+	_recovery_next_attempt[peer_id] = 0
+	_recovery_attempts[peer_id] = 0
 	peer_transport_lost.emit(peer_id)
 
 
 func poll_recovery() -> void:
-	if _recovering_peers.is_empty():
-		return
 	var now := Time.get_ticks_msec()
+	# Runs even without transport loss, keeping long-lived room credentials fresh.
+	var credentials_ready := _refresh_turn_if_due(now)
 	for peer_id in _recovering_peers.keys():
 		if now >= _recovering_peers[peer_id]:
 			_recovering_peers.erase(peer_id)
+			_recovery_next_attempt.erase(peer_id)
+			_recovery_attempts.erase(peer_id)
 			_stable_peers.erase(peer_id)
 			if rtc_mesh != null:
 				rtc_mesh.remove_peer(peer_id)
 			peer_departed.emit(peer_id)
+			continue
+		if not credentials_ready or not connected or detached_session or pending_operation != Operation.NONE:
+			continue
+		# Only the lower ID offers; allow each attempt time for ICE and pod startup.
+		if not _stable_peers.has(peer_id) or _mesh_local_id == 0 or _mesh_local_id >= peer_id:
+			continue
+		if now < _recovery_next_attempt.get(peer_id, 0) or _recovery_attempts.get(peer_id, 0) >= MAX_RECOVERY_ATTEMPTS:
+			continue
+		_recovery_next_attempt[peer_id] = now + RECOVERY_RETRY_MS
+		_recovery_attempts[peer_id] = _recovery_attempts.get(peer_id, 0) + 1
+		if rtc_mesh != null:
+			rtc_mesh.reconnect_peer(peer_id)
 
 
 func _decode_room(packet: Packets.Room) -> roomClass:

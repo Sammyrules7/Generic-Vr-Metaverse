@@ -4,10 +4,8 @@ extends RefCounted
 const Packets = preload("res://Networking/Generated/Packets.gd")
 const STUN_URLS := ["stun:stun.l.google.com:19302"]
 const MAX_QUEUED_CANDIDATES := 64
-# Recovery window for a dropped data channel whose peer is still in the room
-# (e.g. coturn restart). Shorter than the room-command timeout so membership
-# churn never waits on transport repair.
-const TRANSPORT_RECOVERY_MS := 5000
+# Allow relay pod startup and several full ICE attempts before giving up.
+const TRANSPORT_RECOVERY_MS := 90000
 # Transfer channel 0 owns WebRTC's three built-in mode-specific channels. Voice
 # uses high-level transfer channel 1, backed by this fourth physical channel.
 const EXTRA_CHANNELS := [MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED]
@@ -19,6 +17,9 @@ var multiplayer_peer: WebRTCMultiplayerPeer
 var session_id: int
 # Peer IDs survive room changes; session IDs identify a particular membership.
 var peer_sessions: Dictionary[int, int] = {}
+# Monotonic across removals/close: membership sessions survive transport repair.
+var _attempt_serial := 0
+var _peer_attempts: Dictionary[int, int] = {}
 var signaling_unavailable: Dictionary[int, bool] = {}
 # ICE callbacks can precede SDP processing. Keep candidates until the remote
 # description is applied; removing the entry also marks that peer as ready.
@@ -50,6 +51,7 @@ func start(local_id: int, in_session: int) -> Error:
 
 
 func close() -> void:
+	_peer_attempts.clear()
 	if multiplayer_peer != null:
 		multiplayer_peer.close()
 	queued_candidates.clear()
@@ -64,13 +66,20 @@ func add_peer(peer: Packets.Peer, make_offer: bool) -> void:
 		return
 	if peer_sessions.get(peer_id) == peer.get_session_id() and multiplayer_peer.has_peer(peer_id):
 		return
+	_replace_peer(peer, make_offer)
+
+
+func _replace_peer(peer: Packets.Peer, make_offer: bool) -> void:
+	var peer_id := peer.get_id()
 	remove_peer(peer_id)
+	_attempt_serial += 1
+	_peer_attempts[peer_id] = _attempt_serial
 	var connection := WebRTCPeerConnection.new()
 	if connection.initialize(ice_servers()) != OK:
 		connection_error.emit("Could not initialize peer %d" % peer_id)
 		return
-	connection.session_description_created.connect(_description_created.bind(peer_id, peer.get_session_id()))
-	connection.ice_candidate_created.connect(_candidate_created.bind(peer_id, peer.get_session_id()))
+	connection.session_description_created.connect(_description_created.bind(peer_id, peer.get_session_id(), _attempt_serial))
+	connection.ice_candidate_created.connect(_candidate_created.bind(peer_id, peer.get_session_id(), _attempt_serial))
 	if multiplayer_peer.add_peer(connection, peer_id) != OK:
 		connection.close()
 		connection_error.emit("Could not add peer %d to mesh" % peer_id)
@@ -84,6 +93,7 @@ func add_peer(peer: Packets.Peer, make_offer: bool) -> void:
 
 
 func remove_peer(peer_id: int) -> void:
+	_peer_attempts.erase(peer_id)
 	var connection := _get_connection(peer_id)
 	if connection != null:
 		connection.close()
@@ -104,8 +114,14 @@ func reconnect_peer(peer_id: int) -> bool:
 	var peer := Packets.Peer.new()
 	peer.set_id(peer_id)
 	peer.set_session_id(peer_sessions[peer_id])
-	add_peer(peer, true)
-	return peer_sessions.has(peer_id)
+	if multiplayer_peer == null:
+		return false
+	# Explicit replacement bypasses add_peer's same-membership duplicate guard.
+	_replace_peer(peer, true)
+	var replaced := peer_sessions.has(peer_id)
+	# Keep membership available for the next bounded retry after allocation failure.
+	peer_sessions[peer_id] = peer.get_session_id()
+	return replaced
 
 
 func suspend_peer_signaling(peer_id: int) -> void:
@@ -168,9 +184,9 @@ func receive_relay(relay: Packets.ServerRelay) -> void:
 			connection_error.emit("Peer %d sent empty signaling data" % peer_id)
 
 
-func _description_created(type: String, sdp: String, peer_id: int, peer_session: int) -> void:
+func _description_created(type: String, sdp: String, peer_id: int, peer_session: int, attempt: int) -> void:
 	# A callback from an old connection must not signal the replacement for that ID.
-	if signaling_unavailable.has(peer_id) or peer_sessions.get(peer_id) != peer_session:
+	if _peer_attempts.get(peer_id) != attempt or signaling_unavailable.has(peer_id) or peer_sessions.get(peer_id) != peer_session:
 		return
 	var connection := _get_connection(peer_id)
 	if connection == null:
@@ -189,8 +205,8 @@ func _description_created(type: String, sdp: String, peer_id: int, peer_session:
 	packet_created.emit(packet)
 
 
-func _candidate_created(media: String, index: int, candidate: String, peer_id: int, peer_session: int) -> void:
-	if signaling_unavailable.has(peer_id) or peer_sessions.get(peer_id) != peer_session or _get_connection(peer_id) == null:
+func _candidate_created(media: String, index: int, candidate: String, peer_id: int, peer_session: int, attempt: int) -> void:
+	if _peer_attempts.get(peer_id) != attempt or signaling_unavailable.has(peer_id) or peer_sessions.get(peer_id) != peer_session or _get_connection(peer_id) == null:
 		return
 	var packet := Packets.ClientPacket.new()
 	var relay = packet.new_relay()
