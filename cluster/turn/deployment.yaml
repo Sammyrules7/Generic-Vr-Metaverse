@@ -69,11 +69,13 @@ spec:
               cpu: 500m
               memory: 256Mi
           securityContext:
+            # NOTE: no readOnlyRootFilesystem. turnserver needs runtime
+            # writable paths (pid file, working dir) and its entrypoint
+            # cannot exec under a read-only root.
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
-            readOnlyRootFilesystem: true
       volumes:
         - name: config
           secret:
