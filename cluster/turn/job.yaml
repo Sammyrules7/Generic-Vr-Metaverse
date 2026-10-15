@@ -1,0 +1,89 @@
+# One-shot provisioner for the TURN shared secret. Runs on every Flux reconcile
+# but only acts when a Secret is missing, so re-applies are safe no-ops and it
+# can never rotate credentials out from under running pods. Delete this Job to
+# force regeneration (for example after a suspected leak), then restart the
+# server and coturn Deployments.
+#
+# Uses the in-cluster API directly (curl + ServiceAccount token) so no kubectl
+# binary is needed in the image.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vr-platform-turn
+        app.kubernetes.io/part-of: vr-platform
+    spec:
+      restartPolicy: Never
+      serviceAccountName: turn-init
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: init
+          image: docker.io/curlimages/curl:8.12.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              NS="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+              TOKEN="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+              CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              API="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT"
+              auth() { curl -sS --cacert "$CA" -H "Authorization: Bearer $TOKEN" "$@"; }
+              code() { auth -o /dev/null -w "%{http_code}" "$@"; }
+
+              secret_present() { [ "$(code "$API/api/v1/namespaces/$NS/secrets/$1")" = "200" ]; }
+
+              if secret_present turn-config && secret_present signaling-turn; then
+                echo "TURN secrets already exist; nothing to do."
+                exit 0
+              fi
+
+              SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
+              # Relayed media uses ports 49160-49200 so the firewall only
+              # needs that UDP range plus 3478, not all ephemeral ports.
+              CONF="$(printf 'listening-port=3478\nrealm=vr.maio-tech.com\nstatic-auth-secret=%s\nmin-port=49160\nmax-port=49200\nfingerprint\nlog-file=stdout\n' "$SECRET" | base64 -w0)"
+              create_secret() {
+                # $1 name, $2 JSON data object. 201 created, 409 already there
+                # (a concurrent run won the race); anything else is fatal.
+                http="$(auth -o /dev/null -w "%{http_code}" -X POST -H 'Content-Type: application/json' \
+                  -d "{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"name\":\"$1\",\"namespace\":\"$NS\"},\"data\":$2}" \
+                  "$API/api/v1/namespaces/$NS/secrets")"
+                [ "$http" = "201" ] || [ "$http" = "409" ] || { echo "failed to create secret $1: HTTP $http"; exit 1; }
+              }
+              create_secret turn-config "{\"turnserver.conf\":\"$CONF\"}"
+              create_secret signaling-turn "{\"shared-secret\":\"$(printf '%s' "$SECRET" | base64 -w0)\"}"
+              echo "TURN secrets created."
+
+              # Boot-time config: pods that started before the secrets existed
+              # run STUN-only. Bounce the workloads that consume them when the
+              # secrets are newly created (skipped on fresh installs where the
+              # Deployments do not exist yet — those pods start with secrets).
+              STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              for deploy in server coturn; do
+                if [ "$(code "$API/apis/apps/v1/namespaces/$NS/deployments/$deploy")" = "200" ]; then
+                  auth -o /dev/null -s -X PATCH -H 'Content-Type: application/strategic-merge-patch+json' \
+                    -d "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"vr-platform.turn-restart\":\"$STAMP\"}}}}}" \
+                    "$API/apis/apps/v1/namespaces/$NS/deployments/$deploy" > /dev/null
+                  echo "restarted $deploy"
+                fi
+              done

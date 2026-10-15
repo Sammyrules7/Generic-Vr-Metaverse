@@ -4,3 +4,5 @@ namespace: vr-platform
 resources:
   - deployment.yaml
   - service.yaml
+  - rbac.yaml
+  - job.yaml
