@@ -8,7 +8,9 @@ var panel: XRToolsViewport2DIn3D
 var ui: Control
 var xr_active := false
 var pointers: Array[Node3D] = []
+const WORLD_ADAPTER := preload("res://worlds/world_adapter.gd")
 var _world_load_generation := 0
+var _pending_world: Node3D
 var _panel_body_cache: Node3D
 var _ray_cache: Dictionary = {}
 
@@ -86,6 +88,9 @@ func _disable_xr_lobby() -> void:
 
 func load_world(world_id: String) -> Marker3D:
 	_world_load_generation += 1
+	if is_instance_valid(_pending_world):
+		_retire_world(_pending_world)
+	_pending_world = null
 	var generation := _world_load_generation
 	# PlayerManager can join an existing room while children are still entering
 	# the tree, before Main and the selector have run their _ready callbacks.
@@ -94,9 +99,9 @@ func load_world(world_id: String) -> Marker3D:
 	if generation != _world_load_generation or not is_inside_tree():
 		return null
 	# Room IDs resolve only to bundled scenes, never to arbitrary network paths.
-	var id := world_id if WorldCatalog.WORLDS.has(world_id) else WorldCatalog.default_id()
-	if id.is_empty():
-		push_error("Could not load world: the world catalog is empty")
+	var id := world_id
+	if not WorldCatalog.WORLDS.has(id):
+		push_error("Could not load unknown world ID: " + id)
 		ui.finish_world_loading(false)
 		return null
 	ui.begin_world_loading(id)
@@ -138,8 +143,11 @@ func load_world(world_id: String) -> Marker3D:
 	await get_tree().process_frame
 	if generation != _world_load_generation or not is_inside_tree():
 		return null
-	var world := packed.instantiate() as Node3D
-	if world == null:
+	var instance := packed.instantiate()
+	var world := instance as Node3D
+	if world == null or not WORLD_ADAPTER.validate(world):
+		if is_instance_valid(instance):
+			instance.free()
 		ui.finish_world_loading(false)
 		return null
 	world.set_meta("defer_world_build", true)
@@ -148,10 +156,9 @@ func load_world(world_id: String) -> Marker3D:
 			if generation == _world_load_generation:
 				ui.set_world_loading_progress("Preparing world…", 0.7 + progress * 0.25)
 		)
-	world.name = "World"
-	var old_world := get_node_or_null("World")
-	if old_world != null:
-		_retire_world(old_world)
+	world.name = "PendingWorld"
+	_pending_world = world
+	world.hide()
 	add_child(world)
 	if world.has_method("prepare_world"):
 		world.set_meta("preparation_pending", true)
@@ -162,11 +169,18 @@ func load_world(world_id: String) -> Marker3D:
 		if is_instance_valid(world):
 			world.queue_free()
 		return null
-	var spawn := world.get_node_or_null("SpawnPoint") as Marker3D
+	var spawn := WORLD_ADAPTER.spawn_point(world)
 	if spawn == null:
+		_pending_world = null
 		world.queue_free()
 		ui.finish_world_loading(false)
 		return null
+	_pending_world = null
+	var old_world := get_node_or_null("World") as Node3D
+	if old_world != null:
+		_retire_world(old_world)
+	world.name = "World"
+	world.show()
 	ui.set_world_loading_progress("Entering world…", 0.95)
 	return spawn
 
@@ -200,6 +214,9 @@ func _activate_player_rig() -> void:
 
 func _left() -> void:
 	_world_load_generation += 1
+	if is_instance_valid(_pending_world):
+		_retire_world(_pending_world)
+	_pending_world = null
 	var world := get_node_or_null("World")
 	if world != null:
 		_retire_world(world)

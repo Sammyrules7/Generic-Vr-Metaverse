@@ -7,11 +7,18 @@ concurrency:
 on:
   push:
     branches:
+      - main
       - Multiplayer
       - t3code/add-voip-support
     paths:
       - Godot/**
       - '!Godot/**/*.md'
+      - Protocol/**
+      - scripts/publish_web.sh
+      - scripts/check_delivery.py
+      - flake.nix
+      - flake.lock
+      - nix/images/**
       - .forgejo/workflows/Web-preview.yaml
   workflow_dispatch:
     inputs:
@@ -95,7 +102,20 @@ jobs:
       - name: Configure main signaling backend
         env:
           VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
-        run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tools/configure_release.gd
+        run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tools/configure_release.gd -- --web
+
+      - name: Record delivery identity
+        env:
+          VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: |
+          mkdir -p "$EXPORT_DIR"
+          {
+            printf 'commit=%s\nendpoint=%s\n' "$BUILD_COMMIT" "$VR_PLATFORM_SERVER_URL"
+            godot --version
+            sha256sum "$(command -v godot)"
+            find /share/godot/export_templates -name 'web_*.zip' -exec sha256sum {} + | sort
+            sha256sum flake.nix flake.lock .forgejo/workflows/Web-preview.yaml Godot/export_presets.cfg
+          } > "$EXPORT_DIR/delivery-identity.txt"
 
       - name: Export web client
         run: |
@@ -129,6 +149,7 @@ jobs:
       - name: Checkout deployment configuration
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.web-preview.outputs.commit }}
           persist-credentials: false
 
       - name: Download web client

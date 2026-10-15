@@ -71,15 +71,22 @@ func _run() -> void:
 	# Exercise cancellation while procedural geometry is actively yielding.
 	_load_world(game, "prairie_crossing")
 	for frame in 600:
-		if game.get_node_or_null("World") != null:
+		if game.get_node_or_null("PendingWorld") != null:
 			break
 		await get_tree().process_frame
-	check(game.get_node_or_null("World") != null, "Procedural load never started")
+	check(game.get_node_or_null("PendingWorld") != null, "Procedural load never started")
 	state.room_left.emit()
 	for frame in 10:
 		await get_tree().process_frame
 	check(completed == 2 and last_spawn == null, "Procedural cancellation did not finish")
 	check(game.get_node_or_null("World") == null and game.get_node_or_null("CancelledWorld") == null, "Cancelled geometry leaked into the lobby")
+
+	# Unknown IDs must fail without substituting content or retiring the old world.
+	var retained := Node3D.new()
+	retained.name = "World"
+	game.add_child(retained)
+	var unknown: Marker3D = await game.load_world("not_a_bundled_world")
+	check(unknown == null and game.get_node_or_null("World") == retained, "Unknown ID replaced the current world")
 
 	# A malformed bundled scene should leave an actionable error, never blank UI.
 	var definition := WorldDefinition.new()
@@ -91,6 +98,7 @@ func _run() -> void:
 	var point: Marker3D = await game.load_world(definition.id)
 	check(point == null and not ui.world_loading and ui.menu_open, "Failed load must restore the menu")
 	check(ui.get_node("%Resume").disabled and ui.get_node("%SessionStatus").text.contains("Could not load"), "Failed load needs an error and disabled Resume")
+	check(game.get_node_or_null("World") == retained, "Invalid adapter retired the current world")
 	WorldCatalog.WORLDS.erase(definition.id)
 	state.current_room = null
 	state.room_left.emit()

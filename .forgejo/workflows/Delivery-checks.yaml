@@ -1,0 +1,33 @@
+name: Delivery drift checks
+on:
+  push:
+    branches: [main, Multiplayer]
+    paths:
+      - Godot/**
+      - Server/**
+      - Protocol/**
+      - native-libraries.json
+      - scripts/check_delivery.py
+      - flake.nix
+      - flake.lock
+      - .gitattributes
+      - .forgejo/workflows/Delivery-checks.yaml
+  pull_request:
+  workflow_dispatch:
+jobs:
+  drift:
+    runs-on: nix
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          persist-credentials: false
+      - name: Check native libraries, world allowlist, LFS and generated protocol
+        run: |
+          nix develop --command bash -euo pipefail -c '
+            python3 scripts/check_delivery.py
+            godot --headless --xr-mode off --editor --import --path Godot
+            bash Protocol/generate.sh
+            git diff --exit-code -- Server/protocol/packets.pb.go Godot/Networking/Generated/Packets.gd
+            godot --headless --xr-mode off --path Godot res://tests/world_loading_test.tscn
+          '

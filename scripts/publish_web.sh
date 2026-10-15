@@ -13,8 +13,16 @@ trap 'rm -f "$pointer_file"' EXIT
 printf '%s\n' "$BUILD_COMMIT" > "$pointer_file"
 s3() { s5cmd --endpoint-url "$GARAGE_ENDPOINT" "$@"; }
 
+test -s "$EXPORT_DIR/delivery-identity.txt"
+
 # A completed commit is immutable even when its workflow is rerun.
-if ! s3 ls "$build_prefix/complete.txt" >/dev/null; then
+if s3 ls "$build_prefix/complete.txt" >/dev/null; then
+  remote_identity="$(s3 cat "$build_prefix/assets/delivery-identity.txt")"
+  if [[ "$remote_identity" != "$(cat "$EXPORT_DIR/delivery-identity.txt")" ]]; then
+    echo "Refusing to reuse commit with a different endpoint/toolchain identity" >&2
+    exit 1
+  fi
+else
   s3 sync "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$build_prefix/assets/"
