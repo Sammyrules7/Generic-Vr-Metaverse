@@ -38,6 +38,20 @@ spec:
               port: websocket
             initialDelaySeconds: 2
             periodSeconds: 10
+          env:
+            # TURN relay for symmetric-NAT clients. All three come from cluster
+            # Secrets created out of band (see cluster/turn/README). Empty
+            # secret/URLs disable the relay; clients stay STUN-only.
+            - name: VR_PLATFORM_TURN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: signaling-turn
+                  key: shared-secret
+                  optional: true
+            - name: VR_PLATFORM_TURN_URLS
+              value: "turn:turn.vr.maio-tech.com:3478"
+            - name: VR_PLATFORM_TURN_TTL_HOURS
+              value: "24"
           livenessProbe:
             tcpSocket:
               port: websocket

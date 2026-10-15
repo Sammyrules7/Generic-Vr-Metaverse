@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"strings"
+	"time"
 
 	"vr.maio-tech.com/server/protocol"
 )
@@ -81,7 +82,7 @@ func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protoc
 	}
 	if client.roomID == roomID {
 		// Acknowledge without changing the session, which preserves the active mesh.
-		return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID)
+		return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 	}
 	if len(room.clients) >= maxRoomPlayers {
 		return errorPacket("room is full")
@@ -112,7 +113,7 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 			return errorPacket("room is full")
 		}
 		if room.clients[recovery.ClientId] == client && client.sessionID == recovery.SessionId {
-			return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID)
+			return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 		}
 	}
 	if _, supported := supportedWorlds[recovery.RecoveryRoom.WorldId]; !supported {
@@ -154,7 +155,7 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 		}
 	}
 	h.broadcast(roomUpdatedPacket(room.packet()))
-	return roomJoinedPacket(room.packet(), peers, client.sessionID)
+	return roomJoinedPacket(room.packet(), peers, client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 }
 
 func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
@@ -177,7 +178,7 @@ func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
 		}
 	}
 	h.broadcast(roomUpdatedPacket(room.packet()))
-	return roomJoinedPacket(room.packet(), peers, client.sessionID)
+	return roomJoinedPacket(room.packet(), peers, client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 }
 
 func (h *Hub) leaveRoom(client *Client, signalingDisconnected ...bool) {

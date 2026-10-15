@@ -28,7 +28,9 @@ var _cached_transport: WebRTCMultiplayerPeer
 
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_peer_connected)
-	multiplayer.peer_disconnected.connect(player_removed.emit)
+	# Despawn is owned by room membership (explicit leave, despawn RPC, or an
+	# expired transport recovery), never by the raw data-channel signal: a
+	# dropped channel whose peer is still in the room must repair, not vanish.
 
 
 func set_local_player(player: NetworkPlayer) -> void:

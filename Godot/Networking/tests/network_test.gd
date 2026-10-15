@@ -258,6 +258,24 @@ func _run() -> void:
 		var remote: NetworkPlayer = bm.players.get_node(str(a.client_id))
 		return remote.global_position.is_equal_approx(Vector3(3, 4, 5)) and remote.get_node("Avatar/Head").position.is_equal_approx(Vector3(0.1, 1.8, 0.2)) and remote.get_node("Avatar/LeftHand").position.is_equal_approx(hand.position), "shared player pose replication"):
 		return
+	# Killing the data channel with membership intact (a coturn restart) must
+	# renegotiate in place: no despawns, no rejoin, same mesh session.
+	var mesh_before: WebRTCMesh = a.room_networking.rtc_mesh
+	var session_before: int = mesh_before.session_id
+	var doomed = mesh_before._get_connection(b.client_id)
+	if not _check(doomed != null, "no live connection to drop"):
+		return
+	doomed.close()
+	await get_tree().create_timer(0.5).timeout
+	if not _check(am.players.get_child_count() == 2 and bm.players.get_child_count() == 2, "transport loss despawned avatars"):
+		return
+	am.local_player.global_position = Vector3(7, 8, 9)
+	if not await _wait_until(func():
+		var remote: NetworkPlayer = bm.players.get_node(str(a.client_id))
+		return remote.global_position.is_equal_approx(Vector3(7, 8, 9)), "post-recovery pose replication"):
+		return
+	if not _check(a.room_networking.rtc_mesh == mesh_before and mesh_before.session_id == session_before, "recovery replaced the mesh session"):
+		return
 	# A new room resets scene-owned players as well as the old mesh.
 	if not await _check_control_plane_survival(a, b):
 		return

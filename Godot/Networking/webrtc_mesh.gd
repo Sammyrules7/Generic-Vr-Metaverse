@@ -2,8 +2,12 @@ class_name WebRTCMesh
 extends RefCounted
 
 const Packets = preload("res://Networking/Generated/Packets.gd")
-const ICE_SERVERS := {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+const STUN_URLS := ["stun:stun.l.google.com:19302"]
 const MAX_QUEUED_CANDIDATES := 64
+# Recovery window for a dropped data channel whose peer is still in the room
+# (e.g. coturn restart). Shorter than the room-command timeout so membership
+# churn never waits on transport repair.
+const TRANSPORT_RECOVERY_MS := 5000
 # Transfer channel 0 owns WebRTC's three built-in mode-specific channels. Voice
 # uses high-level transfer channel 1, backed by this fourth physical channel.
 const EXTRA_CHANNELS := [MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED]
@@ -19,6 +23,24 @@ var signaling_unavailable: Dictionary[int, bool] = {}
 # ICE callbacks can precede SDP processing. Keep candidates until the remote
 # description is applied; removing the entry also marks that peer as ready.
 var queued_candidates: Dictionary[int, Array] = {}
+# Ephemeral TURN credentials from the join reply. Empty until a server with a
+# relay configured admits us. Reused across renegotiations until TTL.
+var turn_urls: Array = []
+var turn_username := ""
+var turn_credential := ""
+
+
+func set_turn_servers(urls: Array, username: String, credential: String) -> void:
+	turn_urls = urls.duplicate()
+	turn_username = username
+	turn_credential = credential
+
+
+func ice_servers() -> Dictionary:
+	var servers: Array = [{"urls": STUN_URLS}]
+	if not turn_urls.is_empty() and not turn_username.is_empty() and not turn_credential.is_empty():
+		servers.append({"urls": turn_urls, "username": turn_username, "credential": turn_credential})
+	return {"iceServers": servers}
 
 
 func start(local_id: int, in_session: int) -> Error:
@@ -44,7 +66,7 @@ func add_peer(peer: Packets.Peer, make_offer: bool) -> void:
 		return
 	remove_peer(peer_id)
 	var connection := WebRTCPeerConnection.new()
-	if connection.initialize(ICE_SERVERS) != OK:
+	if connection.initialize(ice_servers()) != OK:
 		connection_error.emit("Could not initialize peer %d" % peer_id)
 		return
 	connection.session_description_created.connect(_description_created.bind(peer_id, peer.get_session_id()))
@@ -72,6 +94,20 @@ func remove_peer(peer_id: int) -> void:
 	signaling_unavailable.erase(peer_id)
 
 
+func reconnect_peer(peer_id: int) -> bool:
+	# Rebuilds the connection after transport loss (e.g. coturn restart) while
+	# keeping the membership session: stale-relay guards and the remote side's
+	# expectations stay valid, so no rejoin is needed. Returns false when there
+	# is no recorded session for the peer.
+	if not peer_sessions.has(peer_id):
+		return false
+	var peer := Packets.Peer.new()
+	peer.set_id(peer_id)
+	peer.set_session_id(peer_sessions[peer_id])
+	add_peer(peer, true)
+	return peer_sessions.has(peer_id)
+
+
 func suspend_peer_signaling(peer_id: int) -> void:
 	# The data channel stays active, but the directory cannot deliver further ICE.
 	signaling_unavailable[peer_id] = true
@@ -95,6 +131,15 @@ func receive_relay(relay: Packets.ServerRelay) -> void:
 	var peer_id: int = relay.get_sender_id()
 	# Membership notifications precede relays on the ordered signaling socket.
 	var connection := _get_connection(peer_id)
+	if connection == null and relay.get_signal_case() == Packets.ServerRelay.SignalCase.DESCRIPTION and peer_sessions.has(peer_id):
+		# Our side already dropped the dead connection (Godot prunes failed
+		# peers while polling) but the membership session is intact: rebuild
+		# quietly and accept the re-offer instead of dropping it.
+		var rejoin := Packets.Peer.new()
+		rejoin.set_id(peer_id)
+		rejoin.set_session_id(peer_sessions[peer_id])
+		add_peer(rejoin, false)
+		connection = _get_connection(peer_id)
 	if connection == null:
 		return
 

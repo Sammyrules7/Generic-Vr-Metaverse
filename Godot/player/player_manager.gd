@@ -42,6 +42,7 @@ func _ready() -> void:
 		voice_chat = Networking.voice_chat
 	room_networking.room_joined.connect(_room_joined)
 	room_networking.room_left.connect(_clear_players)
+	room_networking.peer_departed.connect(_remove_remote)
 	replication.player_announced.connect(_spawn_remote)
 	replication.name_received.connect(_set_player_name)
 	replication.player_removed.connect(_remove_remote)

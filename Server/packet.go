@@ -102,8 +102,8 @@ func roomRemovedPacket(id uint32) *protocol.ServerPacket {
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomRemoved{RoomRemoved: &protocol.ServerRoomRemoved{RoomId: id}}}
 }
 
-func roomJoinedPacket(room *protocol.Room, peers []*protocol.Peer, sessionID uint32) *protocol.ServerPacket {
-	joined := &protocol.ServerRoomJoined{Room: room, Peers: peers, SessionId: sessionID}
+func roomJoinedPacket(room *protocol.Room, peers []*protocol.Peer, sessionID uint32, turnCreds *protocol.TurnCredentials) *protocol.ServerPacket {
+	joined := &protocol.ServerRoomJoined{Room: room, Peers: peers, SessionId: sessionID, Turn: turnCreds}
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomJoined{RoomJoined: joined}}
 }
 

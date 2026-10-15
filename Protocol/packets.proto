@@ -73,6 +73,21 @@ message ServerRoomJoined {
   Room room = 1;
   repeated Peer peers = 2;
   uint32 session_id = 3;
+  // Ephemeral TURN credentials minted for this membership. Empty when the
+  // server has no relay configured (direct/STUN-only mesh). Survives coturn
+  // restarts: the shared secret persists, so re-offers reuse these until TTL.
+  TurnCredentials turn = 4;
+}
+
+// Username embeds expiry (unix seconds); password is
+// base64(HMAC-SHA1(shared_secret, username)). Standard TURN REST API.
+message TurnCredentials {
+  repeated string urls = 1;
+  string username = 2;
+  string password = 3;
+  // Seconds the credentials stay valid. Clients must rejoin (refreshing them)
+  // before expiry; there is no separate refresh command.
+  uint32 ttl = 4;
 }
 
 message ServerRoomLeft {}

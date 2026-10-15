@@ -49,6 +49,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	var disconnect_reason := "Disconnected from signaling server"
+	room_networking.poll_recovery()
 	if room_networking.request_expired():
 		# The server may have applied the command even though its reply is missing.
 		# Reconnect to discard ambiguous membership instead of retrying the command.
