@@ -21,6 +21,13 @@ signal operation_finished(operation: Operation, success: bool, reason: String)
 signal network_error(reason: String)
 signal packet_created(packet: Packets.ClientPacket)
 signal client_id_recovered(client_id: int)
+# Transport recovery mirrors the signaling-recovery pattern: a dropped data
+# channel whose peer is still a room member triggers a re-offer instead of an
+# immediate despawn (e.g. coturn restart). Only when the peer is gone from the
+# directory, or repair times out, is peer_departed emitted for avatar teardown.
+signal peer_transport_lost(peer_id: int)
+signal peer_transport_recovered(peer_id: int)
+signal peer_departed(peer_id: int)
 
 var multiplayer: MultiplayerAPI
 var connected := false
@@ -34,10 +41,22 @@ var pending_operation := Operation.NONE
 # Keep increasing across reconnects so an old reply cannot match a new command.
 var _request_id := 0
 var _deadline := 0
+# Server-assigned mesh ID for deterministic re-offer elections. The injected
+# MultiplayerAPI reports 1 for every isolated test client, so it cannot elect.
+var _mesh_local_id := 0
+# Peers with a dropped data channel but intact membership, mapped to the
+# millisecond deadline after which the avatar is torn down regardless.
+var _recovering_peers: Dictionary[int, int] = {}
+# Peers whose data channel completed at least once. Only stable peers get an
+# active re-offer on loss: a drop during the initial handshake is left to the
+# in-flight exchange instead of being stomped by a competing offer.
+var _stable_peers: Dictionary[int, bool] = {}
 
 
 func _init(multiplayer_api: MultiplayerAPI) -> void:
 	multiplayer = multiplayer_api
+	multiplayer.peer_connected.connect(_on_peer_connected)
+	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 
 
 func create_room(room_name := "", world_id := "floating_island") -> Error:
@@ -195,6 +214,9 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 					rtc_mesh.suspend_peer_signaling(departure.get_peer_id())
 				else:
 					rtc_mesh.remove_peer(departure.get_peer_id())
+					_recovering_peers.erase(departure.get_peer_id())
+					_stable_peers.erase(departure.get_peer_id())
+					peer_departed.emit(departure.get_peer_id())
 		Packets.ServerPacket.PayloadCase.RELAY:
 			if rtc_mesh != null:
 				rtc_mesh.receive_relay(packet.get_relay())
@@ -210,18 +232,23 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 	# or renegotiate connections that are already working.
 	if rtc_mesh != null and current_room != null and current_room.id == joined.get_room().get_id() and current_room.recovery_token == joined.get_room().get_recovery_token() and rtc_mesh.session_id == joined.get_session_id():
 		current_room = _decode_room(joined.get_room())
+		_mesh_local_id = local_id
 		detached_session = false
 		rtc_mesh.resume_signaling()
+		_apply_turn_credentials(joined)
 		for peer in joined.get_peers():
 			rtc_mesh.add_peer(peer, true)
 		client_id_recovered.emit(multiplayer.get_unique_id())
 		room_updated.emit(current_room)
 		return ""
 	_stop_mesh()
+	_recovering_peers.clear()
 	current_room = _decode_room(joined.get_room())
+	_mesh_local_id = local_id
 	rtc_mesh = WebRTCMesh.new()
 	rtc_mesh.packet_created.connect(packet_created.emit)
 	rtc_mesh.connection_error.connect(network_error.emit)
+	_apply_turn_credentials(joined)
 	var result := rtc_mesh.start(local_id, joined.get_session_id())
 	if result != OK:
 		_stop_mesh()
@@ -237,12 +264,64 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 
 func _stop_mesh() -> void:
 	detached_session = false
+	_recovering_peers.clear()
+	_stable_peers.clear()
 	if rtc_mesh != null:
 		rtc_mesh.close()
 		rtc_mesh = null
 	if not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	current_room = null
+
+
+func _apply_turn_credentials(joined: Packets.ServerRoomJoined) -> void:
+	if rtc_mesh == null or not joined.has_turn():
+		return
+	var turn := joined.get_turn()
+	rtc_mesh.set_turn_servers(turn.get_urls(), turn.get_username(), turn.get_password())
+
+
+func _on_peer_connected(peer_id: int) -> void:
+	_stable_peers[peer_id] = true
+	if _recovering_peers.erase(peer_id):
+		peer_transport_recovered.emit(peer_id)
+
+
+func _on_peer_disconnected(peer_id: int) -> void:
+	# A data channel can drop while membership persists (coturn restart, NAT
+	# rebinding). Repair with a re-offer instead of tearing down the avatar,
+	# mirroring how signaling loss preserves the P2P session. Explicit leaves
+	# already removed the peer from the mesh, so they never reach this branch.
+	if rtc_mesh == null or not rtc_mesh.peer_sessions.has(peer_id):
+		return
+	if not connected or detached_session or current_room == null:
+		return
+	if _recovering_peers.has(peer_id):
+		return
+	_recovering_peers[peer_id] = Time.get_ticks_msec() + WebRTCMesh.TRANSPORT_RECOVERY_MS
+	# Both sides observe the same drop; the lower mesh ID re-offers so the two
+	# new offers never cross. Unstable (never-connected) peers get the timeout
+	# but no competing offer: the initial exchange may still complete.
+	if _stable_peers.has(peer_id) and _mesh_local_id != 0 and _mesh_local_id < peer_id:
+		if not rtc_mesh.reconnect_peer(peer_id):
+			_recovering_peers.erase(peer_id)
+			_stable_peers.erase(peer_id)
+			peer_departed.emit(peer_id)
+			return
+	peer_transport_lost.emit(peer_id)
+
+
+func poll_recovery() -> void:
+	if _recovering_peers.is_empty():
+		return
+	var now := Time.get_ticks_msec()
+	for peer_id in _recovering_peers.keys():
+		if now >= _recovering_peers[peer_id]:
+			_recovering_peers.erase(peer_id)
+			_stable_peers.erase(peer_id)
+			if rtc_mesh != null:
+				rtc_mesh.remove_peer(peer_id)
+			peer_departed.emit(peer_id)
 
 
 func _decode_room(packet: Packets.Room) -> roomClass:

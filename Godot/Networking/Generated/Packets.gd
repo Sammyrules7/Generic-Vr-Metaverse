@@ -1991,6 +1991,12 @@ class ServerRoomJoined:
 		service.field = __session_id
 		data[__session_id.tag] = service
 
+		__turn = PBField.new("turn", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __turn
+		service.func_ref = Callable(self, "new_turn")
+		data[__turn.tag] = service
+
 	var data = {}
 
 	var __room: PBField
@@ -2030,6 +2036,116 @@ class ServerRoomJoined:
 		__session_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_session_id(value : int) -> void:
 		__session_id.value = value
+
+	var __turn: PBField
+	func has_turn() -> bool:
+		if __turn.value != null:
+			return true
+		return false
+	func get_turn() -> TurnCredentials:
+		return __turn.value
+	func clear_turn() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__turn.value = DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE]
+	func new_turn() -> TurnCredentials:
+		__turn.value = TurnCredentials.new()
+		return __turn.value
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+
+class TurnCredentials:
+	func _init():
+		var service
+
+		var __urls_default: Array[String] = []
+		__urls = PBField.new("urls", PB_DATA_TYPE.STRING, PB_RULE.REPEATED, 1, true, __urls_default)
+		service = PBServiceField.new()
+		service.field = __urls
+		data[__urls.tag] = service
+
+		__username = PBField.new("username", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __username
+		data[__username.tag] = service
+
+		__password = PBField.new("password", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __password
+		data[__password.tag] = service
+
+		__ttl = PBField.new("ttl", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __ttl
+		data[__ttl.tag] = service
+
+	var data = {}
+
+	var __urls: PBField
+	func get_urls() -> Array[String]:
+		return __urls.value
+	func clear_urls() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__urls.value.clear()
+	func add_urls(value : String) -> void:
+		__urls.value.append(value)
+
+	var __username: PBField
+	func has_username() -> bool:
+		if __username.value != null:
+			return true
+		return false
+	func get_username() -> String:
+		return __username.value
+	func clear_username() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__username.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_username(value : String) -> void:
+		__username.value = value
+
+	var __password: PBField
+	func has_password() -> bool:
+		if __password.value != null:
+			return true
+		return false
+	func get_password() -> String:
+		return __password.value
+	func clear_password() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__password.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
+	func set_password(value : String) -> void:
+		__password.value = value
+
+	var __ttl: PBField
+	func has_ttl() -> bool:
+		if __ttl.value != null:
+			return true
+		return false
+	func get_ttl() -> int:
+		return __ttl.value
+	func clear_ttl() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__ttl.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_ttl(value : int) -> void:
+		__ttl.value = value
 
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)

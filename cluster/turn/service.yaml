@@ -1,0 +1,27 @@
+# Public entry point for the TURN relay. Klipper (k3s default) provisions a
+# node-anchored external IP; clients must reach it directly (UDP), so the DNS
+# record for the TURN hostname must NOT go through the Cloudflare proxy.
+#
+# externalTrafficPolicy: Local preserves the client source IP (needed for NAT
+# behavior) and avoids an extra cluster hop for relayed media.
+apiVersion: v1
+kind: Service
+metadata:
+  name: coturn
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: vr-platform-turn
+  ports:
+    - name: turn-udp
+      port: 3478
+      targetPort: turn-udp
+      protocol: UDP
+    - name: turn-tcp
+      port: 3478
+      targetPort: turn-tcp
+      protocol: TCP

@@ -1,6 +1,10 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -479,5 +483,66 @@ func TestRecoveredRoomTokenSurvivesFreshHub(t *testing.T) {
 	}
 	if len(h.rooms[room.Id].clients) != 2 {
 		t.Fatal("missing recovered member")
+	}
+}
+
+func TestTurnCredentialsDisabledWithoutConfig(t *testing.T) {
+	saved := turn
+	turn = turnConfig{}
+	defer func() { turn = saved }()
+	if mintTurnCredentials(time.Now(), 7) != nil {
+		t.Fatal("credentials minted without a shared secret")
+	}
+	h := newHub()
+	a := testClient(h)
+	packets(t, a)
+	create(h, a)
+	for _, p := range packets(t, a) {
+		if joined := p.GetRoomJoined(); joined != nil && joined.GetTurn() != nil {
+			t.Fatal("join reply carried TURN credentials with no relay configured")
+		}
+	}
+}
+
+func TestTurnCredentialsMintAndJoin(t *testing.T) {
+	saved := turn
+	turn = turnConfig{secret: "test-shared-secret", urls: []string{"turn:turn.example:3478"}, ttl: 24 * time.Hour}
+	defer func() { turn = saved }()
+	now := time.Now()
+	creds := mintTurnCredentials(now, 7)
+	if creds == nil {
+		t.Fatal("no credentials minted with relay configured")
+	}
+	var expiry int64
+	var clientID uint32
+	if _, err := fmt.Sscanf(creds.GetUsername(), "%d:%d", &expiry, &clientID); err != nil {
+		t.Fatalf("username %q is not expiry:clientID: %v", creds.GetUsername(), err)
+	}
+	if clientID != 7 || expiry < now.Add(23*time.Hour).Unix() || expiry > now.Add(25*time.Hour).Unix() {
+		t.Fatalf("bad username scope: %q", creds.GetUsername())
+	}
+	if creds.GetTtl() != 24*3600 || len(creds.GetUrls()) != 1 {
+		t.Fatalf("bad credential scope: ttl=%d urls=%v", creds.GetTtl(), creds.GetUrls())
+	}
+	mac := hmac.New(sha1.New, []byte("test-shared-secret"))
+	mac.Write([]byte(creds.GetUsername()))
+	if base64.StdEncoding.EncodeToString(mac.Sum(nil)) != creds.GetPassword() {
+		t.Fatal("password is not HMAC-SHA1(secret, username)")
+	}
+	h := newHub()
+	a := testClient(h)
+	packets(t, a)
+	create(h, a)
+	found := false
+	for _, p := range packets(t, a) {
+		if joined := p.GetRoomJoined(); joined != nil && joined.GetTurn() != nil {
+			found = true
+			if joined.GetTurn().GetUsername() == "" || joined.GetTurn().GetPassword() == "" {
+				t.Fatal("join reply carried empty TURN credentials")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("join reply carried no TURN credentials with relay configured")
 	}
 }
