@@ -74,13 +74,17 @@ spec:
               cpu: 500m
               memory: 256Mi
           securityContext:
-            # NOTE: no readOnlyRootFilesystem. turnserver needs runtime
-            # writable paths (pid file, working dir) and its entrypoint
-            # cannot exec under a read-only root.
+            # turnserver ships with file capabilities (bind low ports as
+            # non-root). execve refuses binaries whose file caps fall outside
+            # the bounding set, so drop:ALL alone makes it unexecutable:
+            # keep the bind cap, drop the rest. No readOnlyRootFilesystem
+            # either: turnserver needs runtime writable paths.
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
+              add:
+                - NET_BIND_SERVICE
       volumes:
         - name: config
           secret:
