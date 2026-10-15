@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -38,6 +42,28 @@ func (room *Room) packet() *protocol.Room {
 	return &protocol.Room{Id: room.id, Name: room.name, WorldId: room.worldID, PlayerCount: uint32(len(room.clients)), RecoveryToken: room.recoveryToken}
 }
 
+// Public rooms are anonymous-open. The public nonce is not authentication.
+// Only the join reply carries a capability bound to this member and incarnation.
+// TURN's persistent secret keeps signatures valid across signaling restarts.
+var recoveryKey = func() string {
+	if key := os.Getenv("VR_PLATFORM_TURN_SECRET"); key != "" {
+		return key
+	}
+	return rand.Text() // Local STUN-only mode: recovery cannot survive process restart.
+}()
+
+func memberToken(room *protocol.Room, peerID, sessionID uint32) string {
+	mac := hmac.New(sha256.New, []byte(recoveryKey))
+	fmt.Fprintf(mac, "recovery-v1:%d:%q:%q:%q:%d:%d", room.Id, room.Name, room.WorldId, room.RecoveryToken, peerID, sessionID)
+	return room.RecoveryToken + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (room *Room) memberPacket(client *Client) *protocol.Room {
+	packet := room.packet()
+	packet.RecoveryToken = memberToken(packet, client.meshID(), client.sessionID)
+	return packet
+}
+
 func (room *Room) peers(except uint32) []*protocol.Peer {
 	peers := make([]*protocol.Peer, 0, len(room.clients))
 	for id, client := range room.clients {
@@ -49,6 +75,9 @@ func (room *Room) peers(except uint32) []*protocol.Peer {
 }
 
 func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ...string) *protocol.ServerPacket {
+	if len(h.rooms) >= 128 || !h.turnMints.allow(2, 20) {
+		return errorPacket("room admission limit exceeded")
+	}
 	worldID := "floating_island"
 	if len(requestedWorld) > 0 && requestedWorld[0] != "" {
 		worldID = requestedWorld[0]
@@ -71,6 +100,9 @@ func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ..
 }
 
 func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protocol.ServerPacket {
+	if !h.turnMints.allow(2, 20) {
+		return errorPacket("membership mint quota exceeded")
+	}
 	roomID := request.RoomId
 	// Validate the destination before leaving: a rejected switch keeps the old room.
 	room := h.rooms[roomID]
@@ -82,7 +114,7 @@ func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protoc
 	}
 	if client.roomID == roomID {
 		// Acknowledge without changing the session, which preserves the active mesh.
-		return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
+		return roomJoinedPacket(room.memberPacket(client), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 	}
 	if len(room.clients) >= maxRoomPlayers {
 		return errorPacket("room is full")
@@ -92,6 +124,19 @@ func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protoc
 }
 
 func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, room *Room) *protocol.ServerPacket {
+	// Verify before trusting IDs, advancing counters, or creating rooms.
+	claimed := protocol.Room{Id: recovery.RecoveryRoom.Id, Name: recovery.RecoveryRoom.Name, WorldId: recovery.RecoveryRoom.WorldId, RecoveryToken: recovery.RecoveryRoom.RecoveryToken}
+	nonce, _, ok := strings.Cut(claimed.RecoveryToken, ".")
+	claimed.RecoveryToken = nonce
+	if !ok || !hmac.Equal([]byte(recovery.RecoveryRoom.RecoveryToken), []byte(memberToken(&claimed, recovery.ClientId, recovery.SessionId))) {
+		return errorPacket("invalid member recovery capability")
+	}
+	copyRequest := protocol.ClientRoomJoin{RoomId: recovery.RoomId, ClientId: recovery.ClientId, SessionId: recovery.SessionId}
+	copyRequest.RecoveryRoom = &claimed
+	recovery = &copyRequest
+	if room == nil && len(h.rooms) >= 128 {
+		return errorPacket("room admission limit exceeded")
+	}
 	if recovery.RoomId == 0 || recovery.RecoveryRoom.Id != recovery.RoomId {
 		return errorPacket("invalid recovered room ID")
 	}
@@ -113,7 +158,7 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 			return errorPacket("room is full")
 		}
 		if room.clients[recovery.ClientId] == client && client.sessionID == recovery.SessionId {
-			return roomJoinedPacket(room.packet(), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
+			return roomJoinedPacket(room.memberPacket(client), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 		}
 	}
 	if _, supported := supportedWorlds[recovery.RecoveryRoom.WorldId]; !supported {
@@ -155,7 +200,7 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 		}
 	}
 	h.broadcast(roomUpdatedPacket(room.packet()))
-	return roomJoinedPacket(room.packet(), peers, client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
+	return roomJoinedPacket(room.memberPacket(client), peers, client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 }
 
 func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
@@ -178,7 +223,7 @@ func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {
 		}
 	}
 	h.broadcast(roomUpdatedPacket(room.packet()))
-	return roomJoinedPacket(room.packet(), peers, client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
+	return roomJoinedPacket(room.memberPacket(client), peers, client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 }
 
 func (h *Hub) leaveRoom(client *Client, signalingDisconnected ...bool) {

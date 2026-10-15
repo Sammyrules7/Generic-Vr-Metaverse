@@ -6,44 +6,37 @@ users' traffic.
 
 ## Setup (automatic)
 
-The `turn-init` Job in this directory provisions everything on first Flux
-reconcile: it generates a random shared secret and creates the `turn-config`
-(coturn config file) and `signaling-turn` (server env) Secrets, then bounces
-the server and coturn Deployments so boot-time config picks them up. It is
-idempotent — re-runs are no-ops while both Secrets exist, so it can never
-rotate credentials out from under running pods.
+The `turn-init` Job creates the canonical `turn-shared` key and derives
+`turn-config` (coturn) and `signaling-turn` (server). It checks every surviving
+key before writing, fails on disagreement, and repairs missing Secrets using
+the surviving key. Concurrent creators are re-read and checked. Existing config
+is migrated without rotating the key; changed consumers are restarted.
 
-To rotate after a suspected leak: `kubectl -n vr-platform delete job turn-init`
-and delete both Secrets; Flux recreates the Job, which mints fresh ones.
+To rotate deliberately, stop both consumers, delete all three Secrets and the
+Job, then let Flux reconcile. Deleting only the Job never rotates the key.
 
-The signaling server mints time-boxed credentials from the shared secret (see
-`Server/turn.go`), so no per-user state exists anywhere. `VR_PLATFORM_TURN_URLS`
-in `cluster/server/deployment.yaml` must name the public hostname below —
-change it if yours differs.
+Before reconciliation, point `turn.vr.maio-tech.com` at the stable IPv4
+LoadBalancer address. The Job resolves it into coturn's `external-ip`; update
+DNS and rerun the Job when that address changes. Kubernetes forwards each UDP
+relay port to the identical pod port. This requires the LoadBalancer to preserve
+ports and support the entire relay range; the generated Service exposes all 41
+ports. No host networking is required. The public IPv4 must be reachable through
+any upstream NAT with the same port mapping. IPv6-only deployment is unsupported.
 
-## Setup (manual fallback)
+Rooms and ordinary joins are **anonymous-open**, not account-authenticated.
+Only a member's join reply carries its signed recovery capability in
+`Room.recovery_token`; public room listings carry only an incarnation nonce.
+The HMAC binds room ID/name/world/nonce and peer/session IDs. The persistent
+TURN key verifies it after a signaling restart; without that key, local
+STUN-only recovery survives socket reconnects but not process restarts.
+Capabilities are bearer credentials: protect them with WSS. They do not expire;
+key rotation revokes them. Old unsigned clients must rejoin after this upgrade.
 
-If you prefer imperative commands over the Job, or are not Flux-managed:
-
-```sh
-TURN_SECRET="$(openssl rand -base64 32)"
-
-kubectl -n vr-platform create secret generic turn-config \
-  --from-literal=turnserver.conf="listening-port=3478
-realm=vr.maio-tech.com
-static-auth-secret=${TURN_SECRET}
-fingerprint
-log-file=stdout
-no-multicast-peers"
-
-kubectl -n vr-platform create secret generic signaling-turn \
-  --from-literal=shared-secret="${TURN_SECRET}"
-```
-
-The signaling server mints time-boxed credentials from the same secret (see
-`Server/turn.go`), so no per-user state exists anywhere. `VR_PLATFORM_TURN_URLS`
-in `cluster/server/deployment.yaml` must name the public hostname below —
-change it if yours differs.
+Admission is bounded to 256 signaling sockets, 128 rooms and a global membership
+mint budget of 2/second with burst 20, including repeated joins and recovery.
+Coturn additionally enforces 4 allocations per username and 64 total allocations.
+These are abuse limits, not a change to the experimental 16-player capacity or
+its media budget. Anonymous distributed users can still exhaust these limits.
 
 ## DNS
 

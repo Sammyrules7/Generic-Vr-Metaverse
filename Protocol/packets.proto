@@ -34,7 +34,8 @@ message Room {
   string name = 2;
   uint32 player_count = 3;
   string world_id = 4;
-  // Distinguishes a recovered room from a new room reusing its numeric ID.
+  // Public lists carry an incarnation nonce; join replies carry a signed
+  // per-member recovery capability. Preserve the join reply value for recovery.
   string recovery_token = 5;
 }
 

@@ -13,6 +13,7 @@ const roomSnapshotLimit = 100 // Number of rooms to send to the client
 // Hub holds mu while changing membership and queuing notifications, so peers
 // see room changes and signaling in the same order. Sends never block on I/O.
 type Hub struct {
+	turnMints     rateLimit // guarded by mu; global, including socket churn
 	mu            sync.RWMutex
 	clients       map[uint32]*Client
 	rooms         map[uint32]*Room
@@ -40,6 +41,10 @@ func newHub() *Hub {
 func (h *Hub) addClient(client *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if len(h.clients) >= 256 {
+		client.disconnect()
+		return
+	}
 	h.nextClientID++
 	client.id = h.nextClientID
 	h.clients[client.id] = client
