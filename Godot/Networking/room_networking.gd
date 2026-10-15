@@ -44,6 +44,8 @@ var pending_operation := Operation.NONE
 # Keep increasing across reconnects so an old reply cannot match a new command.
 var _request_id := 0
 var _deadline := 0
+var _recover_at := 0
+var _recover_backoff := 1000
 # Server-assigned mesh ID for deterministic re-offer elections. The injected
 # MultiplayerAPI reports 1 for every isolated test client, so it cannot elect.
 var _mesh_local_id := 0
@@ -98,7 +100,9 @@ func recover_room() -> Error:
 
 
 func leave_room() -> Error:
-	if current_room != null and (not connected or detached_session):
+	if detached_session and pending_operation == Operation.RECOVER:
+		_finish_operation(false, "Recovery cancelled by leave")
+	if current_room != null and not connected:
 		if pending_operation != Operation.NONE:
 			return ERR_BUSY
 		pending_operation = Operation.LEAVE
@@ -109,7 +113,7 @@ func leave_room() -> Error:
 		return OK
 	var packet := Packets.ClientPacket.new()
 	packet.new_room_leave()
-	return _request(Operation.LEAVE, packet)
+	return _request(Operation.LEAVE, packet, true)
 
 
 func _request(operation: Operation, packet: Packets.ClientPacket, allow_detached := false) -> Error:
@@ -141,6 +145,9 @@ func _finish_operation(success: bool, reason := "") -> void:
 	# Signal listeners may immediately issue another command.
 	pending_operation = Operation.NONE
 	_deadline = 0
+	if operation == Operation.RECOVER and not success:
+		_recover_at = Time.get_ticks_msec() + _recover_backoff
+		_recover_backoff = mini(_recover_backoff * 2, 10000)
 	operation_finished.emit(operation, success, reason)
 
 
@@ -173,9 +180,9 @@ func reset(reason := "Session reset") -> void:
 func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 	var recovery_reply := (
 		detached_session
-		and pending_operation == Operation.RECOVER
+		and pending_operation in [Operation.RECOVER, Operation.LEAVE]
 		and packet.get_request_id() == _request_id
-		and packet.get_payload_case() in [Packets.ServerPacket.PayloadCase.ROOM_JOINED, Packets.ServerPacket.PayloadCase.ERROR]
+		and packet.get_payload_case() in [Packets.ServerPacket.PayloadCase.ROOM_JOINED, Packets.ServerPacket.PayloadCase.ROOM_LEFT, Packets.ServerPacket.PayloadCase.ERROR]
 	)
 	if detached_session and not recovery_reply and packet.get_payload_case() not in [Packets.ServerPacket.PayloadCase.ROOM_LIST, Packets.ServerPacket.PayloadCase.ROOM_UPDATED, Packets.ServerPacket.PayloadCase.ROOM_REMOVED]:
 		return
@@ -231,7 +238,11 @@ func handle_packet(packet: Packets.ServerPacket, local_id: int) -> void:
 			if rtc_mesh != null:
 				rtc_mesh.receive_relay(packet.get_relay())
 		Packets.ServerPacket.PayloadCase.ERROR:
-			_finish_operation(false, packet.get_error().get_reason())
+			var reason := packet.get_error().get_reason()
+			_finish_operation(false, reason)
+			if detached_session and reason not in ["recovered identity is already in use", "recovered peer ID is already in the room", "room is full", "membership mint quota exceeded"]:
+				_recover_at = -1
+				network_error.emit("Room recovery failed: %s. Leave the room and join again." % reason)
 			return
 	if is_reply:
 		_finish_operation(true)
@@ -245,9 +256,18 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 		_mesh_local_id = local_id
 		detached_session = false
 		rtc_mesh.resume_signaling()
+		_recover_backoff = 1000
 		_apply_turn_credentials(joined)
+		var present := {}
 		for peer in joined.get_peers():
+			present[peer.get_id()] = true
 			rtc_mesh.add_peer(peer, true)
+		for peer_id in rtc_mesh.peer_sessions.keys():
+			if not present.has(peer_id):
+				# The directory can lag surviving P2P memberships after restart.
+				rtc_mesh.suspend_peer_signaling(peer_id)
+				if not multiplayer.get_peers().has(peer_id):
+					_on_peer_disconnected(peer_id)
 		if pending_operation != Operation.REFRESH:
 			client_id_recovered.emit(multiplayer.get_unique_id())
 		room_updated.emit(current_room)
@@ -275,6 +295,8 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 
 func _stop_mesh() -> void:
 	detached_session = false
+	_recover_at = 0
+	_recover_backoff = 1000
 	_recovering_peers.clear()
 	_recovery_next_attempt.clear()
 	_recovery_attempts.clear()
@@ -335,7 +357,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	# already removed the peer from the mesh, so they never reach this branch.
 	if rtc_mesh == null or not rtc_mesh.peer_sessions.has(peer_id):
 		return
-	if not connected or detached_session or current_room == null:
+	if current_room == null:
 		return
 	if _recovering_peers.has(peer_id):
 		return
@@ -345,11 +367,20 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	peer_transport_lost.emit(peer_id)
 
 
+func transport_repairing() -> bool:
+	return not _recovering_peers.is_empty()
+
+
 func poll_recovery() -> void:
 	var now := Time.get_ticks_msec()
+	if connected and detached_session and pending_operation == Operation.NONE and _recover_at >= 0 and now >= _recover_at:
+		recover_room()
 	# Runs even without transport loss, keeping long-lived room credentials fresh.
 	var credentials_ready := _refresh_turn_if_due(now)
 	for peer_id in _recovering_peers.keys():
+		if multiplayer.get_peers().has(peer_id):
+			_on_peer_connected(peer_id)
+			continue
 		if now >= _recovering_peers[peer_id]:
 			_recovering_peers.erase(peer_id)
 			_recovery_next_attempt.erase(peer_id)
@@ -359,7 +390,7 @@ func poll_recovery() -> void:
 				rtc_mesh.remove_peer(peer_id)
 			peer_departed.emit(peer_id)
 			continue
-		if not credentials_ready or not connected or detached_session or pending_operation != Operation.NONE:
+		if not credentials_ready or not connected or detached_session or pending_operation != Operation.NONE or rtc_mesh.signaling_unavailable.has(peer_id):
 			continue
 		# Only the lower ID offers; allow each attempt time for ICE and pod startup.
 		if not _stable_peers.has(peer_id) or _mesh_local_id == 0 or _mesh_local_id >= peer_id:

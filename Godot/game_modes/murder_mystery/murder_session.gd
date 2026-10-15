@@ -33,8 +33,8 @@ var _excluded_count := -1
 
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_peer_changed)
-	multiplayer.peer_disconnected.connect(_peer_left)
 	if player_manager != null:
+		player_manager.room_networking.peer_departed.connect(_peer_left)
 		player_manager.local_player_spawned.connect(_bind_player_world)
 		player_manager.players_clearing.connect(clear)
 		# Also support a game component added after the local avatar is ready.
@@ -194,7 +194,7 @@ func _process(_delta: float) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_sync(in_room: int, participating: bool) -> void:
-	if rules == null or in_room != room_id:
+	if not _transport_ready() or rules == null or in_room != room_id:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if not multiplayer.get_peers().has(sender):
@@ -240,7 +240,7 @@ func _send_snapshot(id: int) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func receive_snapshot(in_room: int, view: Dictionary) -> void:
-	if in_room == room_id and room_id != 0 and multiplayer.get_remote_sender_id() == authority_id:
+	if _transport_ready() and in_room == room_id and room_id != 0 and multiplayer.get_remote_sender_id() == authority_id:
 		_apply_snapshot(view)
 
 
@@ -330,6 +330,8 @@ func _can_input() -> bool:
 
 
 func _transport_ready() -> bool:
+	if is_instance_valid(player_manager) and player_manager.room_networking.transport_repairing():
+		return false
 	var peer := multiplayer.multiplayer_peer
 	return peer != null and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
 
@@ -363,7 +365,7 @@ func request_action(in_room: int, round_number: int, action: String, item: Strin
 
 
 func _handle_command(id: int, round_number: int, action: String, item: String, origin: Vector3, direction: Vector3) -> void:
-	if rules == null or rules.phase != "active" or round_number != rules.round_id or not rules.players.has(id):
+	if not _transport_ready() or rules == null or rules.phase != "active" or round_number != rules.round_id or not rules.players.has(id):
 		return
 	var state: Dictionary = rules.players[id]
 	if not state.alive or not state.participating:

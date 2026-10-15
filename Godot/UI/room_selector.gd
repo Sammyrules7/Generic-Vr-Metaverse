@@ -520,7 +520,7 @@ func _update_controls() -> void:
 	%Connection.text = Networking.connection_message
 	%Connection.add_theme_color_override("font_color", Color("#a0bdd4") if room_networking.connected else Color("#f5bc79"))
 	%CreateRoom.disabled = not available or %DisplayName.text.strip_edges().is_empty() or WorldCatalog.WORLDS.is_empty()
-	%LeaveRoom.disabled = room_networking.current_room == null or room_networking.pending_operation != RoomNetworking.Operation.NONE
+	%LeaveRoom.disabled = room_networking.current_room == null or room_networking.pending_operation not in [RoomNetworking.Operation.NONE, RoomNetworking.Operation.RECOVER]
 	%DisplayName.editable = room_networking.pending_operation == RoomNetworking.Operation.NONE
 	%RoomName.editable = %DisplayName.editable
 	for element in %roomList.get_children():
