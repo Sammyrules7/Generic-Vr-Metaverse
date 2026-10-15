@@ -1,6 +1,7 @@
-# Least privilege for the one-shot turn-init Job. It may read and create (never
-# update or delete) Secrets, and prod already-running workloads so boot-time
-# TURN config is picked up. It cannot touch anything else in the namespace.
+# Least privilege for the one-shot turn-init Job. Reads stay pinned to the two
+# Secrets; creation is namespace-wide because Kubernetes cannot scope create
+# by resource name (the name only exists inside the request). It may prod the
+# two consuming Deployments so boot-time config is picked up, nothing else.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -20,7 +21,10 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     resourceNames: ["turn-config", "signaling-turn"]
-    verbs: ["get", "create"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
     resourceNames: ["server", "coturn"]
