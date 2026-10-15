@@ -1,0 +1,43 @@
+# Least privilege for the one-shot turn-init Job. It may read and create (never
+# update or delete) Secrets, and prod already-running workloads so boot-time
+# TURN config is picked up. It cannot touch anything else in the namespace.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["turn-config", "signaling-turn"]
+    verbs: ["get", "create"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["server", "coturn"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+subjects:
+  - kind: ServiceAccount
+    name: turn-init
+    namespace: vr-platform
+roleRef:
+  kind: Role
+  name: turn-init
+  apiGroup: rbac.authorization.k8s.io
