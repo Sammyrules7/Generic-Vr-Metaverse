@@ -12,10 +12,10 @@ func _on_pointer_event(event: XRToolsPointerEvent) -> void:
 			return
 		get_parent().input_pointer = event.pointer
 		var ui := _viewport.get_child(0)
-		var at := global_to_viewport(event.position)
-		var navigation := ui.get_node_or_null("Navigation")
-		var buffered: bool = navigation != null and navigation._active() and navigation._region_at(at) != LobbyNavigation.Region.NONE
-		if not buffered and not accept_button_press(at):
+		var press_at := global_to_viewport(event.position)
+		var press_navigation := ui.get_node_or_null("Navigation")
+		var buffered: bool = press_navigation != null and press_navigation._active() and press_navigation._region_at(press_at) != LobbyNavigation.Region.NONE
+		if not buffered and not accept_button_press(press_at):
 			ignored_presses[event.pointer] = true
 			return
 		# A second hand can take over the single GUI mouse without leaving

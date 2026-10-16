@@ -85,6 +85,14 @@ func _run() -> void:
 	check(not ui.get_node("%VoiceSettings").visible and ui.get_node("VBoxContainer").visible, "Main-menu voice settings did not return to the room menu")
 	ui.get_node("%MicrophoneEnabled").button_pressed = false
 	check(not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "Microphone control did not mute voice transmission")
+	ui._microphone_toggled(true)
+	Networking.voice_chat._on_permission_result("android.permission.RECORD_AUDIO", false)
+	check(not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "Permission denial did not mute the microphone")
+	for control_name in ["MicrophoneEnabled", "SessionMicrophoneEnabled", "QuickMicrophoneEnabled", "InGameMicrophone"]:
+		check(not ui.get_node("%" + control_name).button_pressed, "Permission denial left microphone control enabled: " + control_name)
+	PlayerProfile.microphone_enabled = true
+	PlayerProfile.restore()
+	check(not PlayerProfile.microphone_enabled, "Permission denial did not persist the disabled microphone")
 	ui.get_node("%VoiceVolume").value = 35
 	check(is_equal_approx(PlayerProfile.voice_volume, 0.35) and is_equal_approx(Networking.voice_chat.output_volume, 0.35), "Voice volume control did not update playback")
 	ui.get_node("%InputGain").value = 145
@@ -209,7 +217,7 @@ func _run() -> void:
 
 	check(not game.has_method("_hand_menu_gesture"), "Menu still has a hand gesture binding")
 	await _test_immediate_touch(game, ui, panel)
-	await _test_feedback(ui, panel)
+	_test_feedback(ui, panel)
 	# Explicit leave remains quiet; an unsolicited server exit reports why.
 	var room_errors: Array = []
 	var capture_error := func(reason): room_errors.append(reason)

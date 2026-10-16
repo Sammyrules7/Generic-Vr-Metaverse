@@ -2073,7 +2073,17 @@ class Translator:
 			cls_pref += tabulate("func _init():\n", nesting)
 			text += cls_pref
 			nesting += 1
-			text += tabulate("var service\n", nesting)
+			var has_fields := false
+			for i in range(field_table.size()):
+				if field_table[i].parent_class_id == class_index:
+					has_fields = true
+					break
+			if has_fields:
+				text += tabulate("var service\n", nesting)
+			else:
+				# Field-less messages still need a body; a bare `var service`
+				# would be an unused local.
+				text += tabulate("pass\n", nesting)
 			text += tabulate("\n", nesting)
 			var field_text : String = ""
 			for i in range(field_table.size()):

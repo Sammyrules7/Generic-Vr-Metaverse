@@ -56,9 +56,11 @@ func update_state(snapshot: Dictionary) -> void:
 			count += 1
 	var public_text := "Awaiting guests\n%d signed\n\nThree to begin" % count
 	var seconds := maxi(0, ceili(float(snapshot.get("remaining", 0))))
+	@warning_ignore("integer_division")
+	var minutes := seconds / 60
 	match phase:
 		"countdown": public_text = "The next game\nbegins in %d\n\n%d guests signed" % [seconds, count]
-		"active": public_text = "A game is in progress\n%d:%02d remaining\n\nNew guests watch\nuntil the next round" % [seconds / 60, seconds % 60]
+		"active": public_text = "A game is in progress\n%d:%02d remaining\n\nNew guests watch\nuntil the next round" % [minutes, seconds % 60]
 		"results": public_text = "Innocents survive" if snapshot.get("result", "") == "innocents" else "The murderer prevails"
 	if state.get("participating", false):
 		public_text += "\n\nYour name is signed\nE / right grip to leave"
@@ -74,7 +76,7 @@ func update_state(snapshot: Dictionary) -> void:
 			lines = ("THE DETECTIVE" if role == "detective" else "A BYSTANDER") + "\nStop the murderer\nShoot an innocent, you die too"
 		else:
 			lines = "A BYSTANDER\nSurvive. Find five clues\nOr recover a fallen gun"
-		lines += "\n%d:%02d" % [seconds / 60, seconds % 60]
+		lines += "\n%d:%02d" % [minutes, seconds % 60]
 	var controls := "R grip: collect · L grip: draw\nR trigger: use · L trigger: drop" if _player.use_vr else "E collect · R draw\nClick use · Q drop"
 	card_text.text = lines + "\n\n" + controls
 	for index in _pips.size():
