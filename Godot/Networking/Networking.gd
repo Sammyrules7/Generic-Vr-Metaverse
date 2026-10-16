@@ -41,12 +41,15 @@ func _ready() -> void:
 	add_child(player_replication)
 	voice_chat = VoiceChat.new()
 	voice_chat.name = "VoiceChat"
+	# Inject before add_child so _ready keeps it instead of reaching for the parent.
+	voice_chat.room_networking = room_networking
 	add_child(voice_chat)
 	_connect_websocket()
 
 
 func _process(_delta: float) -> void:
 	var disconnect_reason := "Disconnected from signaling server"
+	room_networking.poll_recovery()
 	if room_networking.request_expired():
 		# The server may have applied the command even though its reply is missing.
 		# Reconnect to discard ambiguous membership instead of retrying the command.
@@ -59,8 +62,6 @@ func _process(_delta: float) -> void:
 	ws.poll()
 	while ws.get_available_packet_count() > 0:
 		_handle_packet(ws.get_packet())
-	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		room_networking.poll_recovery()
 	# close(-1) can close the socket before poll(); client_id catches that case.
 	if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED and (previous_state != WebSocketPeer.STATE_CLOSED or client_id != 0):
 		client_id = 0

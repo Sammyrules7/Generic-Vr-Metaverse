@@ -12,7 +12,10 @@ tags that can be pulled by an unconfigured container runtime.
 Membership lives in one server process. The deployment uses one replica and a
 `Recreate` rollout so old and new pods cannot serve different room directories
 simultaneously. A rollout temporarily interrupts signaling; established WebRTC
-sessions may continue, but reconnecting does not reattach their old membership.
+sessions continue while signaling reconnects and retries reattaching their existing
+room, mesh identity, and session. Temporary identity conflicts use capped backoff.
+Healthy P2P links survive; dropped links have a bounded repair window. If
+reattachment cannot succeed, explicitly leave the room and join again.
 Session affinity alone would not provide a shared directory across replicas.
 
 Validate or preview the rendered resources with:

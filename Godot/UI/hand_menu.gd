@@ -39,6 +39,8 @@ var input_pointer: Node3D
 var click_audio: AudioStreamPlayer
 signal click_feedback
 
+var _surface_body: StaticBody3D
+
 
 func _ready() -> void:
 	super._ready()
@@ -52,6 +54,7 @@ func _ready() -> void:
 	click_audio.stream = preload("res://UI/click.wav")
 	click_audio.volume_db = -9.0
 	add_child(click_audio)
+	_surface_body = $StaticBody3D
 	process_priority = 20
 	visibility_changed.connect(_reset_placement)
 	set_process(true)
@@ -67,12 +70,14 @@ func bind_rig(new_origin: XROrigin3D, new_camera: XRCamera3D) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	# The viewport base disables processing for several update modes; the
+	# subclass must reassert it every frame to keep head following alive.
 	set_process(true)
-	_check_withdrawal()
 	if not visible or not enabled or not is_instance_valid(origin) or not is_instance_valid(camera):
 		release_touch()
 		placed = false
 		return
+	_check_withdrawal()
 	_follow_head(delta)
 	_update_touch()
 
@@ -88,6 +93,7 @@ func _reset_placement() -> void:
 	release_touch()
 	placed = false
 	if visible and enabled:
+		set_process(true)
 		_follow_head(0.0)
 
 
@@ -183,7 +189,7 @@ func _update_hand_touch(side: String, contact: HandContact) -> void:
 	var point := to_local(tip)
 	var at := to_global(Vector3(point.x, point.y, 0))
 	var in_bounds := contains_ui_point(at)
-	var target := $StaticBody3D
+	var target := _surface_body
 	if contact.touching:
 		if not in_bounds or point.z > 0.012 or point.z < -0.08:
 			_release_hand(contact, not in_bounds or point.z < -0.08)
@@ -216,8 +222,8 @@ func _release_hand(contact: HandContact, cancelled := true) -> void:
 		contact.touching = false
 		if cancelled:
 			var outside := to_global(Vector3(screen_size.x, screen_size.y, 0))
-			XRToolsPointerEvent.moved(contact.pointer, $StaticBody3D, outside, contact.last_touch)
+			XRToolsPointerEvent.moved(contact.pointer, _surface_body, outside, contact.last_touch)
 			contact.last_touch = outside
-		XRToolsPointerEvent.released(contact.pointer, $StaticBody3D, contact.last_touch)
-		XRToolsPointerEvent.exited(contact.pointer, $StaticBody3D, contact.last_touch)
+		XRToolsPointerEvent.released(contact.pointer, _surface_body, contact.last_touch)
+		XRToolsPointerEvent.exited(contact.pointer, _surface_body, contact.last_touch)
 	contact.previous_depth = INF

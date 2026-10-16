@@ -1,6 +1,10 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -63,9 +67,11 @@ func join(h *Hub, c *Client, roomID uint32) {
 }
 
 func recover(h *Hub, c *Client, roomID, peerID, sessionID uint32) {
+	room := &protocol.Room{Id: roomID, Name: "Recovered room", WorldId: "floating_island", RecoveryToken: "test-nonce"}
+	room.RecoveryToken = memberToken(room, peerID, sessionID)
 	h.handle(c, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomJoin{RoomJoin: &protocol.ClientRoomJoin{
 		RoomId: roomID, ClientId: peerID, SessionId: sessionID,
-		RecoveryRoom: &protocol.Room{Id: roomID, Name: "Recovered room", WorldId: "floating_island"},
+		RecoveryRoom: room,
 	}}})
 }
 
@@ -439,9 +445,11 @@ func TestRecoveryRejectsReusedRoomID(t *testing.T) {
 		if sameWorld {
 			world = original.worldID
 		}
+		claim := &protocol.Room{Id: original.id, Name: original.name, WorldId: world, RecoveryToken: "old-incarnation"}
+		claim.RecoveryToken = memberToken(claim, 8, 40)
 		reply := h.joinRoom(survivor, &protocol.ClientRoomJoin{
 			RoomId: original.id, ClientId: 8, SessionId: 40,
-			RecoveryRoom: &protocol.Room{Id: original.id, Name: original.name, WorldId: world, RecoveryToken: "old-incarnation"},
+			RecoveryRoom: claim,
 		})
 		if reply.GetError() == nil || survivor.roomID != 0 || len(original.clients) != 1 {
 			t.Fatal("recovery attached to unrelated room with reused ID")
@@ -454,9 +462,11 @@ func TestRecoveryRejectsOccupiedPeerIdentity(t *testing.T) {
 	occupied := testClient(h)
 	create(h, occupied)
 	survivor := testClient(h)
+	claim := &protocol.Room{Id: 9, Name: "Surviving room", WorldId: "moon_garden", RecoveryToken: "surviving"}
+	claim.RecoveryToken = memberToken(claim, occupied.meshID(), 40)
 	reply := h.joinRoom(survivor, &protocol.ClientRoomJoin{
 		RoomId: 9, ClientId: occupied.meshID(), SessionId: 40,
-		RecoveryRoom: &protocol.Room{Id: 9, Name: "Surviving room", WorldId: "moon_garden"},
+		RecoveryRoom: claim,
 	})
 	if reply.GetError() == nil || h.rooms[9] != nil {
 		t.Fatal("recovery accepted an already allocated peer ID")
@@ -472,12 +482,103 @@ func TestRecoveredRoomTokenSurvivesFreshHub(t *testing.T) {
 	h := newHub()
 	for _, original := range []*Client{b, a} {
 		reconnect := testClient(h)
-		reply := h.joinRoom(reconnect, &protocol.ClientRoomJoin{RoomId: room.Id, ClientId: original.meshID(), SessionId: original.sessionID, RecoveryRoom: room})
-		if reply.GetRoomJoined() == nil || reply.GetRoomJoined().Room.RecoveryToken != room.RecoveryToken {
+		reply := h.joinRoom(reconnect, &protocol.ClientRoomJoin{RoomId: room.Id, ClientId: original.meshID(), SessionId: original.sessionID, RecoveryRoom: old.rooms[room.Id].memberPacket(original)})
+		if reply.GetRoomJoined() == nil || reply.GetRoomJoined().Room.RecoveryToken != old.rooms[room.Id].memberPacket(original).RecoveryToken {
 			t.Fatal("fresh hub did not restore room token and peer")
 		}
 	}
 	if len(h.rooms[room.Id].clients) != 2 {
 		t.Fatal("missing recovered member")
+	}
+}
+
+func TestTurnCredentialsDisabledWithoutConfig(t *testing.T) {
+	saved := turn
+	turn = turnConfig{}
+	defer func() { turn = saved }()
+	if mintTurnCredentials(time.Now(), 7) != nil {
+		t.Fatal("credentials minted without a shared secret")
+	}
+	h := newHub()
+	a := testClient(h)
+	packets(t, a)
+	create(h, a)
+	for _, p := range packets(t, a) {
+		if joined := p.GetRoomJoined(); joined != nil && joined.GetTurn() != nil {
+			t.Fatal("join reply carried TURN credentials with no relay configured")
+		}
+	}
+}
+
+func TestTurnCredentialsMintAndJoin(t *testing.T) {
+	saved := turn
+	turn = turnConfig{secret: "test-shared-secret", urls: []string{"turn:turn.example:3478"}, ttl: 24 * time.Hour}
+	defer func() { turn = saved }()
+	now := time.Now()
+	creds := mintTurnCredentials(now, 7)
+	if creds == nil {
+		t.Fatal("no credentials minted with relay configured")
+	}
+	var expiry int64
+	var clientID uint32
+	if _, err := fmt.Sscanf(creds.GetUsername(), "%d:%d", &expiry, &clientID); err != nil {
+		t.Fatalf("username %q is not expiry:clientID: %v", creds.GetUsername(), err)
+	}
+	if clientID != 7 || expiry < now.Add(23*time.Hour).Unix() || expiry > now.Add(25*time.Hour).Unix() {
+		t.Fatalf("bad username scope: %q", creds.GetUsername())
+	}
+	if creds.GetTtl() != 24*3600 || len(creds.GetUrls()) != 1 {
+		t.Fatalf("bad credential scope: ttl=%d urls=%v", creds.GetTtl(), creds.GetUrls())
+	}
+	mac := hmac.New(sha1.New, []byte("test-shared-secret"))
+	mac.Write([]byte(creds.GetUsername()))
+	if base64.StdEncoding.EncodeToString(mac.Sum(nil)) != creds.GetPassword() {
+		t.Fatal("password is not HMAC-SHA1(secret, username)")
+	}
+	h := newHub()
+	a := testClient(h)
+	packets(t, a)
+	create(h, a)
+	found := false
+	for _, p := range packets(t, a) {
+		if joined := p.GetRoomJoined(); joined != nil && joined.GetTurn() != nil {
+			found = true
+			if joined.GetTurn().GetUsername() == "" || joined.GetTurn().GetPassword() == "" {
+				t.Fatal("join reply carried empty TURN credentials")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("join reply carried no TURN credentials with relay configured")
+	}
+}
+
+func TestRecoveryCapabilityRejectsForgery(t *testing.T) {
+	old := newHub()
+	member := testClient(old)
+	create(old, member)
+	room := old.rooms[member.roomID]
+	for _, token := range []string{room.recoveryToken, room.memberPacket(member).RecoveryToken} {
+		fresh := newHub()
+		attacker := testClient(fresh)
+		claim := room.packet()
+		claim.RecoveryToken = token
+		reply := fresh.joinRoom(attacker, &protocol.ClientRoomJoin{RoomId: room.id, ClientId: member.meshID() + 10, SessionId: member.sessionID, RecoveryRoom: claim})
+		if reply.GetError() == nil || len(fresh.rooms) != 0 {
+			t.Fatal("forged recovery mutated fresh hub")
+		}
+	}
+}
+
+func TestMembershipMintQuota(t *testing.T) {
+	h := newHub()
+	c := testClient(h)
+	for i := 0; i < 20; i++ {
+		if h.createRoom(c, "quota").GetRoomJoined() == nil {
+			t.Fatal("unexpected admission failure")
+		}
+	}
+	if h.createRoom(c, "quota").GetError() == nil {
+		t.Fatal("mint quota bypassed")
 	}
 }

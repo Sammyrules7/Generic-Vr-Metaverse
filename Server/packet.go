@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"vr.maio-tech.com/server/protocol"
@@ -26,6 +27,22 @@ func (client *Client) sendPacket(encoded []byte) bool {
 	}
 }
 
+// sendEncoded shares one marshaled buffer across N recipients. The bytes are
+// never mutated after Marshal, so fan-out paths must use this instead of
+// calling send (which re-marshals per recipient).
+func sendEncoded(client *Client, encoded []byte) bool {
+	return client.sendPacket(encoded)
+}
+
+func mustMarshal(packet *protocol.ServerPacket) ([]byte, bool) {
+	encoded, err := proto.Marshal(packet)
+	if err != nil {
+		fmt.Printf("Failed to encode packet: %v\n", err)
+		return nil, false
+	}
+	return encoded, true
+}
+
 func send(client *Client, packet *protocol.ServerPacket) bool {
 	encoded, err := proto.Marshal(packet)
 	if err != nil {
@@ -40,6 +57,15 @@ func sendError(client *Client, reason string) {
 }
 
 func handlePacket(encoded []byte, sender *Client) {
+	handlePacketAt(time.Now(), encoded, sender)
+}
+
+func handlePacketAt(now time.Time, encoded []byte, sender *Client) {
+	// Bound decode cost before Unmarshal: WS limit is 256KB, relays cap far lower.
+	if len(encoded) == 0 || len(encoded) > 256*1024 {
+		sendError(sender, "invalid packet")
+		return
+	}
 	packet := &protocol.ClientPacket{}
 	if err := proto.Unmarshal(encoded, packet); err != nil {
 		sendError(sender, "invalid packet")
@@ -49,7 +75,8 @@ func handlePacket(encoded []byte, sender *Client) {
 	case *protocol.ClientPacket_RoomCreate, *protocol.ClientPacket_RoomJoin, *protocol.ClientPacket_RoomLeave:
 		// Membership changes broadcast to the entire directory. Their budget is
 		// smaller than ICE signaling so one client cannot churn everyone's queues.
-		if !sender.roomCommands.allow(4, 8) {
+		// Reuse the read-loop timestamp instead of a second time.Now() per message.
+		if !sender.roomCommands.allowAt(now, 4, 8) {
 			reply := errorPacket("too many room commands; try again shortly")
 			reply.RequestId = packet.RequestId
 			send(sender, reply)
@@ -75,8 +102,8 @@ func roomRemovedPacket(id uint32) *protocol.ServerPacket {
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomRemoved{RoomRemoved: &protocol.ServerRoomRemoved{RoomId: id}}}
 }
 
-func roomJoinedPacket(room *protocol.Room, peers []*protocol.Peer, sessionID uint32) *protocol.ServerPacket {
-	joined := &protocol.ServerRoomJoined{Room: room, Peers: peers, SessionId: sessionID}
+func roomJoinedPacket(room *protocol.Room, peers []*protocol.Peer, sessionID uint32, turnCreds *protocol.TurnCredentials) *protocol.ServerPacket {
+	joined := &protocol.ServerRoomJoined{Room: room, Peers: peers, SessionId: sessionID, Turn: turnCreds}
 	return &protocol.ServerPacket{Payload: &protocol.ServerPacket_RoomJoined{RoomJoined: joined}}
 }
 

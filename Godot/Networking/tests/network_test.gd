@@ -112,13 +112,6 @@ func _check_room_ui() -> bool:
 	reply.set_request_id(sent[0].get_request_id())
 	state.handle_packet(reply, 2)
 	var recovered: bool = not ui.get_node("%CreateRoom").disabled and ui.get_node("%Status").text == "Room rejected"
-	ui._operation_finished(RoomNetworking.Operation.RECOVER, false, "room conflicts")
-	recovered = recovered and ui.get_node("%Status").text.contains("Leave the room")
-	state.recovery_retry_at = Time.get_ticks_msec() + 2000
-	ui._operation_finished(RoomNetworking.Operation.RECOVER, false, "recovered identity is already in use")
-	recovered = recovered and ui.get_node("%Status").text.contains("Retrying automatically")
-	ui._operation_finished(RoomNetworking.Operation.RECOVER, true, "")
-	recovered = recovered and ui.get_node("%Status").text.is_empty()
 	ui.free()
 	network.room_networking = original
 	return _check(busy and recovered, "Room UI did not disable pending actions or recover after failure")
@@ -144,7 +137,7 @@ func _check_recovery_retries() -> bool:
 	var restored := not mesh.signaling_unavailable.has(21) and mesh._get_connection(21) == connection
 	var relays: Array = []
 	mesh.packet_created.connect(func(packet): relays.append(packet))
-	mesh._candidate_created("0", 0, "candidate", 21, 31)
+	mesh._candidate_created("0", 0, "candidate", 21, 31, mesh._peer_attempts[21])
 	restored = restored and relays.size() == 1
 	var requests: Array = []
 	state.packet_created.connect(func(packet): requests.append(packet))
@@ -153,10 +146,10 @@ func _check_recovery_retries() -> bool:
 	reply.new_error().set_reason("recovered identity is already in use")
 	reply.set_request_id(state._request_id)
 	state.handle_packet(reply, 20)
-	var retried := state.recovery_retry_at > Time.get_ticks_msec() and state.pending_operation == RoomNetworking.Operation.NONE and state.rtc_mesh == mesh
+	var retried := state._recover_at > Time.get_ticks_msec() and state.pending_operation == RoomNetworking.Operation.NONE and state.rtc_mesh == mesh
 	state.poll_recovery()
 	retried = retried and requests.size() == 1
-	state.recovery_retry_at = Time.get_ticks_msec() - 1
+	state._recover_at = Time.get_ticks_msec() - 1
 	state.poll_recovery()
 	retried = retried and requests.size() == 2 and state.pending_operation == RoomNetworking.Operation.RECOVER
 	# A delayed rejection from the first request must not complete its retry.
@@ -170,35 +163,38 @@ func _check_recovery_retries() -> bool:
 	room.set_name("Recovery test")
 	room.set_world_id("floating_island")
 	state.handle_packet(joined, 20)
-	retried = retried and not state.detached_session and state.recovery_retry_at == 0 and state.rtc_mesh == mesh and api.get_unique_id() == 20
-	# Permanent conflicts and the retry deadline must retain P2P without looping.
+	retried = retried and not state.detached_session and state.rtc_mesh == mesh and api.get_unique_id() == 20
+	# Permanent conflicts stop automatic retries without dropping the live mesh.
 	state.signaling_lost()
 	state.connected = true
 	state.recover_room()
 	reply.set_request_id(state._request_id)
 	reply.get_error().set_reason("recovered room conflicts with an existing room")
 	state.handle_packet(reply, 20)
-	var bounded := state.recovery_retry_at == 0 and state.detached_session
-	state._recovery_deadline = Time.get_ticks_msec() - 1
+	var bounded := state._recover_at == -1 and state.detached_session and state.rtc_mesh == mesh
+	var before := requests.size()
+	state.poll_recovery()
+	bounded = bounded and requests.size() == before
+	# Explicit leave cancels an otherwise scheduled retry.
 	state.recover_room()
 	reply.set_request_id(state._request_id)
 	reply.get_error().set_reason("recovered identity is already in use")
 	state.handle_packet(reply, 20)
-	bounded = bounded and state.recovery_retry_at == 0 and state.rtc_mesh == mesh
-	# Explicit leave cancels an otherwise scheduled retry.
-	state._recovery_deadline = 0
-	state.recover_room()
-	reply.set_request_id(state._request_id)
-	state.handle_packet(reply, 20)
-	bounded = bounded and state.recovery_retry_at > 0
+	bounded = bounded and state._recover_at > 0
 	state.leave_room()
+	before = requests.size()
 	state.poll_recovery()
-	bounded = bounded and state.recovery_retry_at == 0 and state.current_room == null and state.rtc_mesh == null
+	bounded = bounded and requests.size() == before and state.pending_operation == RoomNetworking.Operation.LEAVE
+	var left := Packets.ServerPacket.new()
+	left.set_request_id(state._request_id)
+	left.new_room_left()
+	state.handle_packet(left, 20)
+	bounded = bounded and state._recover_at == 0 and state.current_room == null and state.rtc_mesh == null
 	state.reset()
 	return (
 		_check(restored, "Recovered peer remained suspended or replaced its connection")
 		and _check(retried, "Recovery did not retry a temporary conflict and retain its mesh on success")
-		and _check(bounded, "Recovery must stop on expiry, permanent failure, or leave")
+		and _check(bounded, "Recovery must stop on permanent failure or leave")
 	)
 
 
@@ -317,7 +313,7 @@ func _run() -> void:
 	a.room_networking.rtc_mesh.receive_relay(stale)
 	var late: Array = []
 	mesh.packet_created.connect(func(packet): late.append(packet))
-	mesh._candidate_created("0", 0, "late", a.client_id, a.room_networking.rtc_mesh.session_id)
+	mesh._candidate_created("0", 0, "late", a.client_id, a.room_networking.rtc_mesh.session_id, -1)
 	if not _check(late.is_empty(), "Old mesh emitted a candidate"):
 		return
 	# Replace the world-owned manager while staying in the room.
@@ -334,7 +330,7 @@ func _run() -> void:
 		return
 	if not _check(bm.players.get_node(str(a.client_id)).get_node("Avatar/LeftHand").visible, "VR avatar hands stayed hidden"):
 		return
-	am.local_player.set_physics_process(false)
+	am.local_player.motor.set_physics_process(false)
 	am.local_player.global_position = Vector3(3, 4, 5)
 	am.local_player.controls.head.position = Vector3(0.1, 1.8, 0.2)
 	var hand := Node3D.new()
@@ -344,6 +340,24 @@ func _run() -> void:
 	if not await _wait_until(func():
 		var remote: NetworkPlayer = bm.players.get_node(str(a.client_id))
 		return remote.global_position.is_equal_approx(Vector3(3, 4, 5)) and remote.get_node("Avatar/Head").position.is_equal_approx(Vector3(0.1, 1.8, 0.2)) and remote.get_node("Avatar/LeftHand").position.is_equal_approx(hand.position), "shared player pose replication"):
+		return
+	# Killing the data channel with membership intact (a coturn restart) must
+	# renegotiate in place: no despawns, no rejoin, same mesh session.
+	var mesh_before: WebRTCMesh = a.room_networking.rtc_mesh
+	var session_before: int = mesh_before.session_id
+	var doomed = mesh_before._get_connection(b.client_id)
+	if not _check(doomed != null, "no live connection to drop"):
+		return
+	doomed.close()
+	await get_tree().create_timer(0.5).timeout
+	if not _check(am.players.get_child_count() == 2 and bm.players.get_child_count() == 2, "transport loss despawned avatars"):
+		return
+	am.local_player.global_position = Vector3(7, 8, 9)
+	if not await _wait_until(func():
+		var remote: NetworkPlayer = bm.players.get_node(str(a.client_id))
+		return remote.global_position.is_equal_approx(Vector3(7, 8, 9)), "post-recovery pose replication"):
+		return
+	if not _check(a.room_networking.rtc_mesh == mesh_before and mesh_before.session_id == session_before, "recovery replaced the mesh session"):
 		return
 	# A new room resets scene-owned players as well as the old mesh.
 	if not await _check_control_plane_survival(a, b):

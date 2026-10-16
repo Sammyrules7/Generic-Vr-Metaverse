@@ -6,6 +6,8 @@ var selected_map := 0
 var spinning := true
 var trigger_held := false
 var grip_held := false
+var _camera_cache: Camera3D
+var _poll_accum := 0.0
 @onready var orbits: Node3D = $Orbits
 @onready var maps: Node3D = $Orbits/Constellations
 @onready var caption: Label3D = $Caption
@@ -18,7 +20,13 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if spinning:
 		orbits.rotate_y(delta * 0.09)
-	var camera := get_viewport().get_camera_3d()
+	_poll_accum += delta
+	if _poll_accum < 0.1:
+		return
+	_poll_accum = 0.0
+	if _camera_cache == null or not is_instance_valid(_camera_cache):
+		_camera_cache = get_viewport().get_camera_3d()
+	var camera := _camera_cache
 	if camera == null or camera.global_position.distance_to(global_position) > 4.2:
 		trigger_held = false
 		grip_held = false

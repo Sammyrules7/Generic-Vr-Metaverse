@@ -10,6 +10,9 @@ func _initialize() -> void:
 	if parsed == null:
 		_fail("Set VR_PLATFORM_SERVER_URL to the reachable ws:// or wss:// release endpoint.")
 		return
+	if "--web" in OS.get_cmdline_user_args() and not url.begins_with("wss://"):
+		_fail("Web releases require a wss:// signaling endpoint.")
+		return
 	var host := parsed.get_string(1).to_lower().trim_suffix(".")
 	var port := parsed.get_string(2)
 	if host == "localhost" or host.ends_with(".localhost") or host.begins_with("127.") or host in ["[::1]", "[0:0:0:0:0:0:0:1]", "0.0.0.0", "[::]"]:

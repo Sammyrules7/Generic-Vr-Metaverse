@@ -121,6 +121,8 @@ signaling/server_url="ws://localhost:8080/ws"
 rendering_device/driver.windows="d3d12"
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
+limits/cluster_builder/max_clustered_elements=512
+anti_aliasing/quality/screen_space_aa=1
 
 [xr]
 
