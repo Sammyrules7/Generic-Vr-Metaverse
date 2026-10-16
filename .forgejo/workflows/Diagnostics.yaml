@@ -1,0 +1,27 @@
+name: Runner diagnostics
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    name: Inspect runner state
+    runs-on: default
+    container:
+      image: nix:0/nix/store/8gkw0nrmwykp4yhcic8x96a5g63hrf74-nix-image-vr-platform-builder-ci.tar
+    steps:
+      # Each step asserts one hypothesis; its status reports the finding.
+      - name: Workspace exists and is not empty
+        run: test -n "$(ls -A "$GITHUB_WORKSPACE" 2>/dev/null)" || (ls -la "$GITHUB_WORKSPACE"; exit 1)
+
+      - name: Workspace has a git checkout
+        run: test -d "$GITHUB_WORKSPACE/.git" || (ls -la "$GITHUB_WORKSPACE"; exit 1)
+
+      - name: Job token available as FORGEJO_TOKEN/GITHUB_TOKEN
+        run: test -n "$FORGEJO_TOKEN" -o -n "$GITHUB_TOKEN" || (env | sed 's/=.*/=***/' | grep -iE 'token'; exit 1)
+
+      - name: Remote origin resolvable and fetchable
+        run: |
+          test -d "$GITHUB_WORKSPACE/.git" || exit 1
+          git -C "$GITHUB_WORKSPACE" remote -v
+          git -C "$GITHUB_WORKSPACE" fetch --no-tags origin
+          printf 'clone works\n'
