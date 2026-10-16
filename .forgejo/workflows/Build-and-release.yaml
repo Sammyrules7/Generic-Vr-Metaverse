@@ -30,7 +30,7 @@ jobs:
     container:
       # The image bundles godot, export templates, the Android SDK, and butler.
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/87xj4fjc08nvn1ccr8ahyi1agx3j2gk8-nix-image-vr-platform-godot-ci.tar
+      image: nix:0/nix/store/867qfbad24q0xhj1wqws5fbvb94fray0-nix-image-vr-platform-godot-ci.tar
     steps:
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. No GitHub actions: this must stay act-runner native.

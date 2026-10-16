@@ -43,7 +43,7 @@ jobs:
     container:
       # The image bundles godot, web export templates, and s5cmd for publishing.
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/y2h8p5vvnkjfd7qbv0i3m1d53ik8q5ln-nix-image-vr-platform-godot-web-ci.tar
+      image: nix:0/nix/store/vbjps1f41gvpmbydzc7hjd4jbv99d01y-nix-image-vr-platform-godot-web-ci.tar
     steps:
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. A workflow_dispatch run can target a ref different from
