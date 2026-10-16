@@ -91,6 +91,13 @@ func _run() -> void:
 	var point: Marker3D = await game.load_world(definition.id)
 	check(point == null and not ui.world_loading and ui.menu_open, "Failed load must restore the menu")
 	check(ui.get_node("%Resume").disabled and ui.get_node("%SessionStatus").text.contains("Could not load"), "Failed load needs an error and disabled Resume")
+	var escape := InputEventAction.new()
+	escape.action = "exit"
+	escape.pressed = true
+	ui._input(escape)
+	check(ui.menu_open, "Escape must not dismiss a failed world load")
+	game._controller_button_pressed("menu_button", &"left_hand")
+	check(ui.menu_open, "Controller menu must not dismiss a failed world load")
 	WorldCatalog.WORLDS.erase(definition.id)
 	state.current_room = null
 	state.room_left.emit()

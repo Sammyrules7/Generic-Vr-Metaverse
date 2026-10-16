@@ -56,14 +56,17 @@ func _physics_process(_delta: float) -> void:
 	if local_player == null or multiplayer.get_peers().is_empty():
 		return
 	var controls := local_player.controls
-	var head_pose := controls.pose(controls.head)
-	var left_pose := controls.pose(controls.left_hand)
-	var right_pose := controls.pose(controls.right_hand)
+	# All tracked parts share the body's inverse; calculate it once per tick.
+	var body_pose := local_player.global_transform
+	var inverse := body_pose.affine_inverse()
+	var head_pose := inverse * controls.head.global_transform if controls.head != null else Transform3D.IDENTITY
+	var left_pose := inverse * controls.left_hand.global_transform if controls.left_hand != null else Transform3D.IDENTITY
+	var right_pose := inverse * controls.right_hand.global_transform if controls.right_hand != null else Transform3D.IDENTITY
 	for peer_id in multiplayer.get_peers():
 		# A data channel can close just before the next peer_disconnected event.
 		# Skip that peer without interrupting pose delivery to the rest of the room.
 		if _channels_open(peer_id):
-			sync_player.rpc_id(peer_id, local_player.global_transform, head_pose, left_pose, right_pose)
+			sync_player.rpc_id(peer_id, body_pose, head_pose, left_pose, right_pose)
 
 
 func _channels_open(peer_id: int) -> bool:

@@ -9,12 +9,23 @@ set -euo pipefail
 prefix="s3://$GARAGE_BUCKET/$1"
 build_prefix="$prefix/builds/$BUILD_COMMIT"
 pointer_file="$(mktemp)"
-trap 'rm -f "$pointer_file"' EXIT
+compressed_file=""
+trap 'rm -f -- "$pointer_file" "$compressed_file"' EXIT
 printf '%s\n' "$BUILD_COMMIT" > "$pointer_file"
 s3() { s5cmd --endpoint-url "$GARAGE_ENDPOINT" "$@"; }
 
 # A completed commit is immutable even when its workflow is rerun.
 if ! s3 ls "$build_prefix/complete.txt" >/dev/null; then
+  # Keep originals for byte-range requests; full downloads use precompressed
+  # siblings. Compress at publication time rather than spending Worker CPU.
+  while IFS= read -r -d '' asset; do
+    if [[ ! -f "$asset.gz" || "$asset" -nt "$asset.gz" ]]; then
+      compressed_file="$(mktemp "$asset.gz.XXXXXX")"
+      gzip -n -6 -c "$asset" > "$compressed_file"
+      mv "$compressed_file" "$asset.gz"
+      compressed_file=""
+    fi
+  done < <(find "$EXPORT_DIR" -type f \( -name '*.pck' -o -name '*.wasm' -o -name '*.js' \) -print0)
   s3 sync "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$build_prefix/assets/"

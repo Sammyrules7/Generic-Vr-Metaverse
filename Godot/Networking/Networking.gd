@@ -59,6 +59,8 @@ func _process(_delta: float) -> void:
 	ws.poll()
 	while ws.get_available_packet_count() > 0:
 		_handle_packet(ws.get_packet())
+	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		room_networking.poll_recovery()
 	# close(-1) can close the socket before poll(); client_id catches that case.
 	if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED and (previous_state != WebSocketPeer.STATE_CLOSED or client_id != 0):
 		client_id = 0

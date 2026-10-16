@@ -112,15 +112,102 @@ func _check_room_ui() -> bool:
 	reply.set_request_id(sent[0].get_request_id())
 	state.handle_packet(reply, 2)
 	var recovered: bool = not ui.get_node("%CreateRoom").disabled and ui.get_node("%Status").text == "Room rejected"
+	ui._operation_finished(RoomNetworking.Operation.RECOVER, false, "room conflicts")
+	recovered = recovered and ui.get_node("%Status").text.contains("Leave the room")
+	state.recovery_retry_at = Time.get_ticks_msec() + 2000
+	ui._operation_finished(RoomNetworking.Operation.RECOVER, false, "recovered identity is already in use")
+	recovered = recovered and ui.get_node("%Status").text.contains("Retrying automatically")
+	ui._operation_finished(RoomNetworking.Operation.RECOVER, true, "")
+	recovered = recovered and ui.get_node("%Status").text.is_empty()
 	ui.free()
 	network.room_networking = original
 	return _check(busy and recovered, "Room UI did not disable pending actions or recover after failure")
+
+
+func _check_recovery_retries() -> bool:
+	var api := SceneMultiplayer.new()
+	var state := RoomNetworking.new(api)
+	state.connected = true
+	state.detached_session = true
+	state.current_room = roomClass.new(42, "Recovery test", 1)
+	state.rtc_mesh = WebRTCMesh.new()
+	state.rtc_mesh.start(20, 30)
+	api.multiplayer_peer = state.rtc_mesh.multiplayer_peer
+	var mesh := state.rtc_mesh
+	var peer := Packets.Peer.new()
+	peer.set_id(21)
+	peer.set_session_id(31)
+	mesh.add_peer(peer, false)
+	var connection := mesh._get_connection(21)
+	mesh.suspend_peer_signaling(21)
+	mesh.add_peer(peer, false)
+	var restored := not mesh.signaling_unavailable.has(21) and mesh._get_connection(21) == connection
+	var relays: Array = []
+	mesh.packet_created.connect(func(packet): relays.append(packet))
+	mesh._candidate_created("0", 0, "candidate", 21, 31)
+	restored = restored and relays.size() == 1
+	var requests: Array = []
+	state.packet_created.connect(func(packet): requests.append(packet))
+	state.recover_room()
+	var reply := Packets.ServerPacket.new()
+	reply.new_error().set_reason("recovered identity is already in use")
+	reply.set_request_id(state._request_id)
+	state.handle_packet(reply, 20)
+	var retried := state.recovery_retry_at > Time.get_ticks_msec() and state.pending_operation == RoomNetworking.Operation.NONE and state.rtc_mesh == mesh
+	state.poll_recovery()
+	retried = retried and requests.size() == 1
+	state.recovery_retry_at = Time.get_ticks_msec() - 1
+	state.poll_recovery()
+	retried = retried and requests.size() == 2 and state.pending_operation == RoomNetworking.Operation.RECOVER
+	# A delayed rejection from the first request must not complete its retry.
+	state.handle_packet(reply, 20)
+	retried = retried and state.pending_operation == RoomNetworking.Operation.RECOVER
+	var joined := Packets.ServerPacket.new()
+	joined.set_request_id(state._request_id)
+	joined.new_room_joined().set_session_id(30)
+	var room = joined.get_room_joined().new_room()
+	room.set_id(42)
+	room.set_name("Recovery test")
+	room.set_world_id("floating_island")
+	state.handle_packet(joined, 20)
+	retried = retried and not state.detached_session and state.recovery_retry_at == 0 and state.rtc_mesh == mesh and api.get_unique_id() == 20
+	# Permanent conflicts and the retry deadline must retain P2P without looping.
+	state.signaling_lost()
+	state.connected = true
+	state.recover_room()
+	reply.set_request_id(state._request_id)
+	reply.get_error().set_reason("recovered room conflicts with an existing room")
+	state.handle_packet(reply, 20)
+	var bounded := state.recovery_retry_at == 0 and state.detached_session
+	state._recovery_deadline = Time.get_ticks_msec() - 1
+	state.recover_room()
+	reply.set_request_id(state._request_id)
+	reply.get_error().set_reason("recovered identity is already in use")
+	state.handle_packet(reply, 20)
+	bounded = bounded and state.recovery_retry_at == 0 and state.rtc_mesh == mesh
+	# Explicit leave cancels an otherwise scheduled retry.
+	state._recovery_deadline = 0
+	state.recover_room()
+	reply.set_request_id(state._request_id)
+	state.handle_packet(reply, 20)
+	bounded = bounded and state.recovery_retry_at > 0
+	state.leave_room()
+	state.poll_recovery()
+	bounded = bounded and state.recovery_retry_at == 0 and state.current_room == null and state.rtc_mesh == null
+	state.reset()
+	return (
+		_check(restored, "Recovered peer remained suspended or replaced its connection")
+		and _check(retried, "Recovery did not retry a temporary conflict and retain its mesh on success")
+		and _check(bounded, "Recovery must stop on expiry, permanent failure, or leave")
+	)
 
 
 func _run() -> void:
 	root.get_node("Networking").set_process(false)
 	root.get_node("Networking").ws.close(-1)
 	if not _check_room_ui():
+		return
+	if not _check_recovery_retries():
 		return
 	# The room service can be used without a Node or a WebSocket.
 	var isolated := RoomNetworking.new(SceneMultiplayer.new())
@@ -276,8 +363,24 @@ func _run() -> void:
 	if not _check(b.room_networking.current_room != null and b.room_networking.rooms.is_empty() and bm.local_player == previous_player and b.room_networking.rtc_mesh == previous_mesh and b.room_networking.pending_operation == RoomNetworking.Operation.NONE and failures.size() == 1, "Disconnect destroyed the live session or failed to finish its pending operation"):
 		return
 	failures.clear()
+	# Reject the first recovery locally after sending it. Its real server reply
+	# becomes stale; the transport must poll a retry and accept the next reply.
+	var recovery_requests := [0]
+	var reject_first_recovery := func(packet: Packets.ClientPacket):
+		if packet.get_payload_case() == Packets.ClientPacket.PayloadCase.ROOM_JOIN and b.room_networking.pending_operation == RoomNetworking.Operation.RECOVER:
+			recovery_requests[0] += 1
+			if recovery_requests[0] == 1:
+				var rejection := Packets.ServerPacket.new()
+				rejection.set_request_id(packet.get_request_id())
+				rejection.new_error().set_reason("recovered identity is already in use")
+				b.room_networking.handle_packet(rejection, b.client_id)
+	b.room_networking.packet_created.connect(reject_first_recovery)
 	if not await _wait_until(func(): return b.client_id == previous_id and b.room_networking.connected and not b.room_networking.detached_session, "automatic room recovery"):
 		return
+	b.room_networking.packet_created.disconnect(reject_first_recovery)
+	if not _check(recovery_requests[0] >= 2 and b.room_networking.rtc_mesh == previous_mesh and bm.local_player == previous_player, "Transport did not retry recovery without replacing the live session"):
+		return
+	failures.clear()
 	a.ws.close(-1)
 	b.ws.close(-1)
 	if not await _wait_until(func(): return a.client_id == 0 and b.client_id == 0, "test cleanup"):

@@ -1,14 +1,8 @@
-const APP_HOST = "app.vr.maio-tech.com";
-const HOME_HOST = "vr.maio-tech.com";
 const API_HOST = "api.vr.maio-tech.com";
 const LEGACY_PREVIEW_PREFIX = "/previews/";
 
 export default {
-  async fetch(request, env, context) {
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
-    }
-
+  async fetch(request, env) {
     const url = new URL(request.url);
     try {
       if (url.hostname === API_HOST) {
@@ -19,7 +13,10 @@ export default {
         upstream.search = url.search;
         return await fetch(new Request(upstream, request));
       }
-      if (url.hostname === HOME_HOST) return Response.redirect(`https://${APP_HOST}/`, 302);
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+      }
+
       if (url.pathname.startsWith(LEGACY_PREVIEW_PREFIX)) {
         url.pathname = url.pathname.slice("/previews".length);
         return Response.redirect(url.toString(), 301);
@@ -35,51 +32,78 @@ export default {
         });
       }
 
-      const cache = caches.default;
       // Key by the immutable object, not arbitrary caller query parameters.
-      const cacheKey = new Request(`https://${APP_HOST}/_cache/${target.key}`);
-      const cacheable = request.method === "GET" && !request.headers.has("range");
-      if (cacheable) {
-        const cached = await cache.match(cacheKey);
-        if (cached) return withCachePolicy(cached, target.pinned);
+      const compressible = /\.(?:pck|wasm|js)$/.test(target.asset);
+      // Cloudflare normalizes the header; cf retains the browser's preferences.
+      const acceptEncoding = request.cf?.clientAcceptEncoding ?? request.headers.get("accept-encoding");
+      const gzip = compressible && !request.headers.has("range") && acceptsGzip(acceptEncoding);
+      const originHeaders = copyOriginHeaders(request.headers);
+      const liveHtml = !target.pinned && target.asset.endsWith(".html");
+      // Transformed HTML must always include the pinned base and fresh metadata.
+      if (liveHtml) {
+        for (const name of ["if-none-match", "if-modified-since", "range", "if-range"]) originHeaders.delete(name);
       }
 
+      // Objects named .gz are stored as raw gzip bytes, without HTTP encoding
+      // metadata. Avoid an extra layer of origin-side transport compression.
+      originHeaders.set("Accept-Encoding", "identity");
       const originOptions = {
         method: request.method,
-        headers: copyOriginHeaders(request.headers),
+        headers: originHeaders,
+        // Cache immutable storage objects through fetch, including Tiered Cache.
+        // Never retain missing objects or incomplete responses.
+        cf: { cacheEverything: true, cacheTtlByStatus: { "200": 31536000, "201-599": -1 } },
       };
-      let originResponse = await fetch(`${env.ORIGIN_URL}/${target.key}`, originOptions);
+      let encoded = gzip;
+      let originResponse = await fetch(`${env.ORIGIN_URL}/${target.key}${encoded ? ".gz" : ""}`, originOptions);
+      if (encoded && originResponse.status === 404) {
+        // Existing immutable builds predate compressed siblings.
+        encoded = false;
+        originResponse = await fetch(`${env.ORIGIN_URL}/${target.key}`, originOptions);
+      }
       // Keep builds published before versioned storage working during rollout.
       // Only the active legacy build can be served, and never cached as immutable.
       let legacy = false;
       if (originResponse.status === 404) {
         const marker = await fetch(`${env.ORIGIN_URL}/${target.prefix}/builds/${target.commit}/complete.txt`, { method: "HEAD" });
         if (marker.status === 404 && await fetchPointer(env.ORIGIN_URL, `${target.prefix}/commit.txt`) === target.commit) {
-          originResponse = await fetch(`${env.ORIGIN_URL}/${target.prefix}/assets/${target.asset}`, originOptions);
+          originResponse = await fetch(`${env.ORIGIN_URL}/${target.prefix}/assets/${target.asset}`, { ...originOptions, cf: { cacheEverything: true, cacheTtl: 0 } });
           legacy = true;
         }
       }
-      if (!originResponse.ok && originResponse.status !== 416) {
+      if (legacy) encoded = false;
+      if (!originResponse.ok && originResponse.status !== 304 && originResponse.status !== 416) {
         return originResponse.status === 404
           ? notFound()
           : new Response("Build origin unavailable", { status: 502 });
       }
 
       const headers = new Headers(originResponse.headers);
+      if (compressible) headers.append("Vary", "Accept-Encoding");
+      if (encoded) {
+        headers.set("Content-Encoding", "gzip");
+        headers.set("Content-Type", target.asset.endsWith(".wasm") ? "application/wasm"
+          : target.asset.endsWith(".js") ? "text/javascript" : "application/octet-stream");
+        headers.set("Accept-Ranges", "none");
+      }
       headers.set("X-Content-Type-Options", "nosniff");
       headers.set("Cross-Origin-Opener-Policy", "same-origin");
       headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-      headers.set("Cache-Control", originResponse.status === 416
-        ? "no-store" : "public, max-age=31536000, immutable");
-      const response = new Response(request.method === "HEAD" ? null : originResponse.body, {
-        status: originResponse.status,
-        headers,
-      });
-
-      if (cacheable && !legacy && originResponse.status === 200) {
-        context.waitUntil(cache.put(cacheKey, response.clone()));
+      const pinned = target.pinned && !legacy;
+      headers.set("Cache-Control", originResponse.status === 416 ? "no-store"
+        : pinned ? "public, max-age=31536000, immutable" : "public, max-age=0, must-revalidate");
+      let body = request.method === "HEAD" ? null : originResponse.body;
+      if (liveHtml && !legacy && originResponse.status === 200) {
+        headers.delete("Content-Length");
+        headers.delete("ETag");
+        headers.delete("Last-Modified");
+        headers.set("Accept-Ranges", "none");
+        if (body) {
+          const html = await originResponse.text();
+          body = html.replace(/<head\b[^>]*>/i, head => `${head}<base href="${target.assetBase}">`);
+        }
       }
-      return originResponse.status === 416 ? response : withCachePolicy(response, target.pinned && !legacy);
+      return new Response(body, { status: originResponse.status, headers, encodeBody: "manual" });
     } catch (error) {
       console.error(error);
       return new Response("Unable to load this web build", { status: 502 });
@@ -113,14 +137,20 @@ async function resolveTarget(pathname, origin) {
 function buildTarget(prefix, route, commit, parts, pinned = true) {
   if (parts.length === 0) return { redirect: `${route}/${pinned ? `${commit}/` : ""}` };
   const asset = normalizeAssetPath(parts.join("/"));
-  return asset === null ? null : { key: `${prefix}/builds/${commit}/assets/${asset}`, prefix, commit, asset, pinned };
+  return asset === null ? null : { key: `${prefix}/builds/${commit}/assets/${asset}`, prefix, commit, asset, pinned,
+    assetBase: `${route || "/_main"}/${commit}/${asset.slice(0, asset.lastIndexOf("/") + 1)}` };
 }
 
-function withCachePolicy(response, pinned) {
-  if (pinned) return response;
-  const headers = new Headers(response.headers);
-  headers.set("Cache-Control", "public, max-age=0, must-revalidate");
-  return new Response(response.body, { status: response.status, headers });
+function acceptsGzip(header) {
+  let wildcard = false;
+  for (const entry of (header ?? "").split(",")) {
+    const [encoding, ...parameters] = entry.trim().toLowerCase().split(";");
+    const weight = parameters.find(value => value.trim().startsWith("q="));
+    const quality = weight ? Number(weight.trim().slice(2)) : 1;
+    if (encoding.trim() === "gzip") return quality > 0;
+    if (encoding.trim() === "*") wildcard = quality > 0;
+  }
+  return wildcard;
 }
 
 async function fetchPointer(origin, key) {
@@ -148,7 +178,7 @@ function normalizeAssetPath(pathname) {
 
 function copyOriginHeaders(headers) {
   const copied = new Headers();
-  for (const name of ["range", "if-range"]) {
+  for (const name of ["range", "if-range", "if-none-match", "if-modified-since"]) {
     const value = headers.get(name);
     if (value) copied.set(name, value);
   }

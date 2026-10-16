@@ -67,15 +67,33 @@ branch build at that URL; `/<branch-slug>/<40-character-commit>/` selects a
 published commit. Only a missing trailing slash is redirected. Old commit URLs
 remain usable while their stored builds are retained.
 
+Live HTML keeps the root or branch address and inserts a base URL for the chosen
+commit. Relative PCK/WASM/JavaScript and worker URLs then use pinned paths, skipping
+pointer reads and retaining immutable browser caching. One page load uses one
+build even if a new build publishes during loading. Direct live asset requests
+still revalidate, and HEAD/range requests preserve origin metadata.
+The web export excludes unused XR Tools hand/glove variants; the selected
+low-poly controller hands and optical hand models remain included. Adjust the
+web preset exclusions if adding another addon hand style.
+
+New publications include precompressed PCK/WASM/JavaScript files for full browser
+downloads. Compression runs in CI; the router selects the gzip variant. The CDN
+caches each immutable storage URL separately through `fetch()`, without a second
+Worker-managed cache. Byte-range requests use the original
+files, and older builds without compressed variants remain supported.
+
 `scripts/publish_web.sh` uploads into `<channel>/builds/<commit>/assets/`, writes
 a completion marker, then updates `<channel>/commit.txt`. Re-running a completed
 commit reuses its assets. Pinned URLs may be cached immutably; live URLs require
-revalidation. Live URLs intentionally can cross build versions if publication
-happens between a browser's asset requests. Pointer propagation may take 30 seconds.
+revalidation. Pointer propagation may take 30 seconds.
 
 The worker also serves the active pre-migration `<channel>/assets/` layout when
 no versioned build exists. Branch deletion removes its stored builds; retained
 branches and the main channel need an explicit retention policy as storage grows.
+
+Cloudflare redirects `vr.maio-tech.com` to the app with a Redirect Rule. The API
+proxy remains until the Gateway TLS migration is applied; see
+[Worker routing migration](cloudflare/README.md).
 
 See [player controls](Godot/player/README.md),
 [murder mystery](Godot/game_modes/murder_mystery/README.md),

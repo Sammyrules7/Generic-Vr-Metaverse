@@ -10,10 +10,6 @@
       "custom_domain": true
     },
     {
-      "pattern": "vr.maio-tech.com",
-      "custom_domain": true
-    },
-    {
       "pattern": "api.vr.maio-tech.com",
       "custom_domain": true
     }

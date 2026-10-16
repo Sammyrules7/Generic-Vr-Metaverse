@@ -5,6 +5,9 @@ extends RefCounted
 # the game and isolated tests use it without attaching it to the scene tree.
 const Packets = preload("res://Networking/Generated/Packets.gd")
 const REQUEST_TIMEOUT_MS := 10000
+const RECOVERY_RETRY_INTERVAL_MS := 2000
+# The old signaling socket can remain alive until the server's 60-second timeout.
+const RECOVERY_RETRY_WINDOW_MS := 70000
 
 enum Operation { NONE, CREATE, JOIN, LEAVE, RECOVER }
 
@@ -28,6 +31,8 @@ var rooms: Dictionary[int, roomClass] = {}
 var current_room: roomClass
 var rtc_mesh: WebRTCMesh
 var pending_operation := Operation.NONE
+var recovery_retry_at := 0
+var _recovery_deadline := 0
 # Keep increasing across reconnects so an old reply cannot match a new command.
 var _request_id := 0
 var _deadline := 0
@@ -90,6 +95,8 @@ func _request(operation: Operation, packet: Packets.ClientPacket, allow_detached
 	if pending_operation != Operation.NONE:
 		# One membership change at a time keeps transitions and UI feedback unambiguous.
 		return ERR_BUSY
+	if operation == Operation.RECOVER and _recovery_deadline == 0:
+		_recovery_deadline = Time.get_ticks_msec() + RECOVERY_RETRY_WINDOW_MS
 	_request_id += 1
 	packet.set_request_id(_request_id)
 	pending_operation = operation
@@ -104,6 +111,12 @@ func request_expired() -> bool:
 	return pending_operation != Operation.NONE and Time.get_ticks_msec() >= _deadline
 
 
+func poll_recovery() -> void:
+	if recovery_retry_at > 0 and connected and detached_session and pending_operation == Operation.NONE and Time.get_ticks_msec() >= recovery_retry_at:
+		recovery_retry_at = 0
+		recover_room()
+
+
 func _finish_operation(success: bool, reason := "") -> void:
 	if pending_operation == Operation.NONE:
 		return
@@ -111,11 +124,22 @@ func _finish_operation(success: bool, reason := "") -> void:
 	# Signal listeners may immediately issue another command.
 	pending_operation = Operation.NONE
 	_deadline = 0
+	if operation == Operation.RECOVER:
+		recovery_retry_at = 0
+		var retryable := reason in [
+			"recovered identity is already in use", "room is full",
+			"too many room commands; try again shortly",
+		]
+		if not success and connected and detached_session and retryable and Time.get_ticks_msec() < _recovery_deadline:
+			recovery_retry_at = Time.get_ticks_msec() + RECOVERY_RETRY_INTERVAL_MS
+		elif success:
+			_recovery_deadline = 0
 	operation_finished.emit(operation, success, reason)
 
 
 func signaling_lost(reason := "Control plane disconnected") -> void:
 	connected = false
+	recovery_retry_at = 0
 	detached_session = current_room != null
 	rooms.clear()
 	rooms_replaced.emit([])
@@ -234,6 +258,8 @@ func _enter_room(joined: Packets.ServerRoomJoined, local_id: int) -> String:
 
 func _stop_mesh() -> void:
 	detached_session = false
+	recovery_retry_at = 0
+	_recovery_deadline = 0
 	if rtc_mesh != null:
 		rtc_mesh.close()
 		rtc_mesh = null

@@ -25,6 +25,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test browser caching and build routing
+        run: node --test cloudflare/tests/worker.test.mjs
+
       - name: Deploy router
         env:
           CLOUDFLARE_ACCOUNT_ID: a92ab2f2ab0059485a5a45d61783b5da

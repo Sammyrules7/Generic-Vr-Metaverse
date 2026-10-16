@@ -361,7 +361,7 @@ func _worker_loop() -> void:
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", 1)
-func voice_packet(packet: PackedByteArray) -> void:
+func voice_packet(packet: PackedByteArray = PackedByteArray()) -> void:
 	var peer_id := multiplayer.get_remote_sender_id()
 	if packet.is_empty() or packet.size() > MAX_PACKET_BYTES or not multiplayer.get_peers().has(peer_id) or not can_hear(peer_id, multiplayer.get_unique_id()) or not worker_running:
 		return

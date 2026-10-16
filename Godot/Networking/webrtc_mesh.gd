@@ -41,6 +41,9 @@ func add_peer(peer: Packets.Peer, make_offer: bool) -> void:
 	if multiplayer_peer == null:
 		return
 	if peer_sessions.get(peer_id) == peer.get_session_id() and multiplayer_peer.has_peer(peer_id):
+		# Restored directory membership makes signaling usable again, even when
+		# the original data channel survived and needs no renegotiation.
+		signaling_unavailable.erase(peer_id)
 		return
 	remove_peer(peer_id)
 	var connection := WebRTCPeerConnection.new()

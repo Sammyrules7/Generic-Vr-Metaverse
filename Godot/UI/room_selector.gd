@@ -404,7 +404,7 @@ func _room_left() -> void:
 
 
 func set_menu_open(open: bool) -> void:
-	open = open or world_loading
+	open = open or world_loading or (room_networking.current_room != null and %Resume.disabled)
 	menu_open = open
 	var in_room := room_networking.current_room != null
 	$VBoxContainer.visible = not in_room
@@ -494,13 +494,21 @@ func _check_request(result: Error) -> void:
 
 func _operation_started(operation: RoomNetworking.Operation) -> void:
 	_update_controls()
-	if operation != RoomNetworking.Operation.RECOVER:
+	if operation == RoomNetworking.Operation.RECOVER:
+		_set_status("Restoring room membership…")
+	else:
 		_set_status({RoomNetworking.Operation.CREATE: "Creating room…", RoomNetworking.Operation.JOIN: "Joining room…", RoomNetworking.Operation.LEAVE: "Leaving room…"}[operation])
 
 
 func _operation_finished(operation: RoomNetworking.Operation, success: bool, reason: String) -> void:
 	_update_controls()
 	if operation == RoomNetworking.Operation.RECOVER:
+		if success:
+			_set_status("")
+		elif room_networking.recovery_retry_at > 0:
+			_set_status("Restoring room membership… Retrying automatically")
+		else:
+			_show_error("Could not restore room membership: %s. Leave the room to reconnect." % reason)
 		return
 	if not success:
 		_show_error(reason)

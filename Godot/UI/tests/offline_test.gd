@@ -45,7 +45,7 @@ func _run() -> void:
 	check(ui.get_node("%RoomName").text == "Keep this room name", "Reconnect erased form state")
 	Networking.room_networking.create_room("Disconnect test", "moon_garden")
 	check(await _wait_until(func(): return Networking.room_networking.current_room != null), "Test room did not open")
-	check(await _wait_until(func(): return game.get_node("PlayerManager").local_player != null), "Test world did not spawn a player")
+	check(await _wait_until(func(): return game.get_node("PlayerManager").local_player != null and not ui.world_loading), "Test world did not finish entering gameplay")
 	var player: NetworkPlayer = game.get_node("PlayerManager").local_player
 	var mesh: WebRTCMesh = Networking.room_networking.rtc_mesh
 	var original_room_id: int = Networking.room_networking.current_room.id
