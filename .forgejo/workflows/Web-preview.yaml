@@ -58,7 +58,10 @@ jobs:
           header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
           mkdir -p /tmp
           ci_home="$(mktemp -d /tmp/ci-home.XXXXXX)"
-          mkdir -p "$ci_home/config" "$ci_home/data"
+          mkdir -p "$ci_home/config" "$ci_home/data/godot"
+          # Keep the image's read-only export templates reachable through the
+          # user-owned XDG data dir.
+          ln -s /share/godot/export_templates "$ci_home/data/godot/export_templates"
           # Godot writes user:// settings under XDG dirs that must be owned by
           # the uid; the image defaults point at root-owned /tmp paths here,
           # which breaks profile.cfg persistence in the tests.
