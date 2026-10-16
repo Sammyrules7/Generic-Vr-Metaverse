@@ -66,6 +66,7 @@ jobs:
       - name: Build and cache selected images
         shell: bash
         env:
+          HOME: /tmp
           ATTIC_SERVER: https://attic.maio-tech.com
           ATTIC_CACHE: main
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}

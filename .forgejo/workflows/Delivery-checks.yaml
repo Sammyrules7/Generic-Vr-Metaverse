@@ -17,6 +17,11 @@ on:
 jobs:
   drift:
     runs-on: nix
+    # Run inside the builder image so git-lfs, python, and the nix daemon are
+    # all available; the bare host lacked node-lfs tooling.
+    container:
+      # Updated automatically from the flake by Server-container.yaml.
+      image: nix:0/nix/store/8gkw0nrmwykp4yhcic8x96a5g63hrf74-nix-image-vr-platform-builder-ci.tar
     steps:
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. No GitHub actions: this must stay act-runner native.
