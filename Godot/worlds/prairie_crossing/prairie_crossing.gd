@@ -165,12 +165,12 @@ func _quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, key: String, solid: b
 	_triangle(a, c, d, key, solid)
 
 
-func _primitive(mesh: PrimitiveMesh, p: Vector3, scale: Vector3, key: String, basis: Basis = Basis.IDENTITY, solid: bool = false) -> void:
-	var transform := Transform3D(basis.scaled_local(scale), p)
-	_surface(key).append_from(mesh, 0, transform)
+func _primitive(mesh: PrimitiveMesh, p: Vector3, mesh_scale: Vector3, key: String, mesh_basis: Basis = Basis.IDENTITY, solid: bool = false) -> void:
+	var xform := Transform3D(mesh_basis.scaled_local(mesh_scale), p)
+	_surface(key).append_from(mesh, 0, xform)
 	if solid:
 		for v in mesh.get_faces():
-			solid_vertices.append(transform * v)
+			solid_vertices.append(xform * v)
 
 
 func _box(p: Vector3, size: Vector3, key: String, solid: bool = false, yaw: float = 0.0) -> void:
@@ -193,8 +193,8 @@ func _beam(a: Vector3, b: Vector3, radius: float, key: String, solid: bool = fal
 	mesh.bottom_radius = radius
 	mesh.height = direction.length()
 	mesh.radial_segments = 5
-	var basis := Basis(Quaternion(Vector3.UP, direction.normalized()))
-	_primitive(mesh, (a + b) / 2, Vector3.ONE, key, basis, solid)
+	var beam_basis := Basis(Quaternion(Vector3.UP, direction.normalized()))
+	_primitive(mesh, (a + b) / 2, Vector3.ONE, key, beam_basis, solid)
 
 
 func _terrain() -> void:
@@ -331,13 +331,13 @@ func _weather_station() -> void:
 
 
 func _bench(p: Vector3, yaw: float) -> void:
-	var basis := Basis(Vector3.UP, yaw)
+	var bench_basis := Basis(Vector3.UP, yaw)
 	for x in [-1.0, 1.0]:
-		_box(p + basis * Vector3(x, 0.35, 0), Vector3(0.12, 0.7, 0.75), "steel", true, yaw)
+		_box(p + bench_basis * Vector3(x, 0.35, 0), Vector3(0.12, 0.7, 0.75), "steel", true, yaw)
 	for z in [-0.25, 0.0, 0.25]:
-		_box(p + basis * Vector3(0, 0.65, z), Vector3(2.6, 0.1, 0.2), "bench", true, yaw)
+		_box(p + bench_basis * Vector3(0, 0.65, z), Vector3(2.6, 0.1, 0.2), "bench", true, yaw)
 	for y in [0.98, 1.23]:
-		_box(p + basis * Vector3(0, y, 0.36), Vector3(2.6, 0.19, 0.09), "bench", true, yaw)
+		_box(p + bench_basis * Vector3(0, y, 0.36), Vector3(2.6, 0.19, 0.09), "bench", true, yaw)
 	for x in [-1, 1]:
 		_beam(p + basis * Vector3(x, 0.35, 0.36), p + basis * Vector3(x, 1.36, 0.36), 0.05, "steel")
 

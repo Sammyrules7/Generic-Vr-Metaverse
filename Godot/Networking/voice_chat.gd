@@ -6,6 +6,7 @@ extends Node
 # scene nodes, controls, and multiplayer RPCs are accessed on the main thread.
 const SAMPLE_RATE := 48000
 const FRAME_MS := 20
+@warning_ignore("integer_division")
 const SAMPLES_PER_FRAME := SAMPLE_RATE * FRAME_MS / 1000
 const BIT_RATE := 24000
 const MAX_PACKET_BYTES := 1275
@@ -23,6 +24,7 @@ signal muted_changed(muted: bool)
 signal input_device_changed(device: String)
 signal input_devices_changed(devices: PackedStringArray)
 signal input_ready_changed(ready: bool)
+signal input_permission_denied
 signal output_volume_changed(volume: float)
 
 var room_networking: RoomNetworking
@@ -49,6 +51,7 @@ var local_speaking := false
 var input_ready := false
 var input_permission_requested := false
 var audience_policy := Callable()
+var _web_permission_callback: JavaScriptObject
 
 
 func set_audience_policy(policy: Callable) -> void:
@@ -199,7 +202,7 @@ func _start_voice(_room: roomClass) -> void:
 
 func _create_encoder(input_rate: float) -> TwovoipOpusEncoder:
 	var codec := TwovoipOpusEncoder.new()
-	var error := codec.initialize(input_rate, SAMPLE_RATE, 1,
+	var error := codec.initialize(int(input_rate), SAMPLE_RATE, 1,
 		TwovoipOpusEncoder.DENOISER_RNNOISE, TwovoipOpusEncoder.AGC_DISABLED,
 		SAMPLES_PER_FRAME)
 	if error != OK or not codec.create_opus_encoder(BIT_RATE, 5, true):
@@ -216,9 +219,12 @@ func prepare_microphone() -> bool:
 		return input_ready
 	if OS.has_feature("android") and not OS.request_permission("android.permission.RECORD_AUDIO"):
 		return false
+	if OS.has_feature("web"):
+		_watch_web_microphone_permission()
 	var error := AudioServer.set_input_device_active(true)
 	if error != OK:
 		push_warning("Could not start microphone: %s" % error_string(error))
+		_microphone_permission_denied()
 		return false
 	encoder = _create_encoder(AudioServer.get_input_mix_rate())
 	if encoder == null:
@@ -232,8 +238,39 @@ func prepare_microphone() -> bool:
 	return input_ready
 
 
+func _watch_web_microphone_permission() -> void:
+	if _web_permission_callback == null:
+		_web_permission_callback = JavaScriptBridge.create_callback(_on_web_permission_result)
+	JavaScriptBridge.eval("""
+		window.vrPlatformWatchMicrophone = function(callback) {
+			if (!navigator.permissions) return;
+			navigator.permissions.query({name: "microphone"}).then(function(status) {
+				const report = function() { callback(status.state); };
+				status.onchange = report;
+				report();
+			}).catch(function() {});
+		};
+	""")
+	JavaScriptBridge.get_interface("window").vrPlatformWatchMicrophone(_web_permission_callback)
+
+
+func _on_web_permission_result(arguments: Array) -> void:
+	if not arguments.is_empty() and str(arguments[0]) == "denied":
+		_microphone_permission_denied()
+
+
+func _microphone_permission_denied() -> void:
+	set_muted(true)
+	input_permission_requested = false
+	input_permission_denied.emit()
+
+
 func _on_permission_result(permission: String, granted: bool) -> void:
-	if permission == "android.permission.RECORD_AUDIO" and granted and input_permission_requested and not muted:
+	if permission != "android.permission.RECORD_AUDIO":
+		return
+	if not granted:
+		_microphone_permission_denied()
+	elif input_permission_requested and not muted:
 		prepare_microphone()
 
 
@@ -335,7 +372,7 @@ func _queue_job(job: Dictionary) -> void:
 
 
 func _worker_loop() -> void:
-	var codec: TwovoipOpusEncoder
+	var codec: TwovoipOpusEncoder = null
 	var pending_input := PackedVector2Array()
 	var silence_frames := 0
 	var was_active := false

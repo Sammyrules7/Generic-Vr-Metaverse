@@ -1,3 +1,4 @@
+@tool
 extends XRToolsViewport2DIn3D
 ## A nearby, upward-tilted tablet with a heading deadzone. Contact uses the
 ## same UI event path as controller rays, including dragging and release.

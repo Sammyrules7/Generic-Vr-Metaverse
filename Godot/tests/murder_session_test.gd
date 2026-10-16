@@ -70,7 +70,7 @@ func make_peer(server: bool) -> Dictionary:
 		for index in range(5 if group_name == "ClueSpawns" else 3):
 			var marker := Marker3D.new()
 			marker.name = "Point%d" % index
-			marker.position = Vector3(index * 3, 1.3 if group_name != "GameSpawns" else 0, -4)
+			marker.position = Vector3(index * 3, 1.3 if group_name != "GameSpawns" else 0.0, -4)
 			group.add_child(marker)
 	var table := Marker3D.new()
 	table.name = "GameTable"

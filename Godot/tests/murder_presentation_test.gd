@@ -69,10 +69,10 @@ func _run() -> void:
 	presentation.toggle_journal()
 	check(display.card.visible, "Inspect opens the private card")
 	for vr: bool in [true, false]:
-		var old_card: Node3D = display.card
+		var previous_card: Node3D = display.card
 		local.set_control_mode(vr)
 		local.controls.process_mode = Node.PROCESS_MODE_DISABLED
-		check(not is_instance_valid(old_card), "Control switch frees the old rig's card")
+		check(not is_instance_valid(previous_card), "Control switch frees the old rig's card")
 		check(is_instance_valid(display.card_text) and display.card.visible, "Control switch rebuilds the inspected private card")
 		check(display.card_text.text.contains("THE DETECTIVE"), "Control switch preserves the role")
 		check(display.card.get_parent() == (local.controls.left_hand if vr else local.controls.head), "Card attaches to the active controls")

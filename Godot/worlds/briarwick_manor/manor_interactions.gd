@@ -72,7 +72,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	var controls := _controls(camera)
 	var pressed := false
-	var target: Node3D
+	var target: Node3D = null
 	if controls != null and controls.input_enabled:
 		for hand in [controls.right_hand, controls.left_hand]:
 			if hand is XRController3D and hand.get_is_active() and hand.is_button_pressed("by_button"):

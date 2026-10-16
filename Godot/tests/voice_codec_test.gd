@@ -19,7 +19,10 @@ func wait_for_results(encoded: bool) -> Array[Dictionary]:
 	while Time.get_ticks_msec() < deadline:
 		voice.worker_mutex.lock()
 		var results := voice.encoded_frames.duplicate() if encoded else voice.decoded_packets.duplicate()
-		voice.encoded_frames.clear() if encoded else voice.decoded_packets.clear()
+		if encoded:
+			voice.encoded_frames.clear()
+		else:
+			voice.decoded_packets.clear()
 		voice.worker_mutex.unlock()
 		if not results.is_empty():
 			return results

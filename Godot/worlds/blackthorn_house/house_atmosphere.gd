@@ -320,7 +320,7 @@ func _process(delta: float) -> void:
 	_update_slow(delta)
 
 
-func _update_slow(delta: float) -> void:
+func _update_slow(_delta: float) -> void:
 	if is_instance_valid(_pendulum):
 		_pendulum.rotation.x = cos(_time * TAU) * 0.13
 		_minute.rotation.x = -_time * TAU / 3600.0

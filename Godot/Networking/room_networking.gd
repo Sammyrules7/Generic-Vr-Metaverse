@@ -327,6 +327,7 @@ func _apply_turn_credentials(joined: Packets.ServerRoomJoined) -> void:
 	var now := Time.get_ticks_msec()
 	_turn_expires_at = now + ttl_ms
 	# Refresh early enough for a command round trip; scale down for short TTLs.
+	@warning_ignore("integer_division")
 	_turn_refresh_at = now + maxi(1, ttl_ms - mini(60000, ttl_ms / 5))
 
 

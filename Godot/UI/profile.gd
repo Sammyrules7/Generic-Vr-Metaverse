@@ -3,7 +3,7 @@ extends RefCounted
 
 static var display_name := "Explorer"
 static var world_id := "floating_island"
-static var microphone_enabled := true
+static var microphone_enabled := false
 static var voice_volume := 0.8
 static var input_gain := 1.0
 static var input_device := "Default"
@@ -14,7 +14,7 @@ static func restore() -> void:
 	if config.load("user://profile.cfg") == OK:
 		display_name = str(config.get_value("profile", "display_name", "Explorer")).strip_edges().left(24)
 		world_id = str(config.get_value("profile", "world_id", "floating_island"))
-		microphone_enabled = bool(config.get_value("voice", "microphone_enabled", true))
+		microphone_enabled = bool(config.get_value("voice", "microphone_enabled", false))
 		voice_volume = clampf(float(config.get_value("voice", "volume", 0.8)), 0.0, 1.0)
 		input_gain = clampf(float(config.get_value("voice", "input_gain", 1.0)), 0.0, 2.0)
 		input_device = str(config.get_value("voice", "input_device", "Default"))

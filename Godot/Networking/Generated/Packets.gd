@@ -1628,7 +1628,7 @@ class ClientRoomJoin:
 
 class ClientRoomLeave:
 	func _init():
-		var service
+		pass
 
 	var data = {}
 
@@ -2170,7 +2170,7 @@ class TurnCredentials:
 
 class ServerRoomLeft:
 	func _init():
-		var service
+		pass
 
 	var data = {}
 

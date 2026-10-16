@@ -338,6 +338,7 @@ func _rain_audio() -> void:
 	for i in count:
 		filtered = lerpf(filtered, noise_rng.randf_range(-1.0, 1.0), 0.32)
 		samples[i] = filtered * 0.45
+	@warning_ignore("integer_division")
 	var overlap := sample_rate / 4
 	for i in overlap:
 		var t := float(i) / float(overlap)

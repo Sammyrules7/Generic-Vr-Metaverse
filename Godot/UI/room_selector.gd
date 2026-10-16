@@ -55,6 +55,7 @@ func _ready() -> void:
 	%OpenVoiceSettings.pressed.connect(_open_voice_settings)
 	%OpenSessionVoiceSettings.pressed.connect(_open_voice_settings)
 	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
+	Networking.voice_chat.input_permission_denied.connect(func(): _microphone_toggled(false))
 	Networking.voice_chat.local_speaking_changed.connect(_local_speaking_changed)
 	Networking.voice_chat.input_devices_changed.connect(func(_devices): _populate_input_devices())
 	%DisplayName.focus_exited.connect(_remember_preferences)

@@ -86,7 +86,7 @@ func run() -> void:
 	await physics_frame
 	await physics_frame
 	check(player.position.z > 11 and player.position.y > -1, "Out-of-bounds recovery must return to spawn")
-	print("OBSERVATORY CHECKS: ", "PASS" if failures.is_empty() else failures, " | static bodies: ", bodies.size())
+	print("OBSERVATORY CHECKS: ", "PASS" if failures.is_empty() else str(failures), " | static bodies: ", bodies.size())
 	scene.queue_free()
 	await process_frame
 	quit(0 if failures.is_empty() else 1)
