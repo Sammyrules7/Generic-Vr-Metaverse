@@ -368,7 +368,8 @@ type Room struct {
 	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	PlayerCount uint32                 `protobuf:"varint,3,opt,name=player_count,json=playerCount,proto3" json:"player_count,omitempty"`
 	WorldId     string                 `protobuf:"bytes,4,opt,name=world_id,json=worldId,proto3" json:"world_id,omitempty"`
-	// Distinguishes a recovered room from a new room reusing its numeric ID.
+	// Public lists carry an incarnation nonce; join replies carry a signed
+	// per-member recovery capability. Preserve the join reply value for recovery.
 	RecoveryToken string `protobuf:"bytes,5,opt,name=recovery_token,json=recoveryToken,proto3" json:"recovery_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
