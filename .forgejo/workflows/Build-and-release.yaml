@@ -47,6 +47,9 @@ jobs:
           git init -q "$GITHUB_WORKSPACE"
           git remote add origin "$REPO_URL"
           git config "http.$REPO_URL.extraheader" "$header"
+          # Configure the LFS smudge filter before the first checkout so
+          # large files are materialized as real content.
+          git lfs install --local
           git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
           git checkout -qf --detach FETCH_HEAD
           git lfs pull
