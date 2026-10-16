@@ -77,12 +77,6 @@
       webPublishCiImage = import ./nix/images/web-publish-ci.nix imageArgs;
       cleanupCiImage = import ./nix/images/web-cleanup-ci.nix imageArgs;
 
-      publishCiImage = mkResolvedImage {
-        name = "vr-platform-publish-ci";
-        root = mkImageRoot "vr-platform-publish-ci-root" (baseTools ++ (with pkgs; [ butler ]));
-        env = [ "PATH=/bin" ];
-      };
-
       builderCiImage = mkResolvedImage {
         name = "vr-platform-builder-ci";
         root = mkImageRoot "vr-platform-builder-ci-root" (baseTools ++ (with pkgs; [
@@ -123,7 +117,6 @@
         godot-ci-image = godotCiImage;
         godot-web-ci-image = godotWebCiImage;
         web-publish-ci-image = webPublishCiImage;
-        publish-ci-image = publishCiImage;
         cleanup-ci-image = cleanupCiImage;
         builder-ci-image = builderCiImage;
         attic-client = pkgs.attic-client;
@@ -135,7 +128,6 @@
         godot-ci-image = godotCiImage;
         godot-web-ci-image = godotWebCiImage;
         web-publish-ci-image = webPublishCiImage;
-        publish-ci-image = publishCiImage;
         cleanup-ci-image = cleanupCiImage;
         builder-ci-image = builderCiImage;
       };

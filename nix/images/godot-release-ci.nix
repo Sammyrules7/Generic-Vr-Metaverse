@@ -13,6 +13,7 @@ mkResolvedImage {
   name = "vr-platform-godot-ci";
   root = mkImageRoot "vr-platform-godot-ci-root" (baseTools ++ (with pkgs; [
     androidSdk
+    butler
     fontconfig
     godot_4
     godot-export-templates-bin

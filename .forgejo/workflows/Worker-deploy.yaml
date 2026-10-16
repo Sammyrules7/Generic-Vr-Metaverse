@@ -20,10 +20,8 @@ jobs:
       # Updated with the publisher image by Server-container.yaml.
       image: nix:0/nix/store/1fh64qhk5iva1idawvklmimsq9akiais-nix-image-vr-platform-web-publish-ci.tar
     steps:
-      - name: Checkout router configuration
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
+      # The Forgejo runner already cloned the router configuration; no extra
+      # checkout step is needed. No GitHub actions: keep act-runner native.
 
       - name: Test browser caching and build routing
         run: node --test cloudflare/tests/worker.test.mjs

@@ -13,8 +13,7 @@ if [[ "$scope" == all ]]; then
   definitions+=(
     'godot-ci-image|vr-platform-godot-ci|.forgejo/workflows/Build-and-release.yaml'
     'godot-web-ci-image|vr-platform-godot-web-ci|.forgejo/workflows/Web-preview.yaml'
-    'web-publish-ci-image|vr-platform-web-publish-ci|.forgejo/workflows/Web-preview.yaml .forgejo/workflows/Worker-deploy.yaml'
-    'publish-ci-image|vr-platform-publish-ci|.forgejo/workflows/Build-and-release.yaml'
+    'web-publish-ci-image|vr-platform-web-publish-ci|.forgejo/workflows/Worker-deploy.yaml'
     'cleanup-ci-image|vr-platform-cleanup-ci|.forgejo/workflows/Web-preview-cleanup.yaml'
     'builder-ci-image|vr-platform-builder-ci|.forgejo/workflows/Server-container.yaml'
   )

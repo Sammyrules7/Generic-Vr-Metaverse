@@ -18,10 +18,13 @@ jobs:
   drift:
     runs-on: nix
     steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-          persist-credentials: false
+      # The Forgejo runner already cloned the repository; pull the LFS assets
+      # the delivery checks and the world-loading test need. No GitHub actions:
+      # this must stay act-runner native.
+      - name: Fetch repository large files
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git lfs pull
       - name: Check native libraries, world allowlist, LFS and generated protocol
         run: |
           nix develop --command bash -euo pipefail -c '

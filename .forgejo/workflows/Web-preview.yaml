@@ -38,22 +38,29 @@ env:
 
 jobs:
   web-preview:
-    name: Build web preview
+    name: Build and publish web preview
     runs-on: default
-    outputs:
-      commit: ${{ steps.describe.outputs.commit }}
-      slug: ${{ steps.describe.outputs.slug }}
-      publish_main: ${{ steps.describe.outputs.publish_main }}
     container:
+      # The image bundles godot, web export templates, and s5cmd for publishing.
       # Updated automatically from the flake by Server-container.yaml.
       image: nix:0/nix/store/y2h8p5vvnkjfd7qbv0i3m1d53ik8q5ln-nix-image-vr-platform-godot-web-ci.tar
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-          lfs: true
-          persist-credentials: false
+      # The Forgejo runner already clones the selected ref; only LFS assets and
+      # the optional disjoint workflow_dispatch ref need extra handling.
+      # No GitHub actions: this must stay act-runner native.
+      - name: Checkout requested ref with large files
+        env:
+          REQUESTED_REF: ${{ inputs.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if [ -n "$REQUESTED_REF" ] && [ "$REQUESTED_REF" != "$GITHUB_REF_NAME" ]; then
+            git fetch --no-tags --force origin "$REQUESTED_REF" \
+              || git fetch --no-tags --force origin   # raw SHAs can need a full fetch
+            git checkout --force --detach "$REQUESTED_REF" 2>/dev/null \
+              || git checkout --force --detach FETCH_HEAD
+          fi
+          git lfs pull
 
       - name: Describe build
         id: describe
@@ -74,13 +81,6 @@ jobs:
       - name: Read engine version
         id: engine
         run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Godot imports
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.PROJECT_PATH }}/.godot
-          key: godot-web-v2-${{ steps.engine.outputs.version }}-${{ steps.describe.outputs.commit }}
-          restore-keys: godot-web-v2-${{ steps.engine.outputs.version }}-
 
       - name: Import project
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
@@ -123,41 +123,8 @@ jobs:
           godot --headless --verbose --path "$PROJECT_PATH" --export-release "Web - Preview" "$EXPORT_DIR/index.html"
           find "$EXPORT_DIR" -maxdepth 1 -type f -printf '%s %f\n' | sort -nr
 
-      - name: Upload web client
-        uses: actions/upload-artifact@v3
-        with:
-          name: Web-Preview
-          path: ${{ env.EXPORT_DIR }}
-
-  publish-preview:
-    name: Publish web preview
-    needs: web-preview
-    runs-on: default
-    container:
-      # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/1fh64qhk5iva1idawvklmimsq9akiais-nix-image-vr-platform-web-publish-ci.tar
-    env:
-      GARAGE_BUCKET: vr-platform-web
-      GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
-      AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: garage
-      BUILD_COMMIT: ${{ needs.web-preview.outputs.commit }}
-      BUILD_SLUG: ${{ needs.web-preview.outputs.slug }}
-      PUBLISH_MAIN: ${{ needs.web-preview.outputs.publish_main }}
-    steps:
-      - name: Checkout deployment configuration
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.web-preview.outputs.commit }}
-          persist-credentials: false
-
-      - name: Download web client
-        uses: actions/download-artifact@v3
-        with:
-          name: Web-Preview
-          path: ${{ env.EXPORT_DIR }}
-
+      # Publishing runs inline in the same job so the exported client never
+      # travels through a GitHub-compatible artifact transfer.
       - name: Decompress web client for HTTP range requests
         shell: bash
         run: |
@@ -170,11 +137,23 @@ jobs:
 
       - name: Publish immutable branch build
         shell: bash
+        env:
+          GARAGE_BUCKET: vr-platform-web
+          GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: garage
         run: bash scripts/publish_web.sh "branches/$BUILD_SLUG"
 
       - name: Publish main channel
         if: env.PUBLISH_MAIN == 'true'
         shell: bash
+        env:
+          GARAGE_BUCKET: vr-platform-web
+          GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: garage
         run: bash scripts/publish_web.sh channels/main
 
       - name: Publish links

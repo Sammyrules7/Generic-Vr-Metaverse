@@ -24,11 +24,8 @@ jobs:
     container:
       image: nix:0/nix/store/8gkw0nrmwykp4yhcic8x96a5g63hrf74-nix-image-vr-platform-builder-ci.tar
     steps:
-      - name: Checkout code without game assets
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-          lfs: false
+      # The Forgejo runner already cloned the code without game assets, so no
+      # checkout step is needed. No GitHub actions: keep act-runner native.
 
       - name: Select images
         id: images
