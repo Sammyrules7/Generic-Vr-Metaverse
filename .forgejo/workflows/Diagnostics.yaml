@@ -21,6 +21,7 @@ jobs:
           set -euo pipefail
           TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
           header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p "$HOME" /tmp
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git init -q "$GITHUB_WORKSPACE"
           git -C "$GITHUB_WORKSPACE" remote add origin "$REPO_URL"
