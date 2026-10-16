@@ -72,17 +72,12 @@ jobs:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
           IMAGE_SCOPE: ${{ steps.images.outputs.scope }}
         run: |
-          id
-          echo "HOME=[$HOME]"
-          echo "=== attempt nix version"
-          nix --version
-          echo "=== nix version rc=$?"
-          echo "=== attempt nix run"
+          # Nix verifies that $HOME is owned by the current uid; the plugin
+          # leaves /tmp root-owned and the image has no passwd entry, so use a
+          # fresh user-owned directory instead.
+          export HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
-          echo "=== nix run rc=$?"
-          echo "=== update script"
           bash scripts/update_ci_images.sh "$IMAGE_SCOPE"
-          echo "=== update rc=$?"
 
       - name: Commit updated image references
         shell: bash

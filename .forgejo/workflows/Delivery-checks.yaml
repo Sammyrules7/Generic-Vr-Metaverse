@@ -42,7 +42,13 @@ jobs:
           git checkout -qf --detach FETCH_HEAD
           git lfs pull
       - name: Check native libraries, world allowlist, LFS and generated protocol
+        env:
+          # Nix verifies that $HOME is owned by the current uid; the plugin
+          # leaves /tmp root-owned and the image has no passwd entry, so give
+          # it a fresh user-owned directory.
+          HOME: /tmp
         run: |
+          export HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
           nix develop --command bash -euo pipefail -c '
             python3 scripts/check_delivery.py
             godot --headless --xr-mode off --editor --import --path Godot
