@@ -72,13 +72,17 @@ jobs:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
           IMAGE_SCOPE: ${{ steps.images.outputs.scope }}
         run: |
-          set -x
           id
           echo "HOME=$HOME"
-          which nix git
-          ls -la /tmp /etc/passwd 2>&1 | head -5
+          command -v nix git || true
+          ls -ld /tmp /etc 2>&1 || true
+          (cat /etc/passwd 2>&1 | head -3) || true
+          echo "bootstrap passwd entry"
+          grep -q "^[^:]*:[^:]*:$(id -u):" /etc/passwd 2>/dev/null \
+            || echo "runner:x:$(id -u):$(id -g):runner:/tmp:/bin/sh" >> /etc/passwd \
+            || echo "could not write /etc/passwd"
+          cat /etc/passwd | tail -1
           nix --version
-          set +x
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
           bash scripts/update_ci_images.sh "$IMAGE_SCOPE"
 
