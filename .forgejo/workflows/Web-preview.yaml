@@ -56,7 +56,14 @@ jobs:
           set -euo pipefail
           TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
           header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
-          mkdir -p "$HOME" /tmp
+          ci_home="$(mktemp -d /tmp/ci-home.XXXXXX)"
+          mkdir -p "$ci_home/config" "$ci_home/data"
+          # Godot writes user:// settings under XDG dirs that must be owned by
+          # the uid; the image defaults point at root-owned /tmp paths here,
+          # which breaks profile.cfg persistence in the tests.
+          printf 'HOME=%s\nXDG_CONFIG_HOME=%s\nXDG_DATA_HOME=%s\n' \
+            "$ci_home" "$ci_home/config" "$ci_home/data" >> "$GITHUB_ENV"
+          export HOME="$ci_home"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git init -q "$GITHUB_WORKSPACE"
           git remote add origin "$REPO_URL"
