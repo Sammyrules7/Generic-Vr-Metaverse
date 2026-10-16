@@ -79,7 +79,6 @@ jobs:
           ls -la /tmp /etc/passwd 2>&1 | head -5
           nix --version
           set +x
-        run: |
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
           bash scripts/update_ci_images.sh "$IMAGE_SCOPE"
 
