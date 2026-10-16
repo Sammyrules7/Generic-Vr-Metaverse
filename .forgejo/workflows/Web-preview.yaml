@@ -45,20 +45,28 @@ jobs:
       # Updated automatically from the flake by Server-container.yaml.
       image: nix:0/nix/store/y2h8p5vvnkjfd7qbv0i3m1d53ik8q5ln-nix-image-vr-platform-godot-web-ci.tar
     steps:
-      # The Forgejo runner already clones the selected ref; only LFS assets and
-      # the optional disjoint workflow_dispatch ref need extra handling.
-      # No GitHub actions: this must stay act-runner native.
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. A workflow_dispatch run can target a ref different from
+      # the selected one. No GitHub actions: this must stay act-runner native.
       - name: Checkout requested ref with large files
         env:
-          REQUESTED_REF: ${{ inputs.ref || github.ref_name }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          REQUESTED_REF: ${{ inputs.ref || github.ref }}
         run: |
           set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p "$HOME" /tmp
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          if [ -n "$REQUESTED_REF" ] && [ "$REQUESTED_REF" != "$GITHUB_REF_NAME" ]; then
-            git fetch --no-tags --force origin "$REQUESTED_REF" \
-              || git fetch --no-tags --force origin   # raw SHAs can need a full fetch
-            git checkout --force --detach "$REQUESTED_REF" 2>/dev/null \
-              || git checkout --force --detach FETCH_HEAD
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          if [ -n "$REQUESTED_REF" ]; then
+            git fetch -q --no-tags --depth=1 origin "$REQUESTED_REF" \
+              || git fetch -q --no-tags origin   # raw SHAs can need a full fetch
+            git checkout -qf --detach "$REQUESTED_REF" 2>/dev/null || git checkout -qf --detach FETCH_HEAD
+          else
+            git checkout -qf --detach FETCH_HEAD
           fi
           git lfs pull
 

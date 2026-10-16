@@ -24,8 +24,25 @@ jobs:
     container:
       image: nix:0/nix/store/8gkw0nrmwykp4yhcic8x96a5g63hrf74-nix-image-vr-platform-builder-ci.tar
     steps:
-      # The Forgejo runner already cloned the code without game assets, so no
-      # checkout step is needed. No GitHub actions: keep act-runner native.
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. The token is persisted in the git config so the later
+      # base-commit fetch and bot pin commit keep working. No GitHub actions:
+      # keep act-runner native.
+      - name: Checkout code without game assets
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          FETCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p "$HOME" /tmp
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          git fetch -q --no-tags origin "$FETCH_REF"
+          git checkout -qf --detach FETCH_HEAD
 
       - name: Select images
         id: images

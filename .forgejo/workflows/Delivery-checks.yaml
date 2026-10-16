@@ -18,12 +18,23 @@ jobs:
   drift:
     runs-on: nix
     steps:
-      # The Forgejo runner already cloned the repository; pull the LFS assets
-      # the delivery checks and the world-loading test need. No GitHub actions:
-      # this must stay act-runner native.
-      - name: Fetch repository large files
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. No GitHub actions: this must stay act-runner native.
+      - name: Checkout repository with large files
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          FETCH_REF: ${{ github.ref }}
         run: |
+          set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p "$HOME" /tmp
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
+          git checkout -qf --detach FETCH_HEAD
           git lfs pull
       - name: Check native libraries, world allowlist, LFS and generated protocol
         run: |
