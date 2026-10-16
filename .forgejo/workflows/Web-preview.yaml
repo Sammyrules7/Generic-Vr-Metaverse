@@ -56,7 +56,8 @@ jobs:
           set -euo pipefail
           TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
           header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
-          ci_home="$(mktemp -d /tmp/ci-home.XXXXXX)"
+          mkdir -p /tmp
+ci_home="$(mktemp -d /tmp/ci-home.XXXXXX)"
           mkdir -p "$ci_home/config" "$ci_home/data"
           # Godot writes user:// settings under XDG dirs that must be owned by
           # the uid; the image defaults point at root-owned /tmp paths here,
