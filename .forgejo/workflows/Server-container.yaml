@@ -85,7 +85,7 @@ jobs:
           BRANCH_NAME: ${{ github.ref_name }}
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
-          generated_files=(cluster/server/deployment.yaml .forgejo/workflows/Build-and-release.yaml .forgejo/workflows/Server-container.yaml .forgejo/workflows/Web-preview.yaml .forgejo/workflows/Web-preview-cleanup.yaml .forgejo/workflows/Worker-deploy.yaml)
+          generated_files=(cluster/server/deployment.yaml .forgejo/workflows/Build-and-release.yaml .forgejo/workflows/Delivery-checks.yaml .forgejo/workflows/Server-container.yaml .forgejo/workflows/Web-preview.yaml .forgejo/workflows/Web-preview-cleanup.yaml .forgejo/workflows/Worker-deploy.yaml)
           if git diff --quiet -- "${generated_files[@]}"; then exit 0; fi
           git fetch --no-tags --depth=1 origin "refs/heads/$BRANCH_NAME"
           if [[ "$(git rev-parse FETCH_HEAD)" != "$SOURCE_COMMIT" ]]; then
