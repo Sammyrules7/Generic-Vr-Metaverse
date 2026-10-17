@@ -44,6 +44,18 @@ jobs:
           git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
           git checkout -qf --detach FETCH_HEAD
           git lfs pull
+      # Basic import cache: restore the previous run's .godot/imported snapshot,
+      # keyed to the engine (via flake.lock), saving the refreshed snapshot at
+      # job end. Commit-specific keys with a compatibility fallback follow
+      # docs/ci-review.md. The runner must provide the Forgejo cache service;
+      # if it is not configured this step fails with the documented GHES error.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: Godot/.godot/imported
+          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          restore-keys: |
+            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
       - name: Check native libraries, world allowlist, LFS and generated protocol
         env:
           # Nix verifies that $HOME is owned by the current uid; the plugin
