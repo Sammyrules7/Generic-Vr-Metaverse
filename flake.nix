@@ -32,6 +32,12 @@
       mkImageRoot = name: paths: pkgs.buildEnv {
         inherit name paths;
         pathsToLink = [ "/bin" "/etc" "/lib" "/share" ];
+        # Godot's Android gradlew has a /usr/bin/env shebang; keep it working
+        # inside the minimal Nix image roots.
+        postBuild = ''
+          mkdir -p "$out/usr/bin"
+          ln -s /bin/env "$out/usr/bin/env"
+        '';
       };
 
       baseTools = with pkgs; [
