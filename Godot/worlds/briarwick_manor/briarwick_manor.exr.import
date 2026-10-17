@@ -4,16 +4,15 @@ importer="2d_array_texture"
 type="CompressedTexture2DArray"
 uid="uid://cf6ilts8ojlim"
 path.bptc="res://.godot/imported/briarwick_manor.exr-2884c6d6d276377b4110765e0cce6f5d.bptc.ctexarray"
-path.astc="res://.godot/imported/briarwick_manor.exr-2884c6d6d276377b4110765e0cce6f5d.astc.ctexarray"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://worlds/briarwick_manor/briarwick_manor.exr"
-dest_files=["res://.godot/imported/briarwick_manor.exr-2884c6d6d276377b4110765e0cce6f5d.bptc.ctexarray", "res://.godot/imported/briarwick_manor.exr-2884c6d6d276377b4110765e0cce6f5d.astc.ctexarray"]
+dest_files=["res://.godot/imported/briarwick_manor.exr-2884c6d6d276377b4110765e0cce6f5d.bptc.ctexarray"]
 
 [params]
 
