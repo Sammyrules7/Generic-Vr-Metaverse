@@ -4,15 +4,16 @@ importer="2d_array_texture"
 type="CompressedTexture2DArray"
 uid="uid://lje5d487jfwy"
 path.bptc="res://.godot/imported/floating_island.exr-81be203ea151784cd2d1121d8e9e9368.bptc.ctexarray"
+path.astc="res://.godot/imported/floating_island.exr-81be203ea151784cd2d1121d8e9e9368.astc.ctexarray"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://worlds/floating_island/floating_island.exr"
-dest_files=["res://.godot/imported/floating_island.exr-81be203ea151784cd2d1121d8e9e9368.bptc.ctexarray"]
+dest_files=["res://.godot/imported/floating_island.exr-81be203ea151784cd2d1121d8e9e9368.bptc.ctexarray", "res://.godot/imported/floating_island.exr-81be203ea151784cd2d1121d8e9e9368.astc.ctexarray"]
 
 [params]
 
