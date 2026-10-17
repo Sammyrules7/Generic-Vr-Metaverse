@@ -118,8 +118,22 @@ jobs:
           umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$GITHUB_WORKSPACE/release.keystore"
 
+      - name: Point gradle at the Nix AAPT2
+        run: |
+          set -euo pipefail
+          sdk="$(readlink -f "$(command -v sdkmanager)")"
+          sdk="${sdk%/*}"; sdk="${sdk%/*}"; sdk="${sdk%/*}"; sdk="${sdk%/*}"
+          aapt2="$(ls "$sdk"/build-tools/*/aapt2 | sort -V | tail -1)"
+          # Google's Maven aapt2 cannot start in this minimal container
+          # (missing system dirs); the Nix-built aapt2 works.
+          for gradle_home in /build/gradle /tmp/gradle-home; do
+            mkdir -p "$gradle_home"
+            printf 'android.aapt2FromMavenOverride=%s\n' "$aapt2" >> "$gradle_home/gradle.properties"
+          done
+
       - name: Build Android Release
         env:
+          GRADLE_USER_HOME: /build/gradle
           GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/release.keystore
           GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
