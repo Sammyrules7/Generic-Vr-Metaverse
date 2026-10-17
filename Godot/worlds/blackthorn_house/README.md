@@ -19,4 +19,16 @@ godot --headless --xr-mode off --path Godot --script res://worlds/blackthorn_hou
 godot --xr-mode off --path Godot --script res://worlds/blackthorn_house/render_preview.gd
 ```
 
+## Light baking
+
+Blackthorn House is deliberately realtime-lit and does not use LightmapGI.
+The architecture, furniture and additional atmosphere meshes are generated at
+runtime by `blackthorn_house.gd` and `house_atmosphere.gd`; Godot lightmaps
+bake against scene contents saved in the editor, so runtime-generated meshes
+are invisible to the baker and carry no UV2. Fifteen of the twenty-six local
+lights also flicker at runtime, and fine hearth/lantern pools are part of the
+look, so a static bake could not represent them. If the interior ever feels
+expensive on a target device, the first lever is the window-wash lights, not
+baking.
+
 The optional validator checks actual physics: unobstructed one-metre-wide avatars, a connected half-metre walkability grid, pickup volumes outside solids, and an unobstructed pickup ray within two metres of reachable floor. The render script saves a 1440 × 900 `preview.png` here and lounge, library, window, guest-book and private-card views in `/tmp`. Render previews with a graphics device, not headless mode. Use `--rendering-method gl_compatibility` to inspect the web-compatible renderer. Physical headset comfort and audio balance still need device review.

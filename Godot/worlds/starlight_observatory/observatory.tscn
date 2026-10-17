@@ -1,11 +1,12 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://ryp8errfodrm"]
 
-[ext_resource type="Script" path="res://worlds/starlight_observatory/world.gd" id="1_vpkx0"]
-[ext_resource type="PackedScene" path="res://worlds/starlight_observatory/assets/observatory.glb" id="2_7y2lb"]
-[ext_resource type="Shader" path="res://worlds/starlight_observatory/shaders/starlight.gdshader" id="3_fq3wh"]
-[ext_resource type="Shader" path="res://worlds/starlight_observatory/shaders/cloud_sea.gdshader" id="4_mudas"]
-[ext_resource type="Shader" path="res://worlds/starlight_observatory/shaders/wind.gdshader" id="5_inhn6"]
-[ext_resource type="Script" path="res://worlds/starlight_observatory/globe.gd" id="6_04dpe"]
+[ext_resource type="Script" uid="uid://d3tgdvekyikjv" path="res://worlds/starlight_observatory/world.gd" id="1_vpkx0"]
+[ext_resource type="PackedScene" uid="uid://ce41yh6t4fpuf" path="res://worlds/starlight_observatory/assets/observatory.glb" id="2_7y2lb"]
+[ext_resource type="Shader" uid="uid://cj6h4754tgrqs" path="res://worlds/starlight_observatory/shaders/starlight.gdshader" id="3_fq3wh"]
+[ext_resource type="Shader" uid="uid://ctljqjop8my80" path="res://worlds/starlight_observatory/shaders/cloud_sea.gdshader" id="4_mudas"]
+[ext_resource type="Shader" uid="uid://cdfrqlo6hrgo5" path="res://worlds/starlight_observatory/shaders/wind.gdshader" id="5_inhn6"]
+[ext_resource type="Script" uid="uid://bkywguyt32bbt" path="res://worlds/starlight_observatory/globe.gd" id="6_04dpe"]
+[ext_resource type="LightmapGIData" uid="uid://ddsevrvm1ed0" path="res://worlds/starlight_observatory/observatory.lmbake" id="7_txuac"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_6cdgv"]
 shader = ExtResource("3_fq3wh")
@@ -466,11 +467,12 @@ rings = 4
 transform_format = 1
 instance_count = 36
 mesh = SubResource("SphereMesh_vfkhs")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 [node name="World" type="Node3D" unique_id=1296846998]
 script = ExtResource("1_vpkx0")
 
-[node name="Architecture" type="Node3D" parent="." unique_id=1126823578 instance=ExtResource("2_7y2lb")]
+[node name="Architecture" parent="." unique_id=1126823578 instance=ExtResource("2_7y2lb")]
 
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=1178718115]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 12)
@@ -491,6 +493,7 @@ directional_shadow_max_distance = 45.0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.5, 0)
 material_override = SubResource("ShaderMaterial_mrjm0")
 cast_shadow = 0
+gi_mode = 0
 mesh = SubResource("PlaneMesh_bk3vm")
 
 [node name="GlobeAmberBounce" type="OmniLight3D" parent="." unique_id=770396452]
@@ -498,6 +501,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38, 0)
 light_color = Color(1, 0.65, 0.36, 1)
 light_energy = 1.8
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_enabled = true
 shadow_opacity = 0.7
 omni_range = 7.0
@@ -508,6 +512,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.8, 0.3)
 light_color = Color(0.35, 0.7, 1, 1)
 light_energy = 0.35
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.0
 omni_attenuation = 1.4
@@ -517,6 +522,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.9, 3.5, -10.5)
 light_color = Color(1, 0.7, 0.44, 1)
 light_energy = 2.5
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_enabled = true
 shadow_opacity = 0.7
 omni_range = 10.0
@@ -527,6 +533,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8, 3.5, -10.5)
 light_color = Color(0.45, 0.7, 0.8, 1)
 light_energy = 0.8
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 8.0
 omni_attenuation = 1.4
@@ -536,6 +543,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1.35, 0)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.4
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 5.2
 omni_attenuation = 1.4
@@ -545,6 +553,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1.35, 0)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.4
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 5.2
 omni_attenuation = 1.4
@@ -554,6 +563,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.35, 9)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.4
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 5.2
 omni_attenuation = 1.4
@@ -563,6 +573,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.35, 9)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.4
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 5.2
 omni_attenuation = 1.4
@@ -572,6 +583,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.9, 1.38, 0)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -581,6 +593,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.903778, 1.38, -7.45)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -590,6 +603,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.45, 1.38, -12.903778)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -599,6 +613,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.123618e-16, 1.38, -14.9)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -608,6 +623,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.45, 1.38, -12.903778)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -617,6 +633,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.903778, 1.38, -7.45)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -626,6 +643,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.9, 1.38, -1.8247237e-15)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -635,6 +653,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.903778, 1.38, 7.45)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -644,6 +663,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.45, 1.38, 12.903778)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -653,6 +673,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7370855e-15, 1.38, 14.9)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -662,6 +683,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.45, 1.38, 12.903778)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -671,6 +693,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.903778, 1.38, 7.45)
 light_color = Color(1, 0.68, 0.38, 1)
 light_energy = 0.6
 light_indirect_energy = 1.5
+light_bake_mode = 1
 shadow_opacity = 0.7
 omni_range = 3.2
 omni_attenuation = 1.4
@@ -678,6 +701,7 @@ omni_attenuation = 1.4
 [node name="LoungeFireflies" type="GPUParticles3D" parent="." unique_id=1081510017]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 cast_shadow = 0
+gi_mode = 0
 amount = 24
 lifetime = 14.0
 preprocess = 3.0
@@ -690,6 +714,7 @@ draw_pass_1 = SubResource("QuadMesh_u38on")
 [node name="ObservatoryStardust" type="GPUParticles3D" parent="." unique_id=1267369451]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -8)
 cast_shadow = 0
+gi_mode = 0
 amount = 12
 lifetime = 14.0
 preprocess = 3.0
@@ -702,6 +727,7 @@ draw_pass_1 = SubResource("QuadMesh_qi6ff")
 [node name="TerraceBreeze" type="GPUParticles3D" parent="." unique_id=1718455561]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
 cast_shadow = 0
+gi_mode = 0
 amount = 56
 lifetime = 12.0
 preprocess = 3.0
@@ -714,6 +740,7 @@ draw_pass_1 = SubResource("QuadMesh_mv7bq")
 [node name="CloudbankWind" type="GPUParticles3D" parent="." unique_id=854936692]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 cast_shadow = 0
+gi_mode = 0
 amount = 48
 lifetime = 12.0
 preprocess = 3.0
@@ -766,21 +793,25 @@ script = ExtResource("6_04dpe")
 
 [node name="@MeshInstance3D@16" type="MeshInstance3D" parent="StarGlobe/Orbits" unique_id=78786634]
 material_override = SubResource("StandardMaterial3D_gsdlr")
+gi_mode = 0
 mesh = SubResource("SphereMesh_ybrfa")
 
 [node name="@MeshInstance3D@17" type="MeshInstance3D" parent="StarGlobe/Orbits" unique_id=1132070057]
 transform = Transform3D(0.9135454, -0.40673664, 0, 0.40673664, 0.9135454, 0, 0, 0, 1, 0, 0, 0)
 material_override = SubResource("StandardMaterial3D_7krqa")
+gi_mode = 0
 mesh = SubResource("TorusMesh_ayhuu")
 
 [node name="@MeshInstance3D@18" type="MeshInstance3D" parent="StarGlobe/Orbits" unique_id=1742510947]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
 material_override = SubResource("StandardMaterial3D_7krqa")
+gi_mode = 0
 mesh = SubResource("TorusMesh_j0fgo")
 
 [node name="@MeshInstance3D@19" type="MeshInstance3D" parent="StarGlobe/Orbits" unique_id=1297945023]
 transform = Transform3D(-4.371139e-08, -1, 0, 0.90630776, -3.961597e-08, -0.42261827, 0.42261827, -1.8473232e-08, 0.90630776, 0, 0, 0)
 material_override = SubResource("StandardMaterial3D_7krqa")
+gi_mode = 0
 mesh = SubResource("TorusMesh_f80vv")
 
 [node name="Constellations" type="Node3D" parent="StarGlobe/Orbits" unique_id=475551789]
@@ -790,66 +821,79 @@ mesh = SubResource("TorusMesh_f80vv")
 [node name="@MeshInstance3D@20" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=1133191967]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.48, 0.28, 0.6165225)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_yv6gy")
 
 [node name="@MeshInstance3D@21" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=260375561]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.18, 0.4, 0.7046276)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_ijbva")
 
 [node name="@MeshInstance3D@22" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=962283063]
 transform = Transform3D(-0.3713907, 0.8957718, 0.24425761, 0.92847663, 0.35830876, 0.09770306, 0, 0.2630735, -0.9647758, -0.32999998, 0.34, 0.66057503)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_m63ec")
 
 [node name="@MeshInstance3D@23" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=1693774778]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, 0.25, 0.7602631)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_46vf3")
 
 [node name="@MeshInstance3D@24" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=2118931869]
 transform = Transform3D(0.35112345, 0.92848843, 0.120919734, 0.9363292, -0.34818318, -0.0453449, 0, 0.12914233, -0.9916261, 0.019999996, 0.325, 0.73244536)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_e7frq")
 
 [node name="@MeshInstance3D@25" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=339167426]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.44, -0.05, 0.70199716)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_obv48")
 
 [node name="@MeshInstance3D@26" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=919848379]
 transform = Transform3D(0.806405, 0.5842414, -0.091503754, 0.59136367, -0.79669285, 0.12477785, 0, -0.15473348, -0.9879563, 0.32999998, 0.1, 0.7311301)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_6aprw")
 
 [node name="@MeshInstance3D@27" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=193248046]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.18, -0.34, 0.735459)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_rjyoq")
 
 [node name="@MeshInstance3D@28" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=323772376]
 transform = Transform3D(0.7445695, -0.665095, -0.057140116, -0.667545, -0.7418367, -0.06373321, 0, 0.08559739, -0.99632984, 0.31, -0.19500001, 0.71872807)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_36su2")
 
 [node name="@MeshInstance3D@29" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=789007330]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, -0.35, 0.6902174)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_5lv7j")
 
 [node name="@MeshInstance3D@30" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=1662506646]
 transform = Transform3D(0.020828793, -0.9953735, 0.09379702, -0.99978304, -0.020736927, 0.0019541027, 0, -0.093817376, -0.9955895, -0.060000002, -0.345, 0.7128382)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_k5fi2")
 
 [node name="@MeshInstance3D@31" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=705477632]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.48, 0.28, 0.6165225)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_n2u7k")
 
 [node name="@MeshInstance3D@32" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map0" unique_id=660819841]
 transform = Transform3D(-0.96152395, -0.2729997, 0.030705705, -0.2747211, 0.9554991, -0.10746998, 0, -0.11177047, -0.99373406, -0.39, -0.034999996, 0.6533699)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_7fj3r")
 
 [node name="Map1" type="Node3D" parent="StarGlobe/Orbits/Constellations" unique_id=1152469338]
@@ -858,46 +902,55 @@ visible = false
 [node name="@MeshInstance3D@33" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=1396235893]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.52, 0.22, 0.60835844)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_lry26")
 
 [node name="@MeshInstance3D@34" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=101750560]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.33, -0.25, 0.7193747)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_j5qgl")
 
 [node name="@MeshInstance3D@35" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=2063999876]
 transform = Transform3D(0.9271101, 0.3661133, 0.08017439, 0.37478912, -0.9056488, -0.19832614, 0, 0.21391864, -0.9768515, -0.425, -0.015000001, 0.6638666)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_pgdko")
 
 [node name="@MeshInstance3D@36" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=386131718]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.31, 0.7699351)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_such7")
 
 [node name="@MeshInstance3D@37" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=400490982]
 transform = Transform3D(-0.8615384, 0.50616336, 0.039372, 0.50769234, 0.8589438, 0.06681308, 0, 0.0775509, -0.9969884, -0.165, 0.030000001, 0.7446549)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_2xka1")
 
 [node name="@MeshInstance3D@38" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=141446520]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.33, -0.25, 0.7193747)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_cnsym")
 
 [node name="@MeshInstance3D@39" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=432435772]
 transform = Transform3D(0.8615384, 0.50616336, -0.039372, 0.50769234, -0.8589438, 0.06681308, 0, -0.0775509, -0.9969884, 0.165, 0.030000001, 0.7446549)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_226wj")
 
 [node name="@MeshInstance3D@40" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=878032674]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.52, 0.22, 0.60835844)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_7mim5")
 
 [node name="@MeshInstance3D@41" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map1" unique_id=1776025587]
 transform = Transform3D(-0.9271101, 0.3661133, -0.08017439, 0.37478912, 0.9056488, -0.19832614, 0, -0.21391864, -0.9768515, 0.425, -0.015000001, 0.6638666)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_26etv")
 
 [node name="Map2" type="Node3D" parent="StarGlobe/Orbits/Constellations" unique_id=1844720854]
@@ -906,70 +959,84 @@ visible = false
 [node name="@MeshInstance3D@42" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=2003599861]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.55, 0.15, 0.6032412)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_3wixv")
 
 [node name="@MeshInstance3D@43" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=1617412333]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.83)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_k7t3o")
 
 [node name="@MeshInstance3D@44" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=1909105237]
 transform = Transform3D(0.2631174, 0.8964511, 0.3565735, 0.9647638, -0.24448667, -0.09724731, 0, 0.36959666, -0.9291923, -0.275, 0.075, 0.71662056)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_b721j")
 
 [node name="@MeshInstance3D@45" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=1029747396]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.35, 0.56249446)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_hf8hv")
 
 [node name="@MeshInstance3D@46" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=106316838]
 transform = Transform3D(-0.57346237, 0.75032526, -0.32886615, 0.8192319, 0.52522767, -0.23020633, 0, -0.4014323, -0.9158887, 0.25, 0.175, 0.6962472)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_0dh63")
 
 [node name="@MeshInstance3D@47" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=1179730752]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.83)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_nj0xu")
 
 [node name="@MeshInstance3D@48" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=1705739041]
 transform = Transform3D(0.57346237, -0.75032526, -0.32886615, -0.8192319, -0.52522767, -0.23020633, 0, 0.4014323, -0.9158887, 0.25, 0.175, 0.6962472)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_tqiy4")
 
 [node name="@MeshInstance3D@49" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=1123038205]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.55, 0.61959666)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_ylnbo")
 
 [node name="@MeshInstance3D@50" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=490105975]
 transform = Transform3D(-0.99589324, 0.08460376, -0.032232374, 0.090535745, 0.93064135, -0.35455614, 0, -0.35601825, -0.934479, 0.025, 0.275, 0.7247983)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_lryoa")
 
 [node name="@MeshInstance3D@51" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=2046110893]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.83)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_c77qe")
 
 [node name="@MeshInstance3D@52" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=1533402535]
 transform = Transform3D(0.99589324, -0.08460376, -0.032232374, -0.090535745, -0.93064135, -0.35455614, 0, 0.35601825, -0.934479, 0.025, 0.275, 0.7247983)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_aqtl1")
 
 [node name="@MeshInstance3D@53" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=224548544]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.12, -0.52, 0.6356886)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("SphereMesh_eqybc")
 
 [node name="@MeshInstance3D@54" type="MeshInstance3D" parent="StarGlobe/Orbits/Constellations/Map2" unique_id=831500307]
 transform = Transform3D(0.9743912, -0.21128957, 0.07693189, -0.22485952, -0.9155881, 0.3333715, 0, -0.34213307, -0.9396515, -0.06, -0.26, 0.7328443)
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 mesh = SubResource("CylinderMesh_a3aoa")
 
 [node name="GlobeStars" type="MultiMeshInstance3D" parent="StarGlobe/Orbits" unique_id=1164116449]
 material_override = SubResource("StandardMaterial3D_bohlh")
+gi_mode = 0
 multimesh = SubResource("MultiMesh_nqugn")
 
 [node name="Caption" type="Label3D" parent="StarGlobe" unique_id=1691976864]
@@ -981,3 +1048,7 @@ E / TRIGGER  ·  constellation
 R / GRIP  ·  pause orbit"
 font_size = 22
 outline_size = 0
+
+[node name="LightmapGI" type="LightmapGI" parent="." unique_id=559469082]
+directional = true
+light_data = ExtResource("7_txuac")

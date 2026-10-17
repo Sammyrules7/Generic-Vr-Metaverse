@@ -1,48 +1,49 @@
-[gd_scene format=4]
+[gd_scene format=4 uid="uid://h8ivbre37jvi"]
 
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Floor_WoodLight.gltf" id="1_fvfyb"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Floor_Brick.gltf" id="2_u7fn3"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Floor_WoodDark.gltf" id="3_0dt1g"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Wall_Plaster_Window_Wide_Round.gltf" id="4_qifcp"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Window_Wide_Round1.gltf" id="5_g6qlt"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Wall_Plaster_Straight.gltf" id="6_x86b0"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Wall_Plaster_Door_Round.gltf" id="7_l40bo"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/DoorFrame_Round_WoodDark.gltf" id="8_yb62e"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Roof_RoundTiles_8x14.gltf" id="9_e1i8j"]
-[ext_resource type="Script" path="res://worlds/briarwick_manor/manor_interactable.gd" id="10_qa72q"]
-[ext_resource type="Shader" path="res://worlds/briarwick_manor/window_glass.gdshader" id="11_ooh1h"]
-[ext_resource type="Shader" path="res://worlds/briarwick_manor/drapery.gdshader" id="12_ao3lw"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Chandelier.gltf" id="13_n450b"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Table_Large.gltf" id="14_jihvi"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/CandleStick_Triple.gltf" id="15_dm85m"]
-[ext_resource type="Shader" path="res://worlds/briarwick_manor/candle_flame.gdshader" id="16_2lyni"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Book_Stack_1.gltf" id="17_8hqjk"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Bench.gltf" id="18_cvy53"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Vase_4.gltf" id="19_jd3bj"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Prop_Vine1.gltf" id="20_mm122"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Bookcase_2.gltf" id="21_3kqvc"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/BookGroup_Medium_1.gltf" id="22_oty3j"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/BookGroup_Medium_2.gltf" id="23_hh6a5"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Chair_1.gltf" id="24_tj61y"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Scroll_1.gltf" id="25_ubclj"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/BookStand.gltf" id="26_ckig8"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Shelf_Arch.gltf" id="27_yxumd"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Table_Plate.gltf" id="28_4c5cn"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Chalice.gltf" id="29_0jk3f"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Cabinet.gltf" id="30_8p8gv"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Bottle_1.gltf" id="31_sq6er"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/village/Prop_Vine4.gltf" id="32_tx5y3"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/SmallBottles_1.gltf" id="33_qrayp"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Vase_2.gltf" id="34_vit40"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Bed_Twin1.gltf" id="35_ch80h"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Nightstand_Shelf.gltf" id="36_edye5"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Chest_Wood.gltf" id="37_m18nm"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Mug.gltf" id="38_qdt8e"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Book_7.gltf" id="39_5345u"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Shelf_Small_Bottles.gltf" id="40_2dc3d"]
-[ext_resource type="PackedScene" path="res://worlds/briarwick_manor/assets/props/Bag.gltf" id="41_wo3vq"]
-[ext_resource type="Script" path="res://game_modes/murder_mystery/murder_map.gd" id="42_56ru4"]
-[ext_resource type="Script" path="res://worlds/briarwick_manor/manor_interactions.gd" id="43_havy3"]
+[ext_resource type="PackedScene" uid="uid://bjlx7u1q32sxr" path="res://worlds/briarwick_manor/assets/village/Floor_WoodLight.gltf" id="1_fvfyb"]
+[ext_resource type="PackedScene" uid="uid://b0c3fwedlja61" path="res://worlds/briarwick_manor/assets/village/Floor_Brick.gltf" id="2_u7fn3"]
+[ext_resource type="PackedScene" uid="uid://ca0kx6rrnreyr" path="res://worlds/briarwick_manor/assets/village/Floor_WoodDark.gltf" id="3_0dt1g"]
+[ext_resource type="PackedScene" uid="uid://c2csqmqy8pcid" path="res://worlds/briarwick_manor/assets/village/Wall_Plaster_Window_Wide_Round.gltf" id="4_qifcp"]
+[ext_resource type="PackedScene" uid="uid://lkpwqhdv1u45" path="res://worlds/briarwick_manor/assets/village/Window_Wide_Round1.gltf" id="5_g6qlt"]
+[ext_resource type="PackedScene" uid="uid://k157jn2umt30" path="res://worlds/briarwick_manor/assets/village/Wall_Plaster_Straight.gltf" id="6_x86b0"]
+[ext_resource type="PackedScene" uid="uid://c7nn18qtwumim" path="res://worlds/briarwick_manor/assets/village/Wall_Plaster_Door_Round.gltf" id="7_l40bo"]
+[ext_resource type="PackedScene" uid="uid://cab812mripbei" path="res://worlds/briarwick_manor/assets/village/DoorFrame_Round_WoodDark.gltf" id="8_yb62e"]
+[ext_resource type="PackedScene" uid="uid://3147gu3nivfy" path="res://worlds/briarwick_manor/assets/village/Roof_RoundTiles_8x14.gltf" id="9_e1i8j"]
+[ext_resource type="Script" uid="uid://bucubyu84rydt" path="res://worlds/briarwick_manor/manor_interactable.gd" id="10_qa72q"]
+[ext_resource type="Shader" uid="uid://dfqpiqvqpweid" path="res://worlds/briarwick_manor/window_glass.gdshader" id="11_ooh1h"]
+[ext_resource type="Shader" uid="uid://bs72fmbyu3if8" path="res://worlds/briarwick_manor/drapery.gdshader" id="12_ao3lw"]
+[ext_resource type="PackedScene" uid="uid://631rej4q5a56" path="res://worlds/briarwick_manor/assets/props/Chandelier.gltf" id="13_n450b"]
+[ext_resource type="PackedScene" uid="uid://h4ecsuiinwb3" path="res://worlds/briarwick_manor/assets/props/Table_Large.gltf" id="14_jihvi"]
+[ext_resource type="PackedScene" uid="uid://8h0kmbd760cg" path="res://worlds/briarwick_manor/assets/props/CandleStick_Triple.gltf" id="15_dm85m"]
+[ext_resource type="Shader" uid="uid://de4e86o6sm5e2" path="res://worlds/briarwick_manor/candle_flame.gdshader" id="16_2lyni"]
+[ext_resource type="PackedScene" uid="uid://ceiecs4qvavnq" path="res://worlds/briarwick_manor/assets/props/Book_Stack_1.gltf" id="17_8hqjk"]
+[ext_resource type="PackedScene" uid="uid://dccjf8t1r1ape" path="res://worlds/briarwick_manor/assets/props/Bench.gltf" id="18_cvy53"]
+[ext_resource type="PackedScene" uid="uid://dutbmfnpmpjwk" path="res://worlds/briarwick_manor/assets/props/Vase_4.gltf" id="19_jd3bj"]
+[ext_resource type="PackedScene" uid="uid://6ttjovg4nwxs" path="res://worlds/briarwick_manor/assets/village/Prop_Vine1.gltf" id="20_mm122"]
+[ext_resource type="PackedScene" uid="uid://cpgd6xujwrb54" path="res://worlds/briarwick_manor/assets/props/Bookcase_2.gltf" id="21_3kqvc"]
+[ext_resource type="PackedScene" uid="uid://dhm1h4nlmpv3f" path="res://worlds/briarwick_manor/assets/props/BookGroup_Medium_1.gltf" id="22_oty3j"]
+[ext_resource type="PackedScene" uid="uid://c4a33fbmkxpgb" path="res://worlds/briarwick_manor/assets/props/BookGroup_Medium_2.gltf" id="23_hh6a5"]
+[ext_resource type="PackedScene" uid="uid://bhiapausg408q" path="res://worlds/briarwick_manor/assets/props/Chair_1.gltf" id="24_tj61y"]
+[ext_resource type="PackedScene" uid="uid://dnrd67xvkalg4" path="res://worlds/briarwick_manor/assets/props/Scroll_1.gltf" id="25_ubclj"]
+[ext_resource type="PackedScene" uid="uid://btclvnhra77fw" path="res://worlds/briarwick_manor/assets/props/BookStand.gltf" id="26_ckig8"]
+[ext_resource type="PackedScene" uid="uid://bji3pd6ou6gq4" path="res://worlds/briarwick_manor/assets/props/Shelf_Arch.gltf" id="27_yxumd"]
+[ext_resource type="PackedScene" uid="uid://cdgk85vyy55pt" path="res://worlds/briarwick_manor/assets/props/Table_Plate.gltf" id="28_4c5cn"]
+[ext_resource type="PackedScene" uid="uid://b463ibxh5pw5x" path="res://worlds/briarwick_manor/assets/props/Chalice.gltf" id="29_0jk3f"]
+[ext_resource type="PackedScene" uid="uid://cj77neg25qjhc" path="res://worlds/briarwick_manor/assets/props/Cabinet.gltf" id="30_8p8gv"]
+[ext_resource type="PackedScene" uid="uid://bnni5qd1wmhpk" path="res://worlds/briarwick_manor/assets/props/Bottle_1.gltf" id="31_sq6er"]
+[ext_resource type="PackedScene" uid="uid://cpi4ixcpa2wv1" path="res://worlds/briarwick_manor/assets/village/Prop_Vine4.gltf" id="32_tx5y3"]
+[ext_resource type="PackedScene" uid="uid://biyolt5mdbfy3" path="res://worlds/briarwick_manor/assets/props/SmallBottles_1.gltf" id="33_qrayp"]
+[ext_resource type="PackedScene" uid="uid://cadhnxvg57vf1" path="res://worlds/briarwick_manor/assets/props/Vase_2.gltf" id="34_vit40"]
+[ext_resource type="PackedScene" uid="uid://5hum4idvwtty" path="res://worlds/briarwick_manor/assets/props/Bed_Twin1.gltf" id="35_ch80h"]
+[ext_resource type="PackedScene" uid="uid://doyga6mq8r8jj" path="res://worlds/briarwick_manor/assets/props/Nightstand_Shelf.gltf" id="36_edye5"]
+[ext_resource type="PackedScene" uid="uid://dgxx88eqm24nk" path="res://worlds/briarwick_manor/assets/props/Chest_Wood.gltf" id="37_m18nm"]
+[ext_resource type="PackedScene" uid="uid://be7avr8qow4at" path="res://worlds/briarwick_manor/assets/props/Mug.gltf" id="38_qdt8e"]
+[ext_resource type="PackedScene" uid="uid://qj6he4didt8g" path="res://worlds/briarwick_manor/assets/props/Book_7.gltf" id="39_5345u"]
+[ext_resource type="PackedScene" uid="uid://er20byiefowd" path="res://worlds/briarwick_manor/assets/props/Shelf_Small_Bottles.gltf" id="40_2dc3d"]
+[ext_resource type="PackedScene" uid="uid://dgm4tdplm3otw" path="res://worlds/briarwick_manor/assets/props/Bag.gltf" id="41_wo3vq"]
+[ext_resource type="Script" uid="uid://ppi3os8px2dy" path="res://game_modes/murder_mystery/murder_map.gd" id="42_56ru4"]
+[ext_resource type="LightmapGIData" uid="uid://cvusyyp3qdi3h" path="res://worlds/briarwick_manor/briarwick_manor.lmbake" id="42_u7fn3"]
+[ext_resource type="Script" uid="uid://dxun0gq3gqnke" path="res://worlds/briarwick_manor/manor_interactions.gd" id="43_havy3"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8ee4k"]
 albedo_color = Color(0.21176471, 0.14117648, 0.18039216, 1)
@@ -160,7 +161,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_220v1"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_sus5t"]
 size = Vector2(0.65, 2.87)
@@ -178,7 +179,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_kk1ou"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_2jvsw"]
 size = Vector2(0.65, 2.87)
@@ -226,7 +227,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_6yfgs"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_u6kgf"]
 size = Vector2(0.65, 2.87)
@@ -244,7 +245,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ngam6"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_1tu1u"]
 size = Vector2(0.65, 2.87)
@@ -292,7 +293,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_nqobi"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_gstjo"]
 size = Vector2(0.65, 2.87)
@@ -310,7 +311,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pql75"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_gljfh"]
 size = Vector2(0.65, 2.87)
@@ -358,7 +359,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aci3d"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_7d6t3"]
 size = Vector2(0.65, 2.87)
@@ -376,7 +377,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_5dllo"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_u3gv2"]
 size = Vector2(0.65, 2.87)
@@ -424,7 +425,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_l7ihl"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_mfxq5"]
 size = Vector2(0.65, 2.87)
@@ -442,7 +443,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_rqu3q"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_uy4ij"]
 size = Vector2(0.65, 2.87)
@@ -490,7 +491,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bypoi"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_bi1n0"]
 size = Vector2(0.65, 2.87)
@@ -508,7 +509,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_4a7q8"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_pmslc"]
 size = Vector2(0.65, 2.87)
@@ -556,7 +557,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_nbn0n"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_2f1ra"]
 size = Vector2(0.65, 2.87)
@@ -574,7 +575,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_qp2rm"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_1tvyo"]
 size = Vector2(0.65, 2.87)
@@ -622,7 +623,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ylh3g"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_taueb"]
 size = Vector2(0.65, 2.87)
@@ -640,7 +641,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_htn53"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_dncy5"]
 size = Vector2(0.65, 2.87)
@@ -688,7 +689,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_p34wv"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_nbwvy"]
 size = Vector2(0.65, 2.87)
@@ -706,7 +707,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_64mco"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_jty84"]
 size = Vector2(0.65, 2.87)
@@ -754,7 +755,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_4ieph"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_ud58n"]
 size = Vector2(0.65, 2.87)
@@ -772,7 +773,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_gkfht"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_qa4ri"]
 size = Vector2(0.65, 2.87)
@@ -820,7 +821,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_8lwkv"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_dxw7s"]
 size = Vector2(0.65, 2.87)
@@ -838,7 +839,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_m4n1a"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_pll5s"]
 size = Vector2(0.65, 2.87)
@@ -886,7 +887,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_m6kyc"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_24rqx"]
 size = Vector2(0.65, 2.87)
@@ -904,7 +905,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_jaeic"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_uwesh"]
 size = Vector2(0.65, 2.87)
@@ -952,7 +953,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_uwupa"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_8wykq"]
 size = Vector2(0.65, 2.87)
@@ -970,7 +971,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_80uvg"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_cyser"]
 size = Vector2(0.65, 2.87)
@@ -1018,7 +1019,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_js2v5"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_3j4r8"]
 size = Vector2(0.65, 2.87)
@@ -1036,7 +1037,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_0kux4"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_k2quu"]
 size = Vector2(0.65, 2.87)
@@ -1084,7 +1085,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_8nax8"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_gii6u"]
 size = Vector2(0.65, 2.87)
@@ -1102,7 +1103,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_cy25s"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_re0yq"]
 size = Vector2(0.65, 2.87)
@@ -1150,7 +1151,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_68g76"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_efnbr"]
 size = Vector2(0.65, 2.87)
@@ -1168,7 +1169,7 @@ rings = 12
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_v6pn3"]
 render_priority = 0
 shader = ExtResource("12_ao3lw")
-shader_parameter/cloth = null
+shader_parameter/cloth = Color(0.16, 0.28, 0.29, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_gilcc"]
 size = Vector2(0.65, 2.87)
@@ -1920,644 +1921,644 @@ rings = 3
 [node name="Floor_WoodLight_001" type="Node3D" parent="Architecture/Floors" unique_id=1967320258]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_001" unique_id=2145114144 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_001" unique_id=2145114144 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_003" type="Node3D" parent="Architecture/Floors" unique_id=1585375198]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_003" unique_id=502470813 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_003" unique_id=502470813 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_005" type="Node3D" parent="Architecture/Floors" unique_id=848848937]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_005" unique_id=801950619 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_005" unique_id=801950619 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_007" type="Node3D" parent="Architecture/Floors" unique_id=1601277482]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_007" unique_id=143800354 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_007" unique_id=143800354 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_009" type="Node3D" parent="Architecture/Floors" unique_id=1092101042]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_009" unique_id=1742733959 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_009" unique_id=1742733959 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_011" type="Node3D" parent="Architecture/Floors" unique_id=851704035]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_011" unique_id=1443442702 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_011" unique_id=1443442702 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_013" type="Node3D" parent="Architecture/Floors" unique_id=751439071]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_013" unique_id=1859768629 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_013" unique_id=1859768629 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_015" type="Node3D" parent="Architecture/Floors" unique_id=803718232]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_015" unique_id=1510809820 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_015" unique_id=1510809820 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_017" type="Node3D" parent="Architecture/Floors" unique_id=1835455744]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_017" unique_id=1461676601 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_017" unique_id=1461676601 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_019" type="Node3D" parent="Architecture/Floors" unique_id=56587600]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_019" unique_id=348355024 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_019" unique_id=348355024 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_021" type="Node3D" parent="Architecture/Floors" unique_id=1039226173]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_021" unique_id=1071842763 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_021" unique_id=1071842763 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_023" type="Node3D" parent="Architecture/Floors" unique_id=467240701]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_023" unique_id=788437018 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_023" unique_id=788437018 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_025" type="Node3D" parent="Architecture/Floors" unique_id=102362973]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_025" unique_id=278718599 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_025" unique_id=278718599 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_027" type="Node3D" parent="Architecture/Floors" unique_id=179539077]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_027" unique_id=1160213347 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_027" unique_id=1160213347 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_029" type="Node3D" parent="Architecture/Floors" unique_id=1912112098]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_029" unique_id=2102056802 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_029" unique_id=2102056802 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_031" type="Node3D" parent="Architecture/Floors" unique_id=1402812374]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_031" unique_id=141189869 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_031" unique_id=141189869 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_033" type="Node3D" parent="Architecture/Floors" unique_id=64578750]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_033" unique_id=1274767109 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_033" unique_id=1274767109 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_035" type="Node3D" parent="Architecture/Floors" unique_id=1688768562]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_035" unique_id=567502696 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_035" unique_id=567502696 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_037" type="Node3D" parent="Architecture/Floors" unique_id=1706982503]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_037" unique_id=387614068 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_037" unique_id=387614068 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_039" type="Node3D" parent="Architecture/Floors" unique_id=249573929]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_039" unique_id=832385631 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_039" unique_id=832385631 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_041" type="Node3D" parent="Architecture/Floors" unique_id=1350862517]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_041" unique_id=1245464971 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_041" unique_id=1245464971 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_043" type="Node3D" parent="Architecture/Floors" unique_id=24344150]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_043" unique_id=105381386 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_043" unique_id=105381386 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_045" type="Node3D" parent="Architecture/Floors" unique_id=1037972193]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_045" unique_id=1262167211 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_045" unique_id=1262167211 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_047" type="Node3D" parent="Architecture/Floors" unique_id=195335185]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_047" unique_id=443066808 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_047" unique_id=443066808 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_Brick_049" type="Node3D" parent="Architecture/Floors" unique_id=1179253318]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_049" unique_id=649297724 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_049" unique_id=649297724 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_051" type="Node3D" parent="Architecture/Floors" unique_id=51933340]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_051" unique_id=648210111 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_051" unique_id=648210111 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_053" type="Node3D" parent="Architecture/Floors" unique_id=1999313089]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_053" unique_id=158048221 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_053" unique_id=158048221 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_055" type="Node3D" parent="Architecture/Floors" unique_id=1974955982]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_055" unique_id=994775568 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_055" unique_id=994775568 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_057" type="Node3D" parent="Architecture/Floors" unique_id=1854281204]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_057" unique_id=1958363145 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_057" unique_id=1958363145 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_059" type="Node3D" parent="Architecture/Floors" unique_id=1087048477]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_059" unique_id=577135067 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_059" unique_id=577135067 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_061" type="Node3D" parent="Architecture/Floors" unique_id=1753877166]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_061" unique_id=1742392882 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_061" unique_id=1742392882 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_063" type="Node3D" parent="Architecture/Floors" unique_id=1077902729]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_063" unique_id=1279785283 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_063" unique_id=1279785283 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_065" type="Node3D" parent="Architecture/Floors" unique_id=1338572943]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_065" unique_id=1521380648 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_065" unique_id=1521380648 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_067" type="Node3D" parent="Architecture/Floors" unique_id=1613725018]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_067" unique_id=1765217874 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_067" unique_id=1765217874 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_069" type="Node3D" parent="Architecture/Floors" unique_id=1090767440]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_069" unique_id=12237378 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_069" unique_id=12237378 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_071" type="Node3D" parent="Architecture/Floors" unique_id=513082548]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_071" unique_id=1541230800 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_071" unique_id=1541230800 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_073" type="Node3D" parent="Architecture/Floors" unique_id=1105806974]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_073" unique_id=915326537 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_073" unique_id=915326537 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_075" type="Node3D" parent="Architecture/Floors" unique_id=1404133468]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_075" unique_id=1748004506 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_075" unique_id=1748004506 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_077" type="Node3D" parent="Architecture/Floors" unique_id=772370843]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_077" unique_id=1816022071 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_077" unique_id=1816022071 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_079" type="Node3D" parent="Architecture/Floors" unique_id=1462605500]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_079" unique_id=837501364 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_079" unique_id=837501364 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_081" type="Node3D" parent="Architecture/Floors" unique_id=1518958081]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_081" unique_id=441059824 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_081" unique_id=441059824 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_083" type="Node3D" parent="Architecture/Floors" unique_id=1167956969]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_083" unique_id=523841808 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_083" unique_id=523841808 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_085" type="Node3D" parent="Architecture/Floors" unique_id=1397291758]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_085" unique_id=2099117503 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_085" unique_id=2099117503 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_087" type="Node3D" parent="Architecture/Floors" unique_id=1943872591]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_087" unique_id=1263156209 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_087" unique_id=1263156209 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_WoodLight_089" type="Node3D" parent="Architecture/Floors" unique_id=1387238665]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_089" unique_id=352895170 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_089" unique_id=352895170 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_091" type="Node3D" parent="Architecture/Floors" unique_id=436213887]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_091" unique_id=488999409 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_091" unique_id=488999409 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_093" type="Node3D" parent="Architecture/Floors" unique_id=1432153635]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_093" unique_id=261247967 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_093" unique_id=261247967 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_095" type="Node3D" parent="Architecture/Floors" unique_id=328286021]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_095" unique_id=659610703 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_095" unique_id=659610703 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_Brick_097" type="Node3D" parent="Architecture/Floors" unique_id=1018534264]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_097" unique_id=89537447 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_097" unique_id=89537447 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_099" type="Node3D" parent="Architecture/Floors" unique_id=427401380]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_099" unique_id=92929380 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_099" unique_id=92929380 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_101" type="Node3D" parent="Architecture/Floors" unique_id=1081894166]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_101" unique_id=587230745 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_101" unique_id=587230745 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_103" type="Node3D" parent="Architecture/Floors" unique_id=1683945146]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_103" unique_id=778013903 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_103" unique_id=778013903 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_WoodLight_105" type="Node3D" parent="Architecture/Floors" unique_id=1346126561]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_105" unique_id=1923685709 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_105" unique_id=1923685709 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_107" type="Node3D" parent="Architecture/Floors" unique_id=1804940603]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_107" unique_id=2047976715 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_107" unique_id=2047976715 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_109" type="Node3D" parent="Architecture/Floors" unique_id=691088234]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_109" unique_id=1312479539 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_109" unique_id=1312479539 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_111" type="Node3D" parent="Architecture/Floors" unique_id=1172875494]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_111" unique_id=1783488091 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_111" unique_id=1783488091 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_Brick_113" type="Node3D" parent="Architecture/Floors" unique_id=1266596256]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_113" unique_id=371383621 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_113" unique_id=371383621 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_115" type="Node3D" parent="Architecture/Floors" unique_id=1586643400]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_115" unique_id=998583404 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_115" unique_id=998583404 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_117" type="Node3D" parent="Architecture/Floors" unique_id=394424847]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_117" unique_id=911929201 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_117" unique_id=911929201 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_Brick_119" type="Node3D" parent="Architecture/Floors" unique_id=2016801180]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_Brick_119" unique_id=400463628 instance=ExtResource("2_u7fn3")]
+[node name="Model" parent="Architecture/Floors/Floor_Brick_119" unique_id=400463628 instance=ExtResource("2_u7fn3")]
 
 [node name="Floor_WoodLight_121" type="Node3D" parent="Architecture/Floors" unique_id=1144382490]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_121" unique_id=207489519 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_121" unique_id=207489519 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_123" type="Node3D" parent="Architecture/Floors" unique_id=305883034]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_123" unique_id=1054310134 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_123" unique_id=1054310134 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_125" type="Node3D" parent="Architecture/Floors" unique_id=536715349]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_125" unique_id=722931246 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_125" unique_id=722931246 instance=ExtResource("1_fvfyb")]
 
 [node name="Floor_WoodLight_127" type="Node3D" parent="Architecture/Floors" unique_id=1461246873]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Floors/Floor_WoodLight_127" unique_id=643482630 instance=ExtResource("1_fvfyb")]
+[node name="Model" parent="Architecture/Floors/Floor_WoodLight_127" unique_id=643482630 instance=ExtResource("1_fvfyb")]
 
 [node name="Ceilings" type="Node3D" parent="Architecture" unique_id=124671117]
 
 [node name="Floor_WoodDark_002" type="Node3D" parent="Architecture/Ceilings" unique_id=126570090]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_002" unique_id=741309080 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_002" unique_id=741309080 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_004" type="Node3D" parent="Architecture/Ceilings" unique_id=1574506207]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_004" unique_id=1830704222 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_004" unique_id=1830704222 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_006" type="Node3D" parent="Architecture/Ceilings" unique_id=1410663881]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_006" unique_id=1868794189 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_006" unique_id=1868794189 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_008" type="Node3D" parent="Architecture/Ceilings" unique_id=851715418]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_008" unique_id=663272603 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_008" unique_id=663272603 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_010" type="Node3D" parent="Architecture/Ceilings" unique_id=1642891933]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_010" unique_id=808476832 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_010" unique_id=808476832 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_012" type="Node3D" parent="Architecture/Ceilings" unique_id=2117747605]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_012" unique_id=1666572471 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_012" unique_id=1666572471 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_014" type="Node3D" parent="Architecture/Ceilings" unique_id=218190988]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_014" unique_id=325849735 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_014" unique_id=325849735 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_016" type="Node3D" parent="Architecture/Ceilings" unique_id=1693363808]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -10.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_016" unique_id=2022406788 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_016" unique_id=2022406788 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_018" type="Node3D" parent="Architecture/Ceilings" unique_id=1484220193]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_018" unique_id=593158834 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_018" unique_id=593158834 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_020" type="Node3D" parent="Architecture/Ceilings" unique_id=43508662]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_020" unique_id=1032241073 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_020" unique_id=1032241073 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_022" type="Node3D" parent="Architecture/Ceilings" unique_id=298430340]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_022" unique_id=1117081083 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_022" unique_id=1117081083 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_024" type="Node3D" parent="Architecture/Ceilings" unique_id=1909124020]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_024" unique_id=1954242864 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_024" unique_id=1954242864 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_026" type="Node3D" parent="Architecture/Ceilings" unique_id=525375395]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_026" unique_id=957734732 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_026" unique_id=957734732 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_028" type="Node3D" parent="Architecture/Ceilings" unique_id=1768473743]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_028" unique_id=1715582442 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_028" unique_id=1715582442 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_030" type="Node3D" parent="Architecture/Ceilings" unique_id=1927398602]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_030" unique_id=1701575910 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_030" unique_id=1701575910 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_032" type="Node3D" parent="Architecture/Ceilings" unique_id=1040087364]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -7.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_032" unique_id=865359480 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_032" unique_id=865359480 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_034" type="Node3D" parent="Architecture/Ceilings" unique_id=995651840]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_034" unique_id=1682108086 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_034" unique_id=1682108086 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_036" type="Node3D" parent="Architecture/Ceilings" unique_id=1285398014]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_036" unique_id=1549185508 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_036" unique_id=1549185508 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_038" type="Node3D" parent="Architecture/Ceilings" unique_id=159498722]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_038" unique_id=462886265 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_038" unique_id=462886265 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_040" type="Node3D" parent="Architecture/Ceilings" unique_id=1389679411]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_040" unique_id=1480331343 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_040" unique_id=1480331343 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_042" type="Node3D" parent="Architecture/Ceilings" unique_id=1307746885]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_042" unique_id=244505005 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_042" unique_id=244505005 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_044" type="Node3D" parent="Architecture/Ceilings" unique_id=1079838125]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_044" unique_id=1871705178 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_044" unique_id=1871705178 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_046" type="Node3D" parent="Architecture/Ceilings" unique_id=1938723087]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_046" unique_id=809083109 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_046" unique_id=809083109 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_048" type="Node3D" parent="Architecture/Ceilings" unique_id=1514916813]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -4.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_048" unique_id=774227285 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_048" unique_id=774227285 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_050" type="Node3D" parent="Architecture/Ceilings" unique_id=4918660]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_050" unique_id=76066728 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_050" unique_id=76066728 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_052" type="Node3D" parent="Architecture/Ceilings" unique_id=1977940960]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_052" unique_id=852030594 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_052" unique_id=852030594 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_054" type="Node3D" parent="Architecture/Ceilings" unique_id=176576818]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_054" unique_id=659273905 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_054" unique_id=659273905 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_056" type="Node3D" parent="Architecture/Ceilings" unique_id=1410286130]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_056" unique_id=1192849982 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_056" unique_id=1192849982 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_058" type="Node3D" parent="Architecture/Ceilings" unique_id=276533523]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_058" unique_id=481430775 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_058" unique_id=481430775 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_060" type="Node3D" parent="Architecture/Ceilings" unique_id=1340771963]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_060" unique_id=292795021 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_060" unique_id=292795021 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_062" type="Node3D" parent="Architecture/Ceilings" unique_id=1490390851]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_062" unique_id=498631854 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_062" unique_id=498631854 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_064" type="Node3D" parent="Architecture/Ceilings" unique_id=546934458]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, -1.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_064" unique_id=390392708 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_064" unique_id=390392708 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_066" type="Node3D" parent="Architecture/Ceilings" unique_id=1553605302]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_066" unique_id=352160716 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_066" unique_id=352160716 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_068" type="Node3D" parent="Architecture/Ceilings" unique_id=1240681015]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_068" unique_id=491807671 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_068" unique_id=491807671 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_070" type="Node3D" parent="Architecture/Ceilings" unique_id=444852809]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_070" unique_id=901586227 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_070" unique_id=901586227 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_072" type="Node3D" parent="Architecture/Ceilings" unique_id=920750387]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_072" unique_id=1026609230 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_072" unique_id=1026609230 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_074" type="Node3D" parent="Architecture/Ceilings" unique_id=1966490584]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_074" unique_id=860113825 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_074" unique_id=860113825 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_076" type="Node3D" parent="Architecture/Ceilings" unique_id=1707777910]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_076" unique_id=271537793 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_076" unique_id=271537793 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_078" type="Node3D" parent="Architecture/Ceilings" unique_id=35458700]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_078" unique_id=249218086 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_078" unique_id=249218086 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_080" type="Node3D" parent="Architecture/Ceilings" unique_id=94813089]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 1.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_080" unique_id=47030719 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_080" unique_id=47030719 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_082" type="Node3D" parent="Architecture/Ceilings" unique_id=63947566]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_082" unique_id=234884117 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_082" unique_id=234884117 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_084" type="Node3D" parent="Architecture/Ceilings" unique_id=496315510]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_084" unique_id=1120404338 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_084" unique_id=1120404338 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_086" type="Node3D" parent="Architecture/Ceilings" unique_id=1629989045]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_086" unique_id=2125962927 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_086" unique_id=2125962927 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_088" type="Node3D" parent="Architecture/Ceilings" unique_id=46372883]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_088" unique_id=638914917 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_088" unique_id=638914917 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_090" type="Node3D" parent="Architecture/Ceilings" unique_id=1520269124]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_090" unique_id=340697140 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_090" unique_id=340697140 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_092" type="Node3D" parent="Architecture/Ceilings" unique_id=893006578]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_092" unique_id=572379948 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_092" unique_id=572379948 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_094" type="Node3D" parent="Architecture/Ceilings" unique_id=263099446]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_094" unique_id=703519028 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_094" unique_id=703519028 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_096" type="Node3D" parent="Architecture/Ceilings" unique_id=970763017]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 4.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_096" unique_id=1176652013 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_096" unique_id=1176652013 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_098" type="Node3D" parent="Architecture/Ceilings" unique_id=237215037]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_098" unique_id=738106135 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_098" unique_id=738106135 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_100" type="Node3D" parent="Architecture/Ceilings" unique_id=593841558]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_100" unique_id=1200243426 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_100" unique_id=1200243426 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_102" type="Node3D" parent="Architecture/Ceilings" unique_id=638168127]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_102" unique_id=2051674000 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_102" unique_id=2051674000 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_104" type="Node3D" parent="Architecture/Ceilings" unique_id=1516595936]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_104" unique_id=541352750 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_104" unique_id=541352750 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_106" type="Node3D" parent="Architecture/Ceilings" unique_id=97329245]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_106" unique_id=909230261 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_106" unique_id=909230261 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_108" type="Node3D" parent="Architecture/Ceilings" unique_id=593049902]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_108" unique_id=1230884846 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_108" unique_id=1230884846 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_110" type="Node3D" parent="Architecture/Ceilings" unique_id=331371917]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_110" unique_id=66387244 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_110" unique_id=66387244 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_112" type="Node3D" parent="Architecture/Ceilings" unique_id=1813034597]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 7.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_112" unique_id=182476687 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_112" unique_id=182476687 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_114" type="Node3D" parent="Architecture/Ceilings" unique_id=1672563867]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_114" unique_id=885391965 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_114" unique_id=885391965 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_116" type="Node3D" parent="Architecture/Ceilings" unique_id=1080896975]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_116" unique_id=1791410681 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_116" unique_id=1791410681 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_118" type="Node3D" parent="Architecture/Ceilings" unique_id=448553051]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_118" unique_id=821106723 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_118" unique_id=821106723 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_120" type="Node3D" parent="Architecture/Ceilings" unique_id=944401877]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_120" unique_id=1634337555 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_120" unique_id=1634337555 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_122" type="Node3D" parent="Architecture/Ceilings" unique_id=1428871472]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_122" unique_id=1258760392 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_122" unique_id=1258760392 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_124" type="Node3D" parent="Architecture/Ceilings" unique_id=553734364]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_124" unique_id=1919309601 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_124" unique_id=1919309601 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_126" type="Node3D" parent="Architecture/Ceilings" unique_id=1186884417]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_126" unique_id=1375392194 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_126" unique_id=1375392194 instance=ExtResource("3_0dt1g")]
 
 [node name="Floor_WoodDark_128" type="Node3D" parent="Architecture/Ceilings" unique_id=1938367695]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.5, 10.5, 4.52, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Ceilings/Floor_WoodDark_128" unique_id=808484095 instance=ExtResource("3_0dt1g")]
+[node name="Model" parent="Architecture/Ceilings/Floor_WoodDark_128" unique_id=808484095 instance=ExtResource("3_0dt1g")]
 
 [node name="Foundation" type="MeshInstance3D" parent="Architecture" unique_id=1392046732]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.18, 0)
@@ -2572,7 +2573,7 @@ shape = SubResource("BoxShape3D_k3iqj")
 [node name="Wall_Plaster_Window_Wide_Round_129" type="Node3D" parent="Architecture" unique_id=1904265268]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -10.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_129" unique_id=1757492656 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_129" unique_id=1757492656 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_129" unique_id=214910606]
 
@@ -2582,7 +2583,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_130" type="Node3D" parent="Architecture" unique_id=141554340]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -10.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_130" unique_id=1185379826 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_130" unique_id=1185379826 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier" type="StaticBody3D" parent="Architecture" unique_id=1285167311]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5, 2.6, -12)
@@ -2602,7 +2603,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_131" type="Node3D" parent="Architecture" unique_id=541740706]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_131" unique_id=838386140 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_131" unique_id=838386140 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_131" unique_id=879390665]
 
@@ -2612,7 +2613,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_132" type="Node3D" parent="Architecture" unique_id=425235118]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_132" unique_id=1561261141 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_132" unique_id=1561261141 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier2" type="StaticBody3D" parent="Architecture" unique_id=651371832]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -12, 2.6, -10.5)
@@ -2632,7 +2633,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Straight_133" type="Node3D" parent="Architecture" unique_id=1934797446]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_133" unique_id=1354934914 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_133" unique_id=1354934914 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_133" unique_id=301475199]
 
@@ -2642,7 +2643,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Window_Wide_Round_134" type="Node3D" parent="Architecture" unique_id=1396589549]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, -10.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_134" unique_id=1499065610 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_134" unique_id=1499065610 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_134" unique_id=333926114]
 
@@ -2652,7 +2653,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_135" type="Node3D" parent="Architecture" unique_id=1547659629]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, -10.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_135" unique_id=603668053 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_135" unique_id=603668053 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier3" type="StaticBody3D" parent="Architecture" unique_id=1848580658]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -10.5, 2.6, 12)
@@ -2672,7 +2673,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_136" type="Node3D" parent="Architecture" unique_id=1790943008]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_136" unique_id=431907958 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_136" unique_id=431907958 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_136" unique_id=1135342840]
 
@@ -2682,7 +2683,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_137" type="Node3D" parent="Architecture" unique_id=23890171]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_137" unique_id=24524974 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_137" unique_id=24524974 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier4" type="StaticBody3D" parent="Architecture" unique_id=236489603]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 12, 2.6, -10.5)
@@ -2702,7 +2703,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Straight_138" type="Node3D" parent="Architecture" unique_id=1063286921]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, -10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_138" unique_id=1228744659 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_138" unique_id=1228744659 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_138" unique_id=1244420190]
 
@@ -2712,7 +2713,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_139" type="Node3D" parent="Architecture" unique_id=84356755]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -7.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_139" unique_id=2020178142 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_139" unique_id=2020178142 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_139" unique_id=518966438]
 
@@ -2722,7 +2723,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_140" type="Node3D" parent="Architecture" unique_id=252366046]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_140" unique_id=1800731401 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_140" unique_id=1800731401 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_140" unique_id=1389221507]
 
@@ -2732,7 +2733,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Door_Round_141" type="Node3D" parent="Architecture" unique_id=940334744]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Door_Round_141" unique_id=104347967 instance=ExtResource("7_l40bo")]
+[node name="Model" parent="Architecture/Wall_Plaster_Door_Round_141" unique_id=104347967 instance=ExtResource("7_l40bo")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Door_Round_141" unique_id=876474118]
 
@@ -2742,12 +2743,12 @@ shape = SubResource("ConcavePolygonShape3D_3yfu5")
 [node name="DoorFrame_Round_WoodDark_142" type="Node3D" parent="Architecture" unique_id=836094915]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/DoorFrame_Round_WoodDark_142" unique_id=1026240615 instance=ExtResource("8_yb62e")]
+[node name="Model" parent="Architecture/DoorFrame_Round_WoodDark_142" unique_id=1026240615 instance=ExtResource("8_yb62e")]
 
 [node name="Wall_Plaster_Straight_143" type="Node3D" parent="Architecture" unique_id=535825976]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, -7.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_143" unique_id=1799979213 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_143" unique_id=1799979213 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_143" unique_id=916499014]
 
@@ -2757,7 +2758,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_144" type="Node3D" parent="Architecture" unique_id=1717034451]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_144" unique_id=827381711 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_144" unique_id=827381711 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_144" unique_id=1508211540]
 
@@ -2767,7 +2768,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Door_Round_145" type="Node3D" parent="Architecture" unique_id=558629124]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Door_Round_145" unique_id=1666045620 instance=ExtResource("7_l40bo")]
+[node name="Model" parent="Architecture/Wall_Plaster_Door_Round_145" unique_id=1666045620 instance=ExtResource("7_l40bo")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Door_Round_145" unique_id=1321534286]
 
@@ -2777,12 +2778,12 @@ shape = SubResource("ConcavePolygonShape3D_3yfu5")
 [node name="DoorFrame_Round_WoodDark_146" type="Node3D" parent="Architecture" unique_id=812443911]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, -7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/DoorFrame_Round_WoodDark_146" unique_id=1794792702 instance=ExtResource("8_yb62e")]
+[node name="Model" parent="Architecture/DoorFrame_Round_WoodDark_146" unique_id=1794792702 instance=ExtResource("8_yb62e")]
 
 [node name="Wall_Plaster_Window_Wide_Round_147" type="Node3D" parent="Architecture" unique_id=1115006222]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -4.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_147" unique_id=1799689522 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_147" unique_id=1799689522 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_147" unique_id=2106772703]
 
@@ -2792,7 +2793,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_148" type="Node3D" parent="Architecture" unique_id=288638216]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -4.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_148" unique_id=809552830 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_148" unique_id=809552830 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier5" type="StaticBody3D" parent="Architecture" unique_id=1473874753]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 2.6, -12)
@@ -2812,7 +2813,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_149" type="Node3D" parent="Architecture" unique_id=1076626162]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_149" unique_id=868522674 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_149" unique_id=868522674 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_149" unique_id=276314261]
 
@@ -2822,7 +2823,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_150" type="Node3D" parent="Architecture" unique_id=1122666261]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_150" unique_id=203551557 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_150" unique_id=203551557 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier6" type="StaticBody3D" parent="Architecture" unique_id=1681429551]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -12, 2.6, -4.5)
@@ -2842,7 +2843,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Straight_151" type="Node3D" parent="Architecture" unique_id=1840085121]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_151" unique_id=1067514759 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_151" unique_id=1067514759 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_151" unique_id=668061544]
 
@@ -2852,7 +2853,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Window_Wide_Round_152" type="Node3D" parent="Architecture" unique_id=1478857160]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, -4.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_152" unique_id=437791274 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_152" unique_id=437791274 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_152" unique_id=1255536078]
 
@@ -2862,7 +2863,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_153" type="Node3D" parent="Architecture" unique_id=1389135203]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, -4.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_153" unique_id=57250064 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_153" unique_id=57250064 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier7" type="StaticBody3D" parent="Architecture" unique_id=1393146829]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -4.5, 2.6, 12)
@@ -2882,7 +2883,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_154" type="Node3D" parent="Architecture" unique_id=1870672867]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_154" unique_id=1501596866 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_154" unique_id=1501596866 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_154" unique_id=1064856657]
 
@@ -2892,7 +2893,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_155" type="Node3D" parent="Architecture" unique_id=1214859341]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_155" unique_id=1889327229 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_155" unique_id=1889327229 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier8" type="StaticBody3D" parent="Architecture" unique_id=1630152675]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 12, 2.6, -4.5)
@@ -2912,7 +2913,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Straight_156" type="Node3D" parent="Architecture" unique_id=904404919]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, -4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_156" unique_id=611234100 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_156" unique_id=611234100 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_156" unique_id=751030847]
 
@@ -2922,7 +2923,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_157" type="Node3D" parent="Architecture" unique_id=1148234828]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -1.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_157" unique_id=204816493 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_157" unique_id=204816493 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_157" unique_id=1715084055]
 
@@ -2932,7 +2933,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_158" type="Node3D" parent="Architecture" unique_id=1541286431]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_158" unique_id=113225135 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_158" unique_id=113225135 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_158" unique_id=1518194681]
 
@@ -2942,7 +2943,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_159" type="Node3D" parent="Architecture" unique_id=1273004824]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_159" unique_id=314115003 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_159" unique_id=314115003 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_159" unique_id=16270309]
 
@@ -2952,7 +2953,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_160" type="Node3D" parent="Architecture" unique_id=1361890617]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, -1.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_160" unique_id=1542123337 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_160" unique_id=1542123337 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_160" unique_id=2013537266]
 
@@ -2962,7 +2963,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_161" type="Node3D" parent="Architecture" unique_id=958621714]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_161" unique_id=634495480 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_161" unique_id=634495480 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_161" unique_id=1989901052]
 
@@ -2972,7 +2973,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_162" type="Node3D" parent="Architecture" unique_id=1747100355]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, -1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_162" unique_id=685549783 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_162" unique_id=685549783 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_162" unique_id=1192012989]
 
@@ -2982,7 +2983,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Window_Wide_Round_163" type="Node3D" parent="Architecture" unique_id=100407456]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 1.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_163" unique_id=1509732803 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_163" unique_id=1509732803 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_163" unique_id=915951110]
 
@@ -2992,7 +2993,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_164" type="Node3D" parent="Architecture" unique_id=1756885547]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 1.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_164" unique_id=2139135418 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_164" unique_id=2139135418 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier9" type="StaticBody3D" parent="Architecture" unique_id=1987262121]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 2.6, -12)
@@ -3012,7 +3013,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_165" type="Node3D" parent="Architecture" unique_id=453996553]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_165" unique_id=911505369 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_165" unique_id=911505369 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_165" unique_id=1854044463]
 
@@ -3022,7 +3023,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_166" type="Node3D" parent="Architecture" unique_id=1569365394]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_166" unique_id=1289988882 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_166" unique_id=1289988882 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier10" type="StaticBody3D" parent="Architecture" unique_id=2109574257]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -12, 2.6, 1.5)
@@ -3042,7 +3043,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Straight_167" type="Node3D" parent="Architecture" unique_id=630052597]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_167" unique_id=2029911895 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_167" unique_id=2029911895 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_167" unique_id=1770323933]
 
@@ -3052,7 +3053,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Window_Wide_Round_168" type="Node3D" parent="Architecture" unique_id=1378130543]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, 1.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_168" unique_id=209679928 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_168" unique_id=209679928 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_168" unique_id=2026273823]
 
@@ -3062,7 +3063,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_169" type="Node3D" parent="Architecture" unique_id=2091735527]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, 1.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_169" unique_id=2010078491 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_169" unique_id=2010078491 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier11" type="StaticBody3D" parent="Architecture" unique_id=872138844]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 1.5, 2.6, 12)
@@ -3082,7 +3083,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_170" type="Node3D" parent="Architecture" unique_id=1427796229]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_170" unique_id=1294243559 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_170" unique_id=1294243559 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_170" unique_id=885793538]
 
@@ -3092,7 +3093,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_171" type="Node3D" parent="Architecture" unique_id=1569909260]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_171" unique_id=352192040 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_171" unique_id=352192040 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier12" type="StaticBody3D" parent="Architecture" unique_id=1699872381]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 12, 2.6, 1.5)
@@ -3112,7 +3113,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Straight_172" type="Node3D" parent="Architecture" unique_id=684328127]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, 1.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_172" unique_id=1358862116 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_172" unique_id=1358862116 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_172" unique_id=666020751]
 
@@ -3122,7 +3123,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_173" type="Node3D" parent="Architecture" unique_id=411079571]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 4.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_173" unique_id=359158607 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_173" unique_id=359158607 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_173" unique_id=1434342186]
 
@@ -3132,7 +3133,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_174" type="Node3D" parent="Architecture" unique_id=70020379]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_174" unique_id=1473992083 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_174" unique_id=1473992083 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_174" unique_id=911754552]
 
@@ -3142,7 +3143,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_175" type="Node3D" parent="Architecture" unique_id=1526452990]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_175" unique_id=882393211 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_175" unique_id=882393211 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_175" unique_id=206504905]
 
@@ -3152,7 +3153,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_176" type="Node3D" parent="Architecture" unique_id=1348699046]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, 4.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_176" unique_id=528999679 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_176" unique_id=528999679 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_176" unique_id=1956806723]
 
@@ -3162,7 +3163,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_177" type="Node3D" parent="Architecture" unique_id=1422039756]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_177" unique_id=1019992958 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_177" unique_id=1019992958 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_177" unique_id=1861168978]
 
@@ -3172,7 +3173,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_178" type="Node3D" parent="Architecture" unique_id=1409477672]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, 4.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_178" unique_id=1251115422 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_178" unique_id=1251115422 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_178" unique_id=1396522576]
 
@@ -3182,7 +3183,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Window_Wide_Round_179" type="Node3D" parent="Architecture" unique_id=1937939108]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 7.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_179" unique_id=129547534 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_179" unique_id=129547534 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_179" unique_id=1172685705]
 
@@ -3192,7 +3193,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_180" type="Node3D" parent="Architecture" unique_id=1307492906]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 7.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_180" unique_id=747255604 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_180" unique_id=747255604 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier13" type="StaticBody3D" parent="Architecture" unique_id=1944099338]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 2.6, -12)
@@ -3212,7 +3213,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_181" type="Node3D" parent="Architecture" unique_id=1683426329]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_181" unique_id=458764322 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_181" unique_id=458764322 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_181" unique_id=30547630]
 
@@ -3222,7 +3223,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_182" type="Node3D" parent="Architecture" unique_id=1139764280]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_182" unique_id=579642739 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_182" unique_id=579642739 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier14" type="StaticBody3D" parent="Architecture" unique_id=1597415415]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -12, 2.6, 7.5)
@@ -3242,7 +3243,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Door_Round_183" type="Node3D" parent="Architecture" unique_id=459586751]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Door_Round_183" unique_id=1396530657 instance=ExtResource("7_l40bo")]
+[node name="Model" parent="Architecture/Wall_Plaster_Door_Round_183" unique_id=1396530657 instance=ExtResource("7_l40bo")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Door_Round_183" unique_id=787197043]
 
@@ -3252,12 +3253,12 @@ shape = SubResource("ConcavePolygonShape3D_3yfu5")
 [node name="DoorFrame_Round_WoodDark_184" type="Node3D" parent="Architecture" unique_id=1434183557]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/DoorFrame_Round_WoodDark_184" unique_id=1491987538 instance=ExtResource("8_yb62e")]
+[node name="Model" parent="Architecture/DoorFrame_Round_WoodDark_184" unique_id=1491987538 instance=ExtResource("8_yb62e")]
 
 [node name="Wall_Plaster_Window_Wide_Round_185" type="Node3D" parent="Architecture" unique_id=1005815046]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, 7.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_185" unique_id=367731255 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_185" unique_id=367731255 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_185" unique_id=602070608]
 
@@ -3267,7 +3268,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_186" type="Node3D" parent="Architecture" unique_id=2110399594]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, 7.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_186" unique_id=30494384 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_186" unique_id=30494384 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier15" type="StaticBody3D" parent="Architecture" unique_id=732744435]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 7.5, 2.6, 12)
@@ -3287,7 +3288,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Window_Wide_Round_187" type="Node3D" parent="Architecture" unique_id=2132337366]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_187" unique_id=1037526496 instance=ExtResource("4_qifcp")]
+[node name="Model" parent="Architecture/Wall_Plaster_Window_Wide_Round_187" unique_id=1037526496 instance=ExtResource("4_qifcp")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Window_Wide_Round_187" unique_id=1945496893]
 
@@ -3297,7 +3298,7 @@ shape = SubResource("ConcavePolygonShape3D_1knyr")
 [node name="Window_Wide_Round1_188" type="Node3D" parent="Architecture" unique_id=1664098240]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Window_Wide_Round1_188" unique_id=1590688760 instance=ExtResource("5_g6qlt")]
+[node name="Model" parent="Architecture/Window_Wide_Round1_188" unique_id=1590688760 instance=ExtResource("5_g6qlt")]
 
 [node name="WindowBarrier16" type="StaticBody3D" parent="Architecture" unique_id=1534566204]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 12, 2.6, 7.5)
@@ -3317,7 +3318,7 @@ omni_range = 4.5
 [node name="Wall_Plaster_Door_Round_189" type="Node3D" parent="Architecture" unique_id=1077417415]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Door_Round_189" unique_id=1372934576 instance=ExtResource("7_l40bo")]
+[node name="Model" parent="Architecture/Wall_Plaster_Door_Round_189" unique_id=1372934576 instance=ExtResource("7_l40bo")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Door_Round_189" unique_id=803420367]
 
@@ -3327,12 +3328,12 @@ shape = SubResource("ConcavePolygonShape3D_3yfu5")
 [node name="DoorFrame_Round_WoodDark_190" type="Node3D" parent="Architecture" unique_id=809860406]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, 7.5)
 
-[node name="Model" type="Node3D" parent="Architecture/DoorFrame_Round_WoodDark_190" unique_id=1252573242 instance=ExtResource("8_yb62e")]
+[node name="Model" parent="Architecture/DoorFrame_Round_WoodDark_190" unique_id=1252573242 instance=ExtResource("8_yb62e")]
 
 [node name="Wall_Plaster_Straight_191" type="Node3D" parent="Architecture" unique_id=1067093414]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 10.5, 0, -12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_191" unique_id=1633704401 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_191" unique_id=1633704401 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_191" unique_id=578625146]
 
@@ -3342,7 +3343,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_192" type="Node3D" parent="Architecture" unique_id=884782538]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -12, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_192" unique_id=1054789276 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_192" unique_id=1054789276 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_192" unique_id=947146107]
 
@@ -3352,7 +3353,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_193" type="Node3D" parent="Architecture" unique_id=1410569930]
 transform = Transform3D(-6.556708e-08, 0, 1.5, 0, 1.5, 0, -1.5, 0, -6.556708e-08, -3, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_193" unique_id=1668631758 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_193" unique_id=1668631758 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_193" unique_id=1885380044]
 
@@ -3362,7 +3363,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_194" type="Node3D" parent="Architecture" unique_id=2049475552]
 transform = Transform3D(-1.5, 0, -1.3113416e-07, 0, 1.5, 0, 1.3113416e-07, 0, -1.5, 10.5, 0, 12)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_194" unique_id=2055721041 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_194" unique_id=2055721041 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_194" unique_id=1764722029]
 
@@ -3372,7 +3373,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_195" type="Node3D" parent="Architecture" unique_id=1935495317]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 12, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_195" unique_id=550862932 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_195" unique_id=550862932 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_195" unique_id=1990087086]
 
@@ -3382,7 +3383,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_196" type="Node3D" parent="Architecture" unique_id=879303046]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 3, 0, 10.5)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_196" unique_id=480562829 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_196" unique_id=480562829 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_196" unique_id=1455333013]
 
@@ -3392,7 +3393,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Straight_197" type="Node3D" parent="Architecture" unique_id=1150264645]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -4.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_197" unique_id=4127737 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_197" unique_id=4127737 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_197" unique_id=1322551958]
 
@@ -3402,7 +3403,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Door_Round_198" type="Node3D" parent="Architecture" unique_id=2010482959]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -7.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Door_Round_198" unique_id=1793638241 instance=ExtResource("7_l40bo")]
+[node name="Model" parent="Architecture/Wall_Plaster_Door_Round_198" unique_id=1793638241 instance=ExtResource("7_l40bo")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Door_Round_198" unique_id=2103255963]
 
@@ -3412,12 +3413,12 @@ shape = SubResource("ConcavePolygonShape3D_3yfu5")
 [node name="DoorFrame_Round_WoodDark_199" type="Node3D" parent="Architecture" unique_id=950505503]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -7.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/DoorFrame_Round_WoodDark_199" unique_id=1552945744 instance=ExtResource("8_yb62e")]
+[node name="Model" parent="Architecture/DoorFrame_Round_WoodDark_199" unique_id=1552945744 instance=ExtResource("8_yb62e")]
 
 [node name="Wall_Plaster_Straight_200" type="Node3D" parent="Architecture" unique_id=555237016]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -10.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_200" unique_id=382209534 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_200" unique_id=382209534 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_200" unique_id=1382768582]
 
@@ -3427,12 +3428,12 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Roof_RoundTiles_8x14_201" type="Node3D" parent="Architecture" unique_id=1738042430]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.75, -6, 5.4, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Roof_RoundTiles_8x14_201" unique_id=1763406974 instance=ExtResource("9_e1i8j")]
+[node name="Model" parent="Architecture/Roof_RoundTiles_8x14_201" unique_id=1763406974 instance=ExtResource("9_e1i8j")]
 
 [node name="Wall_Plaster_Straight_202" type="Node3D" parent="Architecture" unique_id=1943144859]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 4.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_202" unique_id=1963964002 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_202" unique_id=1963964002 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_202" unique_id=1771932247]
 
@@ -3442,7 +3443,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Wall_Plaster_Door_Round_203" type="Node3D" parent="Architecture" unique_id=124456381]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 7.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Door_Round_203" unique_id=728192241 instance=ExtResource("7_l40bo")]
+[node name="Model" parent="Architecture/Wall_Plaster_Door_Round_203" unique_id=728192241 instance=ExtResource("7_l40bo")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Door_Round_203" unique_id=109946433]
 
@@ -3452,12 +3453,12 @@ shape = SubResource("ConcavePolygonShape3D_3yfu5")
 [node name="DoorFrame_Round_WoodDark_204" type="Node3D" parent="Architecture" unique_id=1866703458]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 7.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/DoorFrame_Round_WoodDark_204" unique_id=1665053062 instance=ExtResource("8_yb62e")]
+[node name="Model" parent="Architecture/DoorFrame_Round_WoodDark_204" unique_id=1665053062 instance=ExtResource("8_yb62e")]
 
 [node name="Wall_Plaster_Straight_205" type="Node3D" parent="Architecture" unique_id=1293230159]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 10.5, 0, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Wall_Plaster_Straight_205" unique_id=2138201183 instance=ExtResource("6_x86b0")]
+[node name="Model" parent="Architecture/Wall_Plaster_Straight_205" unique_id=2138201183 instance=ExtResource("6_x86b0")]
 
 [node name="Collision" type="StaticBody3D" parent="Architecture/Wall_Plaster_Straight_205" unique_id=27397537]
 
@@ -3467,7 +3468,7 @@ shape = SubResource("ConcavePolygonShape3D_hlres")
 [node name="Roof_RoundTiles_8x14_206" type="Node3D" parent="Architecture" unique_id=1526539485]
 transform = Transform3D(1.5, 0, 0, 0, 1, 0, 0, 0, 1.75, 6, 5.4, 0)
 
-[node name="Model" type="Node3D" parent="Architecture/Roof_RoundTiles_8x14_206" unique_id=151340423 instance=ExtResource("9_e1i8j")]
+[node name="Model" parent="Architecture/Roof_RoundTiles_8x14_206" unique_id=151340423 instance=ExtResource("9_e1i8j")]
 
 [node name="HallCrossbeam" type="MeshInstance3D" parent="Architecture" unique_id=1145879166]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.26, -9)
@@ -4634,7 +4635,7 @@ mesh = SubResource("BoxMesh_o3ev0")
 [node name="Chandelier_207" type="Node3D" parent="EntranceHall" unique_id=834283243]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 4.4, -7)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Chandelier_207" unique_id=900830667 instance=ExtResource("13_n450b")]
+[node name="Model" parent="EntranceHall/Chandelier_207" unique_id=900830667 instance=ExtResource("13_n450b")]
 
 [node name="Candlelight" type="OmniLight3D" parent="EntranceHall" unique_id=344127571]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, -7)
@@ -4649,7 +4650,7 @@ omni_range = 8.0
 [node name="Chandelier_208" type="Node3D" parent="EntranceHall" unique_id=1634796902]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 4.4, 0)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Chandelier_208" unique_id=535166943 instance=ExtResource("13_n450b")]
+[node name="Model" parent="EntranceHall/Chandelier_208" unique_id=535166943 instance=ExtResource("13_n450b")]
 
 [node name="Candlelight2" type="OmniLight3D" parent="EntranceHall" unique_id=1650668543]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, 0)
@@ -4664,7 +4665,7 @@ omni_range = 8.0
 [node name="Chandelier_209" type="Node3D" parent="EntranceHall" unique_id=29440372]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 4.4, 7)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Chandelier_209" unique_id=2074821250 instance=ExtResource("13_n450b")]
+[node name="Model" parent="EntranceHall/Chandelier_209" unique_id=2074821250 instance=ExtResource("13_n450b")]
 
 [node name="Candlelight3" type="OmniLight3D" parent="EntranceHall" unique_id=1313531778]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, 7)
@@ -4679,7 +4680,7 @@ omni_range = 8.0
 [node name="Table_Large_210" type="Node3D" parent="EntranceHall" unique_id=91159024]
 transform = Transform3D(1, 0, 0, 0, 1.15, 0, 0, 0, 1, 0, 0.025, 10)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Table_Large_210" unique_id=1843645292 instance=ExtResource("14_jihvi")]
+[node name="Model" parent="EntranceHall/Table_Large_210" unique_id=1843645292 instance=ExtResource("14_jihvi")]
 
 [node name="Collision" type="StaticBody3D" parent="EntranceHall/Table_Large_210" unique_id=47595962]
 
@@ -4690,7 +4691,7 @@ shape = SubResource("ConcavePolygonShape3D_45qfk")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.95, 0.97, 10)
 script = ExtResource("10_qa72q")
 
-[node name="Model" type="Node3D" parent="EntranceHall/CandleStick_Triple_211" unique_id=460457797 instance=ExtResource("15_dm85m")]
+[node name="Model" parent="EntranceHall/CandleStick_Triple_211" unique_id=460457797 instance=ExtResource("15_dm85m")]
 
 [node name="Flames" type="Node3D" parent="EntranceHall/CandleStick_Triple_211" unique_id=489235587]
 
@@ -4779,12 +4780,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 [node name="Book_Stack_1_212" type="Node3D" parent="EntranceHall" unique_id=1096542171]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.95, 0.97, 10.05)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Book_Stack_1_212" unique_id=675318839 instance=ExtResource("17_8hqjk")]
+[node name="Model" parent="EntranceHall/Book_Stack_1_212" unique_id=675318839 instance=ExtResource("17_8hqjk")]
 
 [node name="Bench_213" type="Node3D" parent="EntranceHall" unique_id=1333900736]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -2.35, 0.03, 3.5)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Bench_213" unique_id=639010503 instance=ExtResource("18_cvy53")]
+[node name="Model" parent="EntranceHall/Bench_213" unique_id=639010503 instance=ExtResource("18_cvy53")]
 
 [node name="Collision" type="StaticBody3D" parent="EntranceHall/Bench_213" unique_id=1812136781]
 
@@ -4794,7 +4795,7 @@ shape = SubResource("ConcavePolygonShape3D_bmtc7")
 [node name="Vase_4_214" type="Node3D" parent="EntranceHall" unique_id=947542196]
 transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, -2.2, 0.03, -10.8)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Vase_4_214" unique_id=675666042 instance=ExtResource("19_jd3bj")]
+[node name="Model" parent="EntranceHall/Vase_4_214" unique_id=675666042 instance=ExtResource("19_jd3bj")]
 
 [node name="Collision" type="StaticBody3D" parent="EntranceHall/Vase_4_214" unique_id=969046307]
 
@@ -4804,12 +4805,12 @@ shape = SubResource("ConcavePolygonShape3D_ycmip")
 [node name="Prop_Vine1_215" type="Node3D" parent="EntranceHall" unique_id=1022822139]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -2.4, 4.2, -10.8)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Prop_Vine1_215" unique_id=1180267619 instance=ExtResource("20_mm122")]
+[node name="Model" parent="EntranceHall/Prop_Vine1_215" unique_id=1180267619 instance=ExtResource("20_mm122")]
 
 [node name="Bench_216" type="Node3D" parent="EntranceHall" unique_id=182008660]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 2.35, 0.03, 3.5)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Bench_216" unique_id=1007799138 instance=ExtResource("18_cvy53")]
+[node name="Model" parent="EntranceHall/Bench_216" unique_id=1007799138 instance=ExtResource("18_cvy53")]
 
 [node name="Collision" type="StaticBody3D" parent="EntranceHall/Bench_216" unique_id=1720226084]
 
@@ -4819,7 +4820,7 @@ shape = SubResource("ConcavePolygonShape3D_bmtc7")
 [node name="Vase_4_217" type="Node3D" parent="EntranceHall" unique_id=776190028]
 transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, 2.2, 0.03, -10.8)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Vase_4_217" unique_id=602329923 instance=ExtResource("19_jd3bj")]
+[node name="Model" parent="EntranceHall/Vase_4_217" unique_id=602329923 instance=ExtResource("19_jd3bj")]
 
 [node name="Collision" type="StaticBody3D" parent="EntranceHall/Vase_4_217" unique_id=1054120377]
 
@@ -4829,7 +4830,7 @@ shape = SubResource("ConcavePolygonShape3D_ycmip")
 [node name="Prop_Vine1_218" type="Node3D" parent="EntranceHall" unique_id=965681407]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 2.4, 4.2, -10.8)
 
-[node name="Model" type="Node3D" parent="EntranceHall/Prop_Vine1_218" unique_id=899579938 instance=ExtResource("20_mm122")]
+[node name="Model" parent="EntranceHall/Prop_Vine1_218" unique_id=899579938 instance=ExtResource("20_mm122")]
 
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=55554830]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 7.8)
@@ -4865,7 +4866,7 @@ mesh = SubResource("BoxMesh_xd4di")
 [node name="Bookcase_2_219" type="Node3D" parent="Library" unique_id=936614497]
 transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, -7.5, 0.03, -11.6)
 
-[node name="Model" type="Node3D" parent="Library/Bookcase_2_219" unique_id=1022758899 instance=ExtResource("21_3kqvc")]
+[node name="Model" parent="Library/Bookcase_2_219" unique_id=1022758899 instance=ExtResource("21_3kqvc")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/Bookcase_2_219" unique_id=1842485984]
 
@@ -4875,27 +4876,27 @@ shape = SubResource("ConcavePolygonShape3D_gbthx")
 [node name="BookGroup_Medium_1_220" type="Node3D" parent="Library" unique_id=912259543]
 transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, -7.5, 0.77, -11.56)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_220" unique_id=638986483 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_220" unique_id=638986483 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_1_221" type="Node3D" parent="Library" unique_id=441446700]
 transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, -7.5, 1.3299999, -11.56)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_221" unique_id=1820445568 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_221" unique_id=1820445568 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_2_222" type="Node3D" parent="Library" unique_id=50701535]
 transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, -7.5, 1.89, -11.56)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_222" unique_id=1132253689 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_222" unique_id=1132253689 instance=ExtResource("23_hh6a5")]
 
 [node name="BookGroup_Medium_2_223" type="Node3D" parent="Library" unique_id=297151981]
 transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, -7.5, 2.48, -11.56)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_223" unique_id=1851838834 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_223" unique_id=1851838834 instance=ExtResource("23_hh6a5")]
 
 [node name="Bookcase_2_224" type="Node3D" parent="Library" unique_id=834910143]
 transform = Transform3D(-5.6824803e-08, 0, 1.3, 0, 1.3, 0, -1.3, 0, -5.6824803e-08, -11.5, 0.03, -7.5)
 
-[node name="Model" type="Node3D" parent="Library/Bookcase_2_224" unique_id=123001950 instance=ExtResource("21_3kqvc")]
+[node name="Model" parent="Library/Bookcase_2_224" unique_id=123001950 instance=ExtResource("21_3kqvc")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/Bookcase_2_224" unique_id=560806406]
 
@@ -4905,27 +4906,27 @@ shape = SubResource("ConcavePolygonShape3D_gbthx")
 [node name="BookGroup_Medium_1_225" type="Node3D" parent="Library" unique_id=383870102]
 transform = Transform3D(-5.0268095e-08, 0, 1.15, 0, 1.15, 0, -1.15, 0, -5.0268095e-08, -11.46, 0.77, -7.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_225" unique_id=622912109 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_225" unique_id=622912109 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_1_226" type="Node3D" parent="Library" unique_id=24026752]
 transform = Transform3D(-5.0268095e-08, 0, 1.15, 0, 1.15, 0, -1.15, 0, -5.0268095e-08, -11.46, 1.3299999, -7.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_226" unique_id=557822613 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_226" unique_id=557822613 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_2_227" type="Node3D" parent="Library" unique_id=1204934392]
 transform = Transform3D(-5.0268095e-08, 0, 1.15, 0, 1.15, 0, -1.15, 0, -5.0268095e-08, -11.46, 1.89, -7.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_227" unique_id=509253889 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_227" unique_id=509253889 instance=ExtResource("23_hh6a5")]
 
 [node name="BookGroup_Medium_2_228" type="Node3D" parent="Library" unique_id=1120699745]
 transform = Transform3D(-5.0268095e-08, 0, 1.15, 0, 1.15, 0, -1.15, 0, -5.0268095e-08, -11.46, 2.48, -7.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_228" unique_id=100718150 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_228" unique_id=100718150 instance=ExtResource("23_hh6a5")]
 
 [node name="Bookcase_2_229" type="Node3D" parent="Library" unique_id=1300468317]
 transform = Transform3D(-5.6824803e-08, 0, -1.3, 0, 1.3, 0, 1.3, 0, -5.6824803e-08, -3.55, 0.03, -4.5)
 
-[node name="Model" type="Node3D" parent="Library/Bookcase_2_229" unique_id=583073001 instance=ExtResource("21_3kqvc")]
+[node name="Model" parent="Library/Bookcase_2_229" unique_id=583073001 instance=ExtResource("21_3kqvc")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/Bookcase_2_229" unique_id=1268781843]
 
@@ -4935,27 +4936,27 @@ shape = SubResource("ConcavePolygonShape3D_gbthx")
 [node name="BookGroup_Medium_1_230" type="Node3D" parent="Library" unique_id=282811275]
 transform = Transform3D(-5.0268095e-08, 0, -1.15, 0, 1.15, 0, 1.15, 0, -5.0268095e-08, -3.59, 0.77, -4.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_230" unique_id=640158070 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_230" unique_id=640158070 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_1_231" type="Node3D" parent="Library" unique_id=1540480938]
 transform = Transform3D(-5.0268095e-08, 0, -1.15, 0, 1.15, 0, 1.15, 0, -5.0268095e-08, -3.59, 1.3299999, -4.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_231" unique_id=775484730 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_231" unique_id=775484730 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_2_232" type="Node3D" parent="Library" unique_id=58157804]
 transform = Transform3D(-5.0268095e-08, 0, -1.15, 0, 1.15, 0, 1.15, 0, -5.0268095e-08, -3.59, 1.89, -4.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_232" unique_id=410774740 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_232" unique_id=410774740 instance=ExtResource("23_hh6a5")]
 
 [node name="BookGroup_Medium_2_233" type="Node3D" parent="Library" unique_id=1566565167]
 transform = Transform3D(-5.0268095e-08, 0, -1.15, 0, 1.15, 0, 1.15, 0, -5.0268095e-08, -3.59, 2.48, -4.5)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_233" unique_id=295233950 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_233" unique_id=295233950 instance=ExtResource("23_hh6a5")]
 
 [node name="Bookcase_2_234" type="Node3D" parent="Library" unique_id=787452884]
 transform = Transform3D(-1.3, 0, -1.13649605e-07, 0, 1.3, 0, 1.13649605e-07, 0, -1.3, -10.2, 0.03, -0.45)
 
-[node name="Model" type="Node3D" parent="Library/Bookcase_2_234" unique_id=1921995631 instance=ExtResource("21_3kqvc")]
+[node name="Model" parent="Library/Bookcase_2_234" unique_id=1921995631 instance=ExtResource("21_3kqvc")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/Bookcase_2_234" unique_id=6385673]
 
@@ -4965,27 +4966,27 @@ shape = SubResource("ConcavePolygonShape3D_gbthx")
 [node name="BookGroup_Medium_1_235" type="Node3D" parent="Library" unique_id=614144399]
 transform = Transform3D(-1.15, 0, -1.0053619e-07, 0, 1.15, 0, 1.0053619e-07, 0, -1.15, -10.2, 0.77, -0.48999998)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_235" unique_id=291502797 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_235" unique_id=291502797 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_1_236" type="Node3D" parent="Library" unique_id=1364230331]
 transform = Transform3D(-1.15, 0, -1.0053619e-07, 0, 1.15, 0, 1.0053619e-07, 0, -1.15, -10.2, 1.3299999, -0.48999998)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_1_236" unique_id=1016250154 instance=ExtResource("22_oty3j")]
+[node name="Model" parent="Library/BookGroup_Medium_1_236" unique_id=1016250154 instance=ExtResource("22_oty3j")]
 
 [node name="BookGroup_Medium_2_237" type="Node3D" parent="Library" unique_id=1613165535]
 transform = Transform3D(-1.15, 0, -1.0053619e-07, 0, 1.15, 0, 1.0053619e-07, 0, -1.15, -10.2, 1.89, -0.48999998)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_237" unique_id=517720681 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_237" unique_id=517720681 instance=ExtResource("23_hh6a5")]
 
 [node name="BookGroup_Medium_2_238" type="Node3D" parent="Library" unique_id=768653275]
 transform = Transform3D(-1.15, 0, -1.0053619e-07, 0, 1.15, 0, 1.0053619e-07, 0, -1.15, -10.2, 2.48, -0.48999998)
 
-[node name="Model" type="Node3D" parent="Library/BookGroup_Medium_2_238" unique_id=729671987 instance=ExtResource("23_hh6a5")]
+[node name="Model" parent="Library/BookGroup_Medium_2_238" unique_id=729671987 instance=ExtResource("23_hh6a5")]
 
 [node name="Table_Large_239" type="Node3D" parent="Library" unique_id=1384564931]
 transform = Transform3D(-5.6824803e-08, 0, 1.2, 0, 1, 0, -1.3, 0, -5.2453668e-08, -7.6, 0.03, -6.5)
 
-[node name="Model" type="Node3D" parent="Library/Table_Large_239" unique_id=1672848476 instance=ExtResource("14_jihvi")]
+[node name="Model" parent="Library/Table_Large_239" unique_id=1672848476 instance=ExtResource("14_jihvi")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/Table_Large_239" unique_id=1059126522]
 
@@ -4995,7 +4996,7 @@ shape = SubResource("ConcavePolygonShape3D_45qfk")
 [node name="Chair_1_240" type="Node3D" parent="Library" unique_id=1579711904]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -6.45, 0.03, -7.5)
 
-[node name="Model" type="Node3D" parent="Library/Chair_1_240" unique_id=672922586 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="Library/Chair_1_240" unique_id=672922586 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/Chair_1_240" unique_id=657361839]
 
@@ -5005,7 +5006,7 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Chair_1_241" type="Node3D" parent="Library" unique_id=1564157595]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -6.45, 0.03, -5.5)
 
-[node name="Model" type="Node3D" parent="Library/Chair_1_241" unique_id=710298507 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="Library/Chair_1_241" unique_id=710298507 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/Chair_1_241" unique_id=1191894131]
 
@@ -5016,7 +5017,7 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.6, 0.86, -6.5)
 script = ExtResource("10_qa72q")
 
-[node name="Model" type="Node3D" parent="Library/CandleStick_Triple_242" unique_id=1020892980 instance=ExtResource("15_dm85m")]
+[node name="Model" parent="Library/CandleStick_Triple_242" unique_id=1020892980 instance=ExtResource("15_dm85m")]
 
 [node name="Flames" type="Node3D" parent="Library/CandleStick_Triple_242" unique_id=1150312082]
 
@@ -5105,17 +5106,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 [node name="Book_Stack_1_243" type="Node3D" parent="Library" unique_id=158181003]
 transform = Transform3D(0.90630776, 0, 0.42261827, 0, 1, 0, -0.42261827, 0, 0.90630776, -7.6, 0.86, -7.7)
 
-[node name="Model" type="Node3D" parent="Library/Book_Stack_1_243" unique_id=1736325877 instance=ExtResource("17_8hqjk")]
+[node name="Model" parent="Library/Book_Stack_1_243" unique_id=1736325877 instance=ExtResource("17_8hqjk")]
 
 [node name="Scroll_1_244" type="Node3D" parent="Library" unique_id=1284984961]
 transform = Transform3D(0.90630776, 0, 0.42261827, 0, 1, 0, -0.42261827, 0, 0.90630776, -7.5, 0.86, -5.5)
 
-[node name="Model" type="Node3D" parent="Library/Scroll_1_244" unique_id=1239121328 instance=ExtResource("25_ubclj")]
+[node name="Model" parent="Library/Scroll_1_244" unique_id=1239121328 instance=ExtResource("25_ubclj")]
 
 [node name="BookStand_245" type="Node3D" parent="Library" unique_id=743190433]
 transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, -10.9, 0.03, -2.8)
 
-[node name="Model" type="Node3D" parent="Library/BookStand_245" unique_id=941582540 instance=ExtResource("26_ckig8")]
+[node name="Model" parent="Library/BookStand_245" unique_id=941582540 instance=ExtResource("26_ckig8")]
 
 [node name="Collision" type="StaticBody3D" parent="Library/BookStand_245" unique_id=1383900757]
 
@@ -5125,12 +5126,12 @@ shape = SubResource("ConcavePolygonShape3D_fevjx")
 [node name="Shelf_Arch_246" type="Node3D" parent="Library" unique_id=1573644582]
 transform = Transform3D(-1.2, 0, -1.04907336e-07, 0, 1.2, 0, 1.04907336e-07, 0, -1.2, -4.25, 1.75, -0.32)
 
-[node name="Model" type="Node3D" parent="Library/Shelf_Arch_246" unique_id=1305428386 instance=ExtResource("27_yxumd")]
+[node name="Model" parent="Library/Shelf_Arch_246" unique_id=1305428386 instance=ExtResource("27_yxumd")]
 
 [node name="Chandelier_247" type="Node3D" parent="Library" unique_id=1848441373]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -7.5, 4.4, -5.5)
 
-[node name="Model" type="Node3D" parent="Library/Chandelier_247" unique_id=1648426798 instance=ExtResource("13_n450b")]
+[node name="Model" parent="Library/Chandelier_247" unique_id=1648426798 instance=ExtResource("13_n450b")]
 
 [node name="Candlelight" type="OmniLight3D" parent="Library" unique_id=1430856773]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 2.7, -5.5)
@@ -5167,7 +5168,7 @@ mesh = SubResource("BoxMesh_cuaw7")
 [node name="Table_Large_248" type="Node3D" parent="DiningRoom" unique_id=822100104]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -7.5, 0.03, 4.55)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Large_248" unique_id=1411544224 instance=ExtResource("14_jihvi")]
+[node name="Model" parent="DiningRoom/Table_Large_248" unique_id=1411544224 instance=ExtResource("14_jihvi")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Table_Large_248" unique_id=1099580776]
 
@@ -5178,7 +5179,7 @@ shape = SubResource("ConcavePolygonShape3D_45qfk")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 0.86, 4.55)
 script = ExtResource("10_qa72q")
 
-[node name="Model" type="Node3D" parent="DiningRoom/CandleStick_Triple_249" unique_id=294112930 instance=ExtResource("15_dm85m")]
+[node name="Model" parent="DiningRoom/CandleStick_Triple_249" unique_id=294112930 instance=ExtResource("15_dm85m")]
 
 [node name="Flames" type="Node3D" parent="DiningRoom/CandleStick_Triple_249" unique_id=797626473]
 
@@ -5267,7 +5268,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 [node name="Table_Large_250" type="Node3D" parent="DiningRoom" unique_id=1410021050]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -7.5, 0.03, 7.45)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Large_250" unique_id=2097774323 instance=ExtResource("14_jihvi")]
+[node name="Model" parent="DiningRoom/Table_Large_250" unique_id=2097774323 instance=ExtResource("14_jihvi")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Table_Large_250" unique_id=594399718]
 
@@ -5278,7 +5279,7 @@ shape = SubResource("ConcavePolygonShape3D_45qfk")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 0.86, 7.45)
 script = ExtResource("10_qa72q")
 
-[node name="Model" type="Node3D" parent="DiningRoom/CandleStick_Triple_251" unique_id=570277187 instance=ExtResource("15_dm85m")]
+[node name="Model" parent="DiningRoom/CandleStick_Triple_251" unique_id=570277187 instance=ExtResource("15_dm85m")]
 
 [node name="Flames" type="Node3D" parent="DiningRoom/CandleStick_Triple_251" unique_id=139709449]
 
@@ -5367,7 +5368,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 [node name="Chair_1_252" type="Node3D" parent="DiningRoom" unique_id=1267340579]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -8.6, 0.03, 3.6)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_252" unique_id=1233893216 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_252" unique_id=1233893216 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_252" unique_id=1085027988]
 
@@ -5377,17 +5378,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_253" type="Node3D" parent="DiningRoom" unique_id=1178442398]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.86, 0.85, 3.6)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_253" unique_id=464193287 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_253" unique_id=464193287 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_254" type="Node3D" parent="DiningRoom" unique_id=1282930825]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.84, 0.85, 3.84)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_254" unique_id=580426213 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_254" unique_id=580426213 instance=ExtResource("29_0jk3f")]
 
 [node name="Chair_1_255" type="Node3D" parent="DiningRoom" unique_id=2089794852]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -6.4, 0.03, 3.6)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_255" unique_id=1731823643 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_255" unique_id=1731823643 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_255" unique_id=45463507]
 
@@ -5397,17 +5398,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_256" type="Node3D" parent="DiningRoom" unique_id=1912411692]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.14, 0.85, 3.6)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_256" unique_id=1620889003 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_256" unique_id=1620889003 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_257" type="Node3D" parent="DiningRoom" unique_id=556703260]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.16, 0.85, 3.84)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_257" unique_id=1239963998 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_257" unique_id=1239963998 instance=ExtResource("29_0jk3f")]
 
 [node name="Chair_1_258" type="Node3D" parent="DiningRoom" unique_id=1746738171]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -8.6, 0.03, 4.8)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_258" unique_id=2105164738 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_258" unique_id=2105164738 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_258" unique_id=741978503]
 
@@ -5417,17 +5418,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_259" type="Node3D" parent="DiningRoom" unique_id=382719274]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.86, 0.85, 4.8)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_259" unique_id=1685391588 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_259" unique_id=1685391588 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_260" type="Node3D" parent="DiningRoom" unique_id=2130027736]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.84, 0.85, 5.04)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_260" unique_id=1841377315 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_260" unique_id=1841377315 instance=ExtResource("29_0jk3f")]
 
 [node name="Chair_1_261" type="Node3D" parent="DiningRoom" unique_id=1014898892]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -6.4, 0.03, 4.8)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_261" unique_id=465040983 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_261" unique_id=465040983 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_261" unique_id=1661850694]
 
@@ -5437,17 +5438,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_262" type="Node3D" parent="DiningRoom" unique_id=7278356]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.14, 0.85, 4.8)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_262" unique_id=248010948 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_262" unique_id=248010948 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_263" type="Node3D" parent="DiningRoom" unique_id=1895710726]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.16, 0.85, 5.04)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_263" unique_id=1981570593 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_263" unique_id=1981570593 instance=ExtResource("29_0jk3f")]
 
 [node name="Chair_1_264" type="Node3D" parent="DiningRoom" unique_id=1440384494]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -8.6, 0.03, 7.2)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_264" unique_id=400119109 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_264" unique_id=400119109 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_264" unique_id=833155411]
 
@@ -5457,17 +5458,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_265" type="Node3D" parent="DiningRoom" unique_id=768087582]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.86, 0.85, 7.2)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_265" unique_id=667327208 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_265" unique_id=667327208 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_266" type="Node3D" parent="DiningRoom" unique_id=717539474]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.84, 0.85, 7.44)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_266" unique_id=621225279 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_266" unique_id=621225279 instance=ExtResource("29_0jk3f")]
 
 [node name="Chair_1_267" type="Node3D" parent="DiningRoom" unique_id=319605993]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -6.4, 0.03, 7.2)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_267" unique_id=2098059928 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_267" unique_id=2098059928 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_267" unique_id=682743472]
 
@@ -5477,17 +5478,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_268" type="Node3D" parent="DiningRoom" unique_id=1508375123]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.14, 0.85, 7.2)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_268" unique_id=1808761973 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_268" unique_id=1808761973 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_269" type="Node3D" parent="DiningRoom" unique_id=810094378]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.16, 0.85, 7.44)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_269" unique_id=593405699 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_269" unique_id=593405699 instance=ExtResource("29_0jk3f")]
 
 [node name="Chair_1_270" type="Node3D" parent="DiningRoom" unique_id=1496376468]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -8.6, 0.03, 8.4)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_270" unique_id=572187714 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_270" unique_id=572187714 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_270" unique_id=1707604414]
 
@@ -5497,17 +5498,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_271" type="Node3D" parent="DiningRoom" unique_id=1271733383]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.86, 0.85, 8.4)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_271" unique_id=707199265 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_271" unique_id=707199265 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_272" type="Node3D" parent="DiningRoom" unique_id=1349833014]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.84, 0.85, 8.64)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_272" unique_id=1116852599 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_272" unique_id=1116852599 instance=ExtResource("29_0jk3f")]
 
 [node name="Chair_1_273" type="Node3D" parent="DiningRoom" unique_id=1843887916]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -6.4, 0.03, 8.4)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chair_1_273" unique_id=834423253 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="DiningRoom/Chair_1_273" unique_id=834423253 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Chair_1_273" unique_id=1650086055]
 
@@ -5517,17 +5518,17 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Table_Plate_274" type="Node3D" parent="DiningRoom" unique_id=165478521]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.14, 0.85, 8.4)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Table_Plate_274" unique_id=1421802967 instance=ExtResource("28_4c5cn")]
+[node name="Model" parent="DiningRoom/Table_Plate_274" unique_id=1421802967 instance=ExtResource("28_4c5cn")]
 
 [node name="Chalice_275" type="Node3D" parent="DiningRoom" unique_id=423983796]
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, -7.16, 0.85, 8.64)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chalice_275" unique_id=795483252 instance=ExtResource("29_0jk3f")]
+[node name="Model" parent="DiningRoom/Chalice_275" unique_id=795483252 instance=ExtResource("29_0jk3f")]
 
 [node name="Cabinet_276" type="Node3D" parent="DiningRoom" unique_id=1085672581]
 transform = Transform3D(-1.25, 0, -1.2239188e-07, 0, 1.2, 0, 1.09278474e-07, 0, -1.4, -10.3, 0.03, 11.55)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Cabinet_276" unique_id=1684626798 instance=ExtResource("30_8p8gv")]
+[node name="Model" parent="DiningRoom/Cabinet_276" unique_id=1684626798 instance=ExtResource("30_8p8gv")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Cabinet_276" unique_id=2101010429]
 
@@ -5537,12 +5538,12 @@ shape = SubResource("ConcavePolygonShape3D_n2706")
 [node name="Bottle_1_277" type="Node3D" parent="DiningRoom" unique_id=1079627369]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.3, 1.25, 11.5)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Bottle_1_277" unique_id=2058249018 instance=ExtResource("31_sq6er")]
+[node name="Model" parent="DiningRoom/Bottle_1_277" unique_id=2058249018 instance=ExtResource("31_sq6er")]
 
 [node name="Cabinet_278" type="Node3D" parent="DiningRoom" unique_id=969408519]
 transform = Transform3D(-1.25, 0, -1.2239188e-07, 0, 1.2, 0, 1.09278474e-07, 0, -1.4, -8.3, 0.03, 11.55)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Cabinet_278" unique_id=34970903 instance=ExtResource("30_8p8gv")]
+[node name="Model" parent="DiningRoom/Cabinet_278" unique_id=34970903 instance=ExtResource("30_8p8gv")]
 
 [node name="Collision" type="StaticBody3D" parent="DiningRoom/Cabinet_278" unique_id=1575184304]
 
@@ -5552,12 +5553,12 @@ shape = SubResource("ConcavePolygonShape3D_n2706")
 [node name="Bottle_1_279" type="Node3D" parent="DiningRoom" unique_id=2014813554]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3, 1.25, 11.5)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Bottle_1_279" unique_id=726993031 instance=ExtResource("31_sq6er")]
+[node name="Model" parent="DiningRoom/Bottle_1_279" unique_id=726993031 instance=ExtResource("31_sq6er")]
 
 [node name="Chandelier_280" type="Node3D" parent="DiningRoom" unique_id=1049580089]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -7.5, 4.4, 6)
 
-[node name="Model" type="Node3D" parent="DiningRoom/Chandelier_280" unique_id=363709589 instance=ExtResource("13_n450b")]
+[node name="Model" parent="DiningRoom/Chandelier_280" unique_id=363709589 instance=ExtResource("13_n450b")]
 
 [node name="Candlelight" type="OmniLight3D" parent="DiningRoom" unique_id=718309531]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 2.7, 6)
@@ -5574,7 +5575,7 @@ omni_range = 8.0
 [node name="Bench_281" type="Node3D" parent="WinterGallery" unique_id=181056282]
 transform = Transform3D(-5.0268095e-08, 0, 1.15, 0, 1.15, 0, -1.15, 0, -5.0268095e-08, 8, 0.03, -9.5)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Bench_281" unique_id=958344603 instance=ExtResource("18_cvy53")]
+[node name="Model" parent="WinterGallery/Bench_281" unique_id=958344603 instance=ExtResource("18_cvy53")]
 
 [node name="Collision" type="StaticBody3D" parent="WinterGallery/Bench_281" unique_id=1807633306]
 
@@ -5584,7 +5585,7 @@ shape = SubResource("ConcavePolygonShape3D_bmtc7")
 [node name="Bench_282" type="Node3D" parent="WinterGallery" unique_id=1838939936]
 transform = Transform3D(-5.0268095e-08, 0, 1.15, 0, 1.15, 0, -1.15, 0, -5.0268095e-08, 8, 0.03, -3.2)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Bench_282" unique_id=1014648689 instance=ExtResource("18_cvy53")]
+[node name="Model" parent="WinterGallery/Bench_282" unique_id=1014648689 instance=ExtResource("18_cvy53")]
 
 [node name="Collision" type="StaticBody3D" parent="WinterGallery/Bench_282" unique_id=1136873970]
 
@@ -5594,7 +5595,7 @@ shape = SubResource("ConcavePolygonShape3D_bmtc7")
 [node name="Vase_4_283" type="Node3D" parent="WinterGallery" unique_id=379004700]
 transform = Transform3D(1.8, 0, 0, 0, 1.8, 0, 0, 0, 1.8, 10.9, 0.03, -10.5)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Vase_4_283" unique_id=911807596 instance=ExtResource("19_jd3bj")]
+[node name="Model" parent="WinterGallery/Vase_4_283" unique_id=911807596 instance=ExtResource("19_jd3bj")]
 
 [node name="Collision" type="StaticBody3D" parent="WinterGallery/Vase_4_283" unique_id=724219993]
 
@@ -5604,12 +5605,12 @@ shape = SubResource("ConcavePolygonShape3D_ycmip")
 [node name="Prop_Vine4_284" type="Node3D" parent="WinterGallery" unique_id=12907880]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 11.7, 3.95, -10.5)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Prop_Vine4_284" unique_id=608281022 instance=ExtResource("32_tx5y3")]
+[node name="Model" parent="WinterGallery/Prop_Vine4_284" unique_id=608281022 instance=ExtResource("32_tx5y3")]
 
 [node name="Vase_4_285" type="Node3D" parent="WinterGallery" unique_id=1341671949]
 transform = Transform3D(1.8, 0, 0, 0, 1.8, 0, 0, 0, 1.8, 10.9, 0.03, -4.5)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Vase_4_285" unique_id=399062745 instance=ExtResource("19_jd3bj")]
+[node name="Model" parent="WinterGallery/Vase_4_285" unique_id=399062745 instance=ExtResource("19_jd3bj")]
 
 [node name="Collision" type="StaticBody3D" parent="WinterGallery/Vase_4_285" unique_id=612707990]
 
@@ -5619,22 +5620,22 @@ shape = SubResource("ConcavePolygonShape3D_ycmip")
 [node name="Prop_Vine4_286" type="Node3D" parent="WinterGallery" unique_id=1095106511]
 transform = Transform3D(-6.556708e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.556708e-08, 11.7, 3.95, -4.5)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Prop_Vine4_286" unique_id=1054953179 instance=ExtResource("32_tx5y3")]
+[node name="Model" parent="WinterGallery/Prop_Vine4_286" unique_id=1054953179 instance=ExtResource("32_tx5y3")]
 
 [node name="Prop_Vine1_287" type="Node3D" parent="WinterGallery" unique_id=1208113274]
 transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 4.8, 4.25, -11.75)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Prop_Vine1_287" unique_id=1590073678 instance=ExtResource("20_mm122")]
+[node name="Model" parent="WinterGallery/Prop_Vine1_287" unique_id=1590073678 instance=ExtResource("20_mm122")]
 
 [node name="Prop_Vine1_288" type="Node3D" parent="WinterGallery" unique_id=797273740]
 transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 8.7, 4.25, -11.75)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Prop_Vine1_288" unique_id=363648881 instance=ExtResource("20_mm122")]
+[node name="Model" parent="WinterGallery/Prop_Vine1_288" unique_id=363648881 instance=ExtResource("20_mm122")]
 
 [node name="Table_Large_289" type="Node3D" parent="WinterGallery" unique_id=223873641]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 5, 0.03, -4)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Table_Large_289" unique_id=254927243 instance=ExtResource("14_jihvi")]
+[node name="Model" parent="WinterGallery/Table_Large_289" unique_id=254927243 instance=ExtResource("14_jihvi")]
 
 [node name="Collision" type="StaticBody3D" parent="WinterGallery/Table_Large_289" unique_id=155453015]
 
@@ -5644,17 +5645,17 @@ shape = SubResource("ConcavePolygonShape3D_45qfk")
 [node name="SmallBottles_1_290" type="Node3D" parent="WinterGallery" unique_id=1967889224]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.15, 0.86, -3.35)
 
-[node name="Model" type="Node3D" parent="WinterGallery/SmallBottles_1_290" unique_id=744925185 instance=ExtResource("33_qrayp")]
+[node name="Model" parent="WinterGallery/SmallBottles_1_290" unique_id=744925185 instance=ExtResource("33_qrayp")]
 
 [node name="Vase_2_291" type="Node3D" parent="WinterGallery" unique_id=325640752]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.86, -5)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Vase_2_291" unique_id=337095819 instance=ExtResource("34_vit40")]
+[node name="Model" parent="WinterGallery/Vase_2_291" unique_id=337095819 instance=ExtResource("34_vit40")]
 
 [node name="Chandelier_292" type="Node3D" parent="WinterGallery" unique_id=1802818480]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 7.5, 4.4, -6)
 
-[node name="Model" type="Node3D" parent="WinterGallery/Chandelier_292" unique_id=1928359903 instance=ExtResource("13_n450b")]
+[node name="Model" parent="WinterGallery/Chandelier_292" unique_id=1928359903 instance=ExtResource("13_n450b")]
 
 [node name="Candlelight" type="OmniLight3D" parent="WinterGallery" unique_id=1413542904]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 2.7, -6)
@@ -5768,7 +5769,7 @@ mesh = SubResource("BoxMesh_sooxa")
 [node name="Bed_Twin1_293" type="Node3D" parent="GuestParlour" unique_id=399576684]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 9.8, 0.03, 9.7)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Bed_Twin1_293" unique_id=1352198189 instance=ExtResource("35_ch80h")]
+[node name="Model" parent="GuestParlour/Bed_Twin1_293" unique_id=1352198189 instance=ExtResource("35_ch80h")]
 
 [node name="Collision" type="StaticBody3D" parent="GuestParlour/Bed_Twin1_293" unique_id=118088407]
 
@@ -5778,7 +5779,7 @@ shape = SubResource("ConcavePolygonShape3D_uqwm8")
 [node name="Nightstand_Shelf_294" type="Node3D" parent="GuestParlour" unique_id=2111536226]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 7.9, 0.03, 10.6)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Nightstand_Shelf_294" unique_id=940750484 instance=ExtResource("36_edye5")]
+[node name="Model" parent="GuestParlour/Nightstand_Shelf_294" unique_id=940750484 instance=ExtResource("36_edye5")]
 
 [node name="Collision" type="StaticBody3D" parent="GuestParlour/Nightstand_Shelf_294" unique_id=1671945291]
 
@@ -5788,7 +5789,7 @@ shape = SubResource("ConcavePolygonShape3D_01f0j")
 [node name="Chest_Wood_295" type="Node3D" parent="GuestParlour" unique_id=877838504]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.03, 7.5)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Chest_Wood_295" unique_id=963293373 instance=ExtResource("37_m18nm")]
+[node name="Model" parent="GuestParlour/Chest_Wood_295" unique_id=963293373 instance=ExtResource("37_m18nm")]
 
 [node name="Collision" type="StaticBody3D" parent="GuestParlour/Chest_Wood_295" unique_id=453551700]
 
@@ -5803,7 +5804,7 @@ shape = SubResource("ConcavePolygonShape3D_njs0t")
 [node name="Table_Large_296" type="Node3D" parent="GuestParlour" unique_id=2142592405]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.03, 3.5)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Table_Large_296" unique_id=1588154491 instance=ExtResource("14_jihvi")]
+[node name="Model" parent="GuestParlour/Table_Large_296" unique_id=1588154491 instance=ExtResource("14_jihvi")]
 
 [node name="Collision" type="StaticBody3D" parent="GuestParlour/Table_Large_296" unique_id=1655816791]
 
@@ -5813,7 +5814,7 @@ shape = SubResource("ConcavePolygonShape3D_45qfk")
 [node name="Chair_1_297" type="Node3D" parent="GuestParlour" unique_id=1718092018]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 7, 0.03, 4.5)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Chair_1_297" unique_id=1790495690 instance=ExtResource("24_tj61y")]
+[node name="Model" parent="GuestParlour/Chair_1_297" unique_id=1790495690 instance=ExtResource("24_tj61y")]
 
 [node name="Collision" type="StaticBody3D" parent="GuestParlour/Chair_1_297" unique_id=1477674967]
 
@@ -5823,18 +5824,18 @@ shape = SubResource("ConcavePolygonShape3D_u7h8m")
 [node name="Mug_298" type="Node3D" parent="GuestParlour" unique_id=801221719]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 0.86, 3.5)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Mug_298" unique_id=832421008 instance=ExtResource("38_qdt8e")]
+[node name="Model" parent="GuestParlour/Mug_298" unique_id=832421008 instance=ExtResource("38_qdt8e")]
 
 [node name="Book_7_299" type="Node3D" parent="GuestParlour" unique_id=1234514459]
 transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, 7.2, 0.86, 3.5)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Book_7_299" unique_id=1874388812 instance=ExtResource("39_5345u")]
+[node name="Model" parent="GuestParlour/Book_7_299" unique_id=1874388812 instance=ExtResource("39_5345u")]
 
 [node name="CandleStick_Triple_300" type="Node3D" parent="GuestParlour" unique_id=1797123868 groups=["briarwick_interactable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.15, 0.86, 3.5)
 script = ExtResource("10_qa72q")
 
-[node name="Model" type="Node3D" parent="GuestParlour/CandleStick_Triple_300" unique_id=1139937698 instance=ExtResource("15_dm85m")]
+[node name="Model" parent="GuestParlour/CandleStick_Triple_300" unique_id=1139937698 instance=ExtResource("15_dm85m")]
 
 [node name="Flames" type="Node3D" parent="GuestParlour/CandleStick_Triple_300" unique_id=2138144735]
 
@@ -5923,12 +5924,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 [node name="Shelf_Small_Bottles_301" type="Node3D" parent="GuestParlour" unique_id=1694375723]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 3.4, 1.6, 3)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Shelf_Small_Bottles_301" unique_id=1810071903 instance=ExtResource("40_2dc3d")]
+[node name="Model" parent="GuestParlour/Shelf_Small_Bottles_301" unique_id=1810071903 instance=ExtResource("40_2dc3d")]
 
 [node name="Chandelier_302" type="Node3D" parent="GuestParlour" unique_id=647266933]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 7.5, 4.4, 6)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Chandelier_302" unique_id=1848176397 instance=ExtResource("13_n450b")]
+[node name="Model" parent="GuestParlour/Chandelier_302" unique_id=1848176397 instance=ExtResource("13_n450b")]
 
 [node name="Candlelight" type="OmniLight3D" parent="GuestParlour" unique_id=985996458]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 2.7, 6)
@@ -5943,17 +5944,17 @@ omni_range = 8.0
 [node name="Bag_303" type="Node3D" parent="GuestParlour" unique_id=1405764224]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.05, 0.03, 9.4)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Bag_303" unique_id=1094096627 instance=ExtResource("41_wo3vq")]
+[node name="Model" parent="GuestParlour/Bag_303" unique_id=1094096627 instance=ExtResource("41_wo3vq")]
 
 [node name="Scroll_1_304" type="Node3D" parent="GuestParlour" unique_id=576636009]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.8, 0.87, 9.7)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Scroll_1_304" unique_id=342758951 instance=ExtResource("25_ubclj")]
+[node name="Model" parent="GuestParlour/Scroll_1_304" unique_id=342758951 instance=ExtResource("25_ubclj")]
 
 [node name="Chest_Wood_305" type="Node3D" parent="GuestParlour" unique_id=139787810]
 transform = Transform3D(0.22, 0, 0, 0, 0.22, 0, 0, 0, 0.22, 7.7, 0.86, 3.5)
 
-[node name="Model" type="Node3D" parent="GuestParlour/Chest_Wood_305" unique_id=1448560124 instance=ExtResource("37_m18nm")]
+[node name="Model" parent="GuestParlour/Chest_Wood_305" unique_id=1448560124 instance=ExtResource("37_m18nm")]
 
 [node name="MusicBoxControl" type="Node3D" parent="GuestParlour" unique_id=336218102 groups=["briarwick_interactable"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7, 0.86, 3.5)
@@ -6230,6 +6231,7 @@ scale_amount_min = 0.008
 scale_amount_max = 0.018
 
 [node name="LightmapGI" type="LightmapGI" parent="." unique_id=219937549]
+light_data = ExtResource("42_u7fn3")
 
 [node name="MurderMap" type="Node" parent="." unique_id=595662526]
 script = ExtResource("42_56ru4")

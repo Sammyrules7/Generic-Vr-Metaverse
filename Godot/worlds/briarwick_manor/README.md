@@ -43,7 +43,8 @@ Static architecture and the main room lighting remain ready to bake.
 
 1. Open the scene with the Forward+ or Mobile renderer.
 2. Select the root-level **LightmapGI** node and choose **Bake Lightmaps**; save the
-   generated lightmap data beside the scene. No lighting bake is included yet.
+   generated lightmap data beside the scene. `briarwick_manor.lmbake` (with its
+   `.exr` data texture) is included in the repo; rebake after changes.
 3. Imported meshes already use **Static Lightmaps** and a 0.3 m import texel size.
    Primitive meshes have UV2 enabled and GI Mode Static. Retain the `.gltf.import`
    and `.unwrap_cache` files when committing; reimports preserve the UV2 layout.
