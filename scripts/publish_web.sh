@@ -16,6 +16,33 @@ s3() { s5cmd --endpoint-url "$GARAGE_ENDPOINT" "$@"; }
 
 test -s "$EXPORT_DIR/delivery-identity.txt"
 
+# Retention: per-commit builds are immutable snapshots, which previously
+# filled the Garage bucket to its size quota. Keep only the branch pointer
+# target, the incoming build, and the few newest completed builds; prune the
+# rest ahead of the upload so this build always has available space. Partial
+# snapshots from failed runs carry no complete.txt and are pruned with them.
+keep_newest=3
+pointer_commit=""
+if s3 ls "$prefix/commit.txt" >/dev/null 2>&1; then
+  pointer_commit="$(s3 cat "$prefix/commit.txt" | tr -d '[:space:]' || true)"
+fi
+[[ "$pointer_commit" =~ ^[0-9a-f]{40}$ ]] || pointer_commit=""
+recent="$(s3 ls "$prefix/builds/*/complete.txt" 2>/dev/null | awk '$NF ~ /\/complete\.txt$/')"
+if [[ -z "$(printf '%s' "$recent" | tr -d '[:space:]')" ]]; then
+  echo "Could not list completed builds; keeping every snapshot" >&2
+else
+  keep=" $BUILD_COMMIT $pointer_commit"
+  while read -r sha; do
+    keep="$keep $sha"
+  done < <(printf '%s\n' "$recent" | sort -r | sed -E 's|.*/builds/([0-9a-f]{40})/complete\.txt.*|\1|' | head -n "$keep_newest" | sort -u)
+  s3 ls "$prefix/builds/" 2>/dev/null | awk '$1=="PRE"{print $2}' | tr -d '/' | while read -r sha; do
+    [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || continue
+    case "$keep" in *" $sha "*) continue ;; esac
+    echo "Pruning old web preview build $sha"
+    s3 rm "$prefix/builds/$sha/*" || true
+  done
+fi
+
 # A completed commit is immutable even when its workflow is rerun.
 if s3 ls "$build_prefix/complete.txt" >/dev/null; then
   remote_identity="$(s3 cat "$build_prefix/assets/delivery-identity.txt")"
