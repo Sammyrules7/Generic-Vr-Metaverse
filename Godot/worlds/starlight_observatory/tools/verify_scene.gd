@@ -59,12 +59,15 @@ func run() -> void:
 	tracker.set_input(&"trigger", 1.0)
 	tracker.set_input(&"grip", 0.0)
 	XRServer.add_tracker(tracker)
+	globe._poll_accum = 1.0
 	globe._process(0.0)
 	check(globe.selected_map == 2, "XR trigger must select the next constellation")
+	globe._poll_accum = 1.0
 	globe._process(0.0)
 	check(globe.selected_map == 2, "Held XR trigger must not repeat")
 	tracker.set_input(&"trigger", 0.0)
 	tracker.set_input(&"grip", 1.0)
+	globe._poll_accum = 1.0
 	globe._process(0.0)
 	check(globe.spinning, "XR grip must resume the orbit")
 	XRServer.remove_tracker(tracker)

@@ -9738,6 +9738,7 @@ environment = SubResource("Environment_xggp5")
 
 [node name="Moonlight" type="DirectionalLight3D" parent="." unique_id=756549586]
 transform = Transform3D(-0.90116674, 0.20818138, -0.38020918, 0, 0.8771239, 0.48026422, 0.4334726, 0.43279815, -0.7904349, 0, 0, 0)
+enabled = false
 light_color = Color(0.6313726, 0.78039217, 1, 1)
 light_energy = 0.85
 light_specular = 0.3
@@ -10818,5 +10819,8 @@ current = true
 fov = 72.0
 
 [node name="LightmapGI" type="LightmapGI" parent="." unique_id=274330091]
+quality = 2
+bounces = 4
 directional = true
+shadowmask_mode = 1
 light_data = ExtResource("10_nyyxj")

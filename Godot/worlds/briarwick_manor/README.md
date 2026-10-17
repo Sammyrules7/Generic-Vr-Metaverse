@@ -48,10 +48,12 @@ Static architecture and the main room lighting remain ready to bake.
 3. Imported meshes already use **Static Lightmaps** and a 0.3 m import texel size.
    Primitive meshes have UV2 enabled and GI Mode Static. Retain the `.gltf.import`
    and `.unwrap_cache` files when committing; reimports preserve the UV2 layout.
-4. Interior lights use Static baking; the moon uses Dynamic baking. A low-resolution
-   sky supplies ambient reflections. The optional live reflection probe was removed
-   after reproducing a seven-texture teardown leak with this Godot build. Tune lights
-   and rebake after changing the layout.
+4. The committed bake (`briarwick_manor.lmbake`) uses Quality **High**, **4**
+   bounce passes, the built-in **denoiser** and **Shadowmask: Replace**; the
+   moon uses Dynamic baking so the terrace keeps realtime moon shadows. A
+   low-resolution sky supplies ambient reflections. The optional live reflection
+   probe was removed after reproducing a seven-texture teardown leak with this
+   Godot build. Tune lights and rebake after changing the layout.
 
 The realtime lighting is a usable unbaked preview. Baked lightmaps should improve
 the soft interior bounce and reduce the cost of the static lights. Dust, players and

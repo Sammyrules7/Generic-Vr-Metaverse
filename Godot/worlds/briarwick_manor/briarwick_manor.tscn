@@ -6231,6 +6231,9 @@ scale_amount_min = 0.008
 scale_amount_max = 0.018
 
 [node name="LightmapGI" type="LightmapGI" parent="." unique_id=219937549]
+quality = 2
+bounces = 4
+shadowmask_mode = 1
 light_data = ExtResource("42_u7fn3")
 
 [node name="MurderMap" type="Node" parent="." unique_id=595662526]
