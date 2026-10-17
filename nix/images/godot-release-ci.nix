@@ -2,8 +2,10 @@
 
 let
   androidSdk = (pkgs.androidenv.composeAndroidPackages {
-    platformVersions = [ "35" ];
-    buildToolsVersions = [ "35.0.1" ];
+    # Match the Android export preset's target platform so gradle never has
+    # to install SDK components into the read-only Nix store at build time.
+    platformVersions = [ "36" ];
+    buildToolsVersions = [ "36.1.0" ];
     includeCmake = false;
     includeNDK = true;
     ndkVersions = [ "28.1.13356709" ];
