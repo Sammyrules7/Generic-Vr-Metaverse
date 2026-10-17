@@ -84,6 +84,17 @@ jobs:
           fi
           git lfs pull
 
+      # Same import cache as Delivery-checks: the web export also needs a full
+      # --editor --import and both branches commit changed assets regularly.
+      # Distinct key prefix so a web snapshot never reuses a desktop snapshot.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: Godot/.godot/imported
+          key: godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          restore-keys: |
+            godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+
       - name: Describe build
         id: describe
         shell: bash
