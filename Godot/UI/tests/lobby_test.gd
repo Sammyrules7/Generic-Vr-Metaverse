@@ -365,7 +365,7 @@ func _test_navigation(ui: Control, panel: Node3D, state: RoomNetworking) -> void
 	XRToolsPointerEvent.pressed(pointer, target, start)
 	XRToolsPointerEvent.exited(pointer, target, start)
 	check(not nav._dragging and clicks[0] == 1, "Pointer exit failed to cancel drag")
-	await get_tree().create_timer(0.11).timeout
+	await _wait_wall(0.11)
 	var second_pointer := Node3D.new()
 	panel.add_child(second_pointer)
 	XRToolsPointerEvent.entered(pointer, target, start)
@@ -408,6 +408,15 @@ func _panel_point(panel: Node3D, point: Vector2) -> Vector3:
 	return panel.to_global(Vector3((point.x / 1120.0 - 0.5) * panel.screen_size.x, (0.5 - point.y / 800.0) * panel.screen_size.y, 0))
 
 
+# The VR panel debounces taps on the wall clock (Time.get_ticks_msec), while
+# create_timer advances engine time, which can run ahead of wall time in fast
+# headless runs. Await real wall time so deliberate taps clear the debounce.
+func _wait_wall(seconds: float) -> void:
+	var start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < seconds * 1000.0:
+		await get_tree().process_frame
+
+
 func _tap(panel: Node3D, button: BaseButton, pointer: Node3D) -> void:
 	var point := _panel_point(panel, button.get_global_rect().get_center())
 	var body := panel.get_node("StaticBody3D")
@@ -431,7 +440,7 @@ func _test_single_activation(ui: Control, panel: Node3D) -> void:
 	check(count[0] == 1 and not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "One physical microphone tap must toggle exactly once")
 	_tap(panel, mic, panel.hand_contacts.left.pointer)
 	check(count[0] == 1 and Networking.voice_chat.muted, "Second-hand bounce within 100 ms toggled microphone again")
-	await get_tree().create_timer(0.11).timeout
+	await _wait_wall(0.11)
 	_tap(panel, mic, panel.hand_contacts.left.pointer)
 	check(count[0] == 2 and PlayerProfile.microphone_enabled and not Networking.voice_chat.muted, "Left-hand deliberate tap did not enable microphone")
 	mic.toggled.disconnect(capture)
@@ -442,7 +451,7 @@ func _test_single_activation(ui: Control, panel: Node3D) -> void:
 	_tap(panel, next, panel.hand_contacts.left.pointer)
 	check(ui.world_index == posmod(before + 1, WorldCatalog.WORLDS.size()), "World-arrow bounce within 100 ms was not suppressed")
 	for index in 4:
-		await get_tree().create_timer(0.11).timeout
+		await _wait_wall(0.11)
 		_tap(panel, next, panel.hand_contacts["left" if index % 2 == 0 else "right"].pointer)
 		check(ui.world_index == posmod(before + index + 2, WorldCatalog.WORLDS.size()), "Rapid intentional world tap was dropped or doubled")
 	var state: RoomNetworking = Networking.room_networking
@@ -461,7 +470,7 @@ func _test_single_activation(ui: Control, panel: Node3D) -> void:
 		check(not PlayerProfile.microphone_enabled and Networking.voice_chat.muted, "Microphone did not mute on first contact: " + path)
 		for other in ["%QuickMicrophoneEnabled", "%SessionMicrophoneEnabled", "%MicrophoneEnabled", "%InGameMicrophone"]:
 			check(not ui.get_node(other).button_pressed, "Microphone state not synchronized: " + other)
-		await get_tree().create_timer(0.11).timeout
+		await _wait_wall(0.11)
 		_tap(panel, mic, panel.hand_contacts.right.pointer)
 		check(PlayerProfile.microphone_enabled and not Networking.voice_chat.muted, "Microphone did not enable on next contact: " + path)
 	state.current_room = null
