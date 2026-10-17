@@ -22,7 +22,7 @@ jobs:
     name: Build and publish
     runs-on: nix
     container:
-      image: nix:0/nix/store/8gkw0nrmwykp4yhcic8x96a5g63hrf74-nix-image-vr-platform-builder-ci.tar
+      image: nix:0/nix/store/y17p9qq53r11hxcfywqmlpabcf7ik932-nix-image-vr-platform-builder-ci.tar
     steps:
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. The token is persisted in the git config so the later

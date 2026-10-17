@@ -18,7 +18,7 @@ jobs:
     runs-on: default
     container:
       # Updated with the publisher image by Server-container.yaml.
-      image: nix:0/nix/store/1fh64qhk5iva1idawvklmimsq9akiais-nix-image-vr-platform-web-publish-ci.tar
+      image: nix:0/nix/store/3f977p36cvnlih2rh5c5pckfgmljcpkv-nix-image-vr-platform-web-publish-ci.tar
     steps:
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. No GitHub actions: keep act-runner native.
