@@ -27,18 +27,23 @@ if s3 ls "$prefix/commit.txt" >/dev/null 2>&1; then
   pointer_commit="$(s3 cat "$prefix/commit.txt" | tr -d '[:space:]' || true)"
 fi
 [[ "$pointer_commit" =~ ^[0-9a-f]{40}$ ]] || pointer_commit=""
-recent="$(s3 ls "$prefix/builds/*/complete.txt" 2>/dev/null | awk '$NF ~ /\/complete\.txt$/')"
+# s5cmd 2.3.0 lists under the queried prefix: directory rows are "<sha>/"
+# (the row's second field is a DIR marker), and the wildcard-object listing
+# prints relative keys "<sha>/complete.txt" with slashed-date timestamps.
+recent="$(s3 ls "$prefix/builds/*/complete.txt" 2>/dev/null | awk '$NF ~ /complete\.txt$/')"
 if [[ -z "$(printf '%s' "$recent" | tr -d '[:space:]')" ]]; then
   echo "Could not list completed builds; keeping every snapshot" >&2
 else
   keep=" $BUILD_COMMIT $pointer_commit"
   while read -r sha; do
     keep="$keep $sha"
-  done < <(printf '%s\n' "$recent" | sort -r | sed -E 's|.*/builds/([0-9a-f]{40})/complete\.txt.*|\1|' | head -n "$keep_newest" | sort -u)
-  # s5cmd lists pseudo-directories as regular rows whose URL ends in "/"; the
-  # keep-set exception keeps any build that is neither recent nor referenced.
-  s3 ls "$prefix/builds/" 2>/dev/null | awk '{print $NF}' | \
-    sed -nE 's|.*builds/([0-9a-f]{40})/?$|\1|p' | while read -r sha; do
+  done < <(printf '%s\n' "$recent" | sort -r | \
+    sed -E 's|^\s*\S+\s+\S+\s+\S+\s+([0-9a-f]{40})/complete\.txt$|\1|' | head -n "$keep_newest" | sort -u)
+  # Prune everything that is neither the incoming build, the branch pointer
+  # target, nor among the newest completed builds (includes incomplete
+  # snapshots from failed runs, which carry no complete.txt).
+  s3 ls "$prefix/builds/" 2>/dev/null | awk '$1=="DIR"{print $2}' | \
+    sed -nE 's|^([0-9a-f]{40})/$|\1|p' | while read -r sha; do
     [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || continue
     case "$keep" in *" $sha "*) continue ;; esac
     echo "Pruning old web preview build $sha"
