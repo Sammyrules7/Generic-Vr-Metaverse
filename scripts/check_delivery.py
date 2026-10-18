@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Check delivery inputs without requiring a Godot runtime."""
+"""Check delivery inputs without requiring a Godot runtime.
+
+The full-editor import in Delivery-checks reimports rebaked lightmap atlases
+(BPTC compression) and transiently peaks around 6 GiB, so job pods ask for
+7 GiB of memory (runner podspec) and stay off the 8 GiB node; otherwise the
+k3s apiserver can die under node memory pressure and every job's exec
+websocket drops at once ("websocket: close 1006" mid-reimport).
+"""
 import hashlib
 import json
 from pathlib import Path
