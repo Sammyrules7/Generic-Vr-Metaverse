@@ -9742,7 +9742,7 @@ enabled = false
 light_color = Color(0.6313726, 0.78039217, 1, 1)
 light_energy = 0.85
 light_specular = 0.3
-light_bake_mode = 1
+light_bake_mode = 0
 shadow_enabled = true
 directional_shadow_max_distance = 160.0
 

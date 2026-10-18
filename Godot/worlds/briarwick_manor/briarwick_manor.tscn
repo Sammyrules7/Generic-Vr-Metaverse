@@ -4643,7 +4643,7 @@ light_color = Color(1, 0.76, 0.49, 1)
 light_energy = 1.7
 light_size = 0.18
 light_bake_mode = 1
-shadow_enabled = true
+shadow_enabled = false
 shadow_blur = 2.0
 omni_range = 8.0
 
@@ -4658,7 +4658,7 @@ light_color = Color(1, 0.76, 0.49, 1)
 light_energy = 1.7
 light_size = 0.18
 light_bake_mode = 1
-shadow_enabled = true
+shadow_enabled = false
 shadow_blur = 2.0
 omni_range = 8.0
 
@@ -4673,7 +4673,7 @@ light_color = Color(1, 0.76, 0.49, 1)
 light_energy = 1.7
 light_size = 0.18
 light_bake_mode = 1
-shadow_enabled = true
+shadow_enabled = false
 shadow_blur = 2.0
 omni_range = 8.0
 
@@ -5139,7 +5139,7 @@ light_color = Color(1, 0.76, 0.49, 1)
 light_energy = 1.7
 light_size = 0.18
 light_bake_mode = 1
-shadow_enabled = true
+shadow_enabled = false
 shadow_blur = 2.0
 omni_range = 8.0
 
@@ -5566,7 +5566,7 @@ light_color = Color(1, 0.76, 0.49, 1)
 light_energy = 1.7
 light_size = 0.18
 light_bake_mode = 1
-shadow_enabled = true
+shadow_enabled = false
 shadow_blur = 2.0
 omni_range = 8.0
 
@@ -5663,7 +5663,7 @@ light_color = Color(1, 0.76, 0.49, 1)
 light_energy = 1.7
 light_size = 0.18
 light_bake_mode = 1
-shadow_enabled = true
+shadow_enabled = false
 shadow_blur = 2.0
 omni_range = 8.0
 
@@ -5937,7 +5937,7 @@ light_color = Color(1, 0.76, 0.49, 1)
 light_energy = 1.7
 light_size = 0.18
 light_bake_mode = 1
-shadow_enabled = true
+shadow_enabled = false
 shadow_blur = 2.0
 omni_range = 8.0
 
@@ -6194,9 +6194,10 @@ environment = SubResource("Environment_tn4dr")
 
 [node name="BlueHour" type="DirectionalLight3D" parent="Atmosphere" unique_id=1424131230]
 transform = Transform3D(0.81915206, 0.24240388, -0.5198368, 0, 0.90630776, 0.42261827, 0.57357645, -0.34618863, 0.74240386, 0, 0, 0)
-light_color = Color(0.54509807, 0.6862745, 1, 1)
-light_energy = 0.65
-shadow_enabled = true
+light_color = Color(0.62, 0.68, 0.82, 1)
+light_energy = 0.3
+light_specular = 0.3
+shadow_enabled = false
 directional_shadow_max_distance = 45.0
 
 [node name="rain" type="AudioStreamPlayer3D" parent="Atmosphere" unique_id=91129606]
