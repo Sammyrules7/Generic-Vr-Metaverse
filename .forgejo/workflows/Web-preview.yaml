@@ -5,6 +5,7 @@ name: Web preview
 # job pods' egress policy already allows, so the Godot import cache below
 # restores and saves instead of failing with ECONNREFUSED. Initial runs
 # populate the cache; subsequent runs should report "Cache restored successfully".
+# The in-game lobby test is wall-clock sensitive and can flake on busy runners.
 
 concurrency:
   group: web-publish
