@@ -1,8 +1,9 @@
 name: Web preview
 
-# The runner's cache listener must stay reachable from job pods: it is pinned
-# to 0.0.0.0:42503 on the runner (allowed by public-internet-only egress) so
-# the Godot import cache below restores and saves instead of ECONNREFUSED.
+# The runner's cache proxy must stay reachable from job pods: it listens on
+# pinned port 42503 and is advertised at the forgejo-runner Service, which the
+# job pods' egress policy already allows, so the Godot import cache below
+# restores and saves instead of failing with ECONNREFUSED.
 
 concurrency:
   group: web-publish
