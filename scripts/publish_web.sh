@@ -35,12 +35,15 @@ else
   while read -r sha; do
     keep="$keep $sha"
   done < <(printf '%s\n' "$recent" | sort -r | sed -E 's|.*/builds/([0-9a-f]{40})/complete\.txt.*|\1|' | head -n "$keep_newest" | sort -u)
-  s3 ls "$prefix/builds/" 2>/dev/null | awk '$1=="PRE"{print $2}' | tr -d '/' | while read -r sha; do
+  # s5cmd lists pseudo-directories as regular rows whose URL ends in "/"; the
+  # keep-set exception keeps any build that is neither recent nor referenced.
+  s3 ls "$prefix/builds/" 2>/dev/null | awk '{print $NF}' | \
+    sed -nE 's|.*builds/([0-9a-f]{40})/?$|\1|p' | while read -r sha; do
     [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || continue
     case "$keep" in *" $sha "*) continue ;; esac
     echo "Pruning old web preview build $sha"
     s3 rm "$prefix/builds/$sha/*" || true
-  done
+  done || true
 fi
 
 # A completed commit is immutable even when its workflow is rerun.
