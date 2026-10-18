@@ -79,6 +79,21 @@ func run() -> void:
 		check(not blocked.is_empty() and not blocked[0].active and blocked[0].packet.is_empty(), "Push-to-talk release must prevent encoding")
 
 	check(playback.get_decode_errors() == 0, "Native decoder reported an error on real encoded audio")
+	# Per-peer decode fairness: a flooding peer drops its own excess packets
+	# instead of crowding the shared job queue and starving other speakers.
+	var fairness := VoiceChat.new()
+	for packet_index in VoiceChat.MAX_PENDING_DECODES_PER_PEER + 2:
+		fairness._queue_job({"decode": PackedByteArray(), "peer_id": 2, "generation": 1})
+	fairness._queue_job({"decode": PackedByteArray(), "peer_id": 3, "generation": 1})
+	var flooded := 0
+	var other := 0
+	for job in fairness.jobs:
+		if job.peer_id == 2:
+			flooded += 1
+		elif job.peer_id == 3:
+			other += 1
+	check(flooded == VoiceChat.MAX_PENDING_DECODES_PER_PEER and other == 1, "Decode fairness must cap one peer's pending packets without dropping others")
+	fairness.free()
 	voice._set_local_speaking(true)
 	voice.set_muted(true)
 	check(not voice.local_speaking and voice.encoded_frames.is_empty(), "Mute must clear queued speech and activity")

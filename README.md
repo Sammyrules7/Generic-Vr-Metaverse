@@ -29,10 +29,11 @@ In another terminal, from the repository root:
 ```sh
 nix develop
 godot --headless --xr-mode off --editor --path Godot --import
-godot --path Godot
+VR_PLATFORM_SERVER_URL=ws://localhost:8080/ws godot --path Godot
 ```
 
-Local clients use `ws://localhost:8080/ws`. Set `VR_PLATFORM_SERVER_URL` to
+The local command above selects `ws://localhost:8080/ws`. Without an override,
+clients use the production endpoint. Set `VR_PLATFORM_SERVER_URL` to
 override the client endpoint, or `VR_PLATFORM_LISTEN_ADDR` to change the server's
 listen address. Release CI embeds the production endpoint using
 `Godot/tools/configure_release.gd`. `VR_PLATFORM_ALLOWED_ORIGINS` is a
@@ -57,8 +58,8 @@ the development shell and commit both generated implementations.
 Established peer connections survive signaling loss. Clients silently restore
 directory membership with their original room token and peer/session IDs after
 reconnection. Conflicting recovered identities are rejected without replacing the
-surviving mesh. The mesh currently uses STUN only;
-some networks require a TURN relay, which is not provisioned here.
+surviving mesh. The mesh uses STUN and optional server-issued TURN credentials;
+see [TURN setup](cluster/turn/README.md) for networks that require a relay.
 
 ## Web builds
 

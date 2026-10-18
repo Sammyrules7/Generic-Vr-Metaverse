@@ -112,6 +112,9 @@ func _check_room_ui() -> bool:
 	reply.set_request_id(sent[0].get_request_id())
 	state.handle_packet(reply, 2)
 	var recovered: bool = not ui.get_node("%CreateRoom").disabled and ui.get_node("%Status").text == "Room rejected"
+	ui._operation_started(RoomNetworking.Operation.REFRESH)
+	ui._operation_finished(RoomNetworking.Operation.REFRESH, false, "Turn refresh timed out")
+	recovered = recovered and ui.get_node("%Status").text == "Room rejected"
 	ui.free()
 	network.room_networking = original
 	return _check(busy and recovered, "Room UI did not disable pending actions or recover after failure")
@@ -198,12 +201,117 @@ func _check_recovery_retries() -> bool:
 	)
 
 
+func _check_relay_rebuild() -> bool:
+	# A locally pruned connection must be rebuilt only by an inbound offer:
+	# an answer without a local offer is stale negotiation data.
+	var mesh := WebRTCMesh.new()
+	if mesh.start(10, 20) != OK:
+		return _check(false, "Could not start an isolated mesh")
+	var peer := Packets.Peer.new()
+	peer.set_id(11)
+	peer.set_session_id(21)
+	mesh.add_peer(peer, false)
+	var created := mesh._get_connection(11) != null
+	# Simulate Godot pruning the failed connection while membership remains.
+	mesh.multiplayer_peer.remove_peer(11)
+	var pruned := mesh._get_connection(11) == null and mesh.peer_sessions.has(11)
+	var relay := Packets.ServerRelay.new()
+	relay.set_sender_id(11)
+	relay.set_sender_session_id(21)
+	relay.set_destination_session_id(20)
+	relay.new_description().set_type("answer")
+	relay.get_description().set_sdp("v=0")
+	mesh.receive_relay(relay)
+	var ignored_answer: bool = mesh._get_connection(11) == null
+	var source := WebRTCPeerConnection.new()
+	var offers: Array[String] = []
+	source.session_description_created.connect(func(_type: String, sdp: String): offers.append(sdp))
+	if source.initialize({}) != OK:
+		source.close()
+		mesh.close()
+		return _check(false, "Could not generate the relay fixture's offer")
+	var channel := source.create_data_channel("fixture", {"negotiated": true, "id": 0})
+	if channel == null or source.create_offer() != OK:
+		source.close()
+		mesh.close()
+		return _check(false, "Could not create the relay fixture's data channel")
+	var deadline := Time.get_ticks_msec() + 3000
+	while offers.is_empty() and Time.get_ticks_msec() < deadline:
+		source.poll()
+		await get_tree().process_frame
+	source.close()
+	if offers.is_empty():
+		mesh.close()
+		return _check(false, "Relay fixture's offer generation timed out")
+	relay.get_description().set_type("offer")
+	relay.get_description().set_sdp(offers[0])
+	mesh.receive_relay(relay)
+	var rebuilt_offer: bool = mesh._get_connection(11) != null
+	mesh.close()
+	return (
+		_check(created and pruned, "Relay rebuild fixture lost its membership or connection")
+		and _check(ignored_answer, "A stale answer rebuilt a missing connection")
+		and _check(rebuilt_offer, "An inbound re-offer failed to repair a missing connection")
+	)
+
+
+func _check_refresh_timeout() -> bool:
+	# A TURN refresh is an idempotent same-room join: its timeout must complete
+	# locally and retry on the backoff instead of demanding a reconnect.
+	var state := RoomNetworking.new(SceneMultiplayer.new())
+	state.connected = true
+	state.current_room = roomClass.new(7, "Refresh test", 1)
+	state.rtc_mesh = WebRTCMesh.new()
+	var requests: Array = []
+	state.packet_created.connect(func(packet): requests.append(packet))
+	state._request(RoomNetworking.Operation.REFRESH, Packets.ClientPacket.new())
+	state._deadline = Time.get_ticks_msec() - 1
+	var completed: bool = state.request_expired() and state.finish_expired_refresh() and state.pending_operation == RoomNetworking.Operation.NONE
+	# A late reply to the abandoned request must not restart the operation.
+	var reply := Packets.ServerPacket.new()
+	reply.set_request_id(state._request_id)
+	reply.new_room_joined().set_session_id(9)
+	var room = reply.get_room_joined().new_room()
+	room.set_id(7)
+	room.set_name("Refresh test")
+	state.handle_packet(reply, 8)
+	completed = completed and state.pending_operation == RoomNetworking.Operation.NONE
+	# The retry honors the refresh backoff, then resends the same-room join.
+	state._turn_expires_at = Time.get_ticks_msec() + 60000
+	state._turn_refresh_at = Time.get_ticks_msec() - 1
+	state.poll_recovery()
+	var deferred: bool = requests.size() == 1
+	state._turn_refresh_retry_at = Time.get_ticks_msec() - 1
+	state.poll_recovery()
+	deferred = deferred and requests.size() == 2 and state.pending_operation == RoomNetworking.Operation.REFRESH
+	state._deadline = Time.get_ticks_msec() - 1
+	if not state.finish_expired_refresh():
+		return _check(false, "Second timed-out refresh did not complete locally")
+	# Membership-changing operations still expire into a reconnect.
+	var join := Packets.ClientPacket.new()
+	join.new_room_join().set_room_id(7)
+	if state._request(RoomNetworking.Operation.JOIN, join) != OK:
+		return _check(false, "Fixture could not start a join")
+	state._deadline = Time.get_ticks_msec() - 1
+	var membership: bool = state.request_expired() and not state.finish_expired_refresh()
+	state.reset()
+	return (
+		_check(completed, "Timed-out refresh did not complete locally and ignore its late reply")
+		and _check(deferred, "Timed-out refresh did not defer and then retry on the backoff")
+		and _check(membership, "Refresh timeout path captured a membership-changing operation")
+	)
+
+
 func _run() -> void:
 	root.get_node("Networking").set_process(false)
 	root.get_node("Networking").ws.close(-1)
 	if not _check_room_ui():
 		return
 	if not _check_recovery_retries():
+		return
+	if not await _check_relay_rebuild():
+		return
+	if not _check_refresh_timeout():
 		return
 	# The room service can be used without a Node or a WebSocket.
 	var isolated := RoomNetworking.new(SceneMultiplayer.new())

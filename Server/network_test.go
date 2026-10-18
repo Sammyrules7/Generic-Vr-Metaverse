@@ -572,13 +572,198 @@ func TestRecoveryCapabilityRejectsForgery(t *testing.T) {
 
 func TestMembershipMintQuota(t *testing.T) {
 	h := newHub()
-	c := testClient(h)
 	for i := 0; i < 20; i++ {
+		c := testClient(h)
 		if h.createRoom(c, "quota").GetRoomJoined() == nil {
 			t.Fatal("unexpected admission failure")
 		}
 	}
+	c := testClient(h)
 	if h.createRoom(c, "quota").GetError() == nil {
 		t.Fatal("mint quota bypassed")
+	}
+}
+
+func TestInvalidMembershipRequestsDoNotConsumeGlobalQuota(t *testing.T) {
+	h := newHub()
+	attacker := testClient(h)
+	for i := 0; i < 30; i++ {
+		h.createRoom(attacker, "invalid", "unknown-world")
+		h.createRoom(attacker, strings.Repeat("x", 49))
+		h.joinRoom(attacker, &protocol.ClientRoomJoin{RoomId: 999})
+		h.joinRoom(attacker, &protocol.ClientRoomJoin{
+			RoomId: 999, ClientId: 42, SessionId: 7,
+			RecoveryRoom: &protocol.Room{Id: 999, Name: "forged", RecoveryToken: "invalid"},
+		})
+	}
+	for i := 0; i < 20; i++ {
+		if h.createRoom(testClient(h), "legitimate").GetRoomJoined() == nil {
+			t.Fatal("invalid requests consumed admission budget")
+		}
+	}
+}
+
+func TestOneSocketCannotExhaustGlobalMembershipQuota(t *testing.T) {
+	h := newHub()
+	attacker := testClient(h)
+	room := h.createRoom(attacker, "existing").GetRoomJoined().Room
+	for i := 0; i < 100; i++ {
+		h.joinRoom(attacker, &protocol.ClientRoomJoin{RoomId: room.Id})
+	}
+	if h.createRoom(testClient(h), "legitimate").GetRoomJoined() == nil {
+		t.Fatal("one socket starved other clients of admission")
+	}
+}
+
+func fillRoom(h *Hub, t *testing.T) (host *Client, roomID uint32) {
+	t.Helper()
+	host = testClient(h)
+	create(h, host)
+	roomID = host.roomID
+	packets(t, host)
+	for len(h.rooms[roomID].clients) < maxRoomPlayers {
+		member := testClient(h)
+		join(h, member, roomID)
+		packets(t, member)
+		packets(t, host)
+	}
+	return host, roomID
+}
+
+func TestRejectedJoinsKeepBothMintBudgets(t *testing.T) {
+	h := newHub()
+	_, roomID := fillRoom(h, t)
+	waiting := testClient(h)
+	packets(t, waiting)
+	memberBudget, globalBudget := waiting.memberMints, h.turnMints
+	for i := 0; i < 5; i++ {
+		join(h, waiting, roomID)
+		if got := packets(t, waiting); len(got) != 1 || got[0].GetError() == nil {
+			t.Fatalf("full room did not reject a newcomer: %v", got)
+		}
+		if waiting.roomID != 0 || waiting.memberMints != memberBudget || h.turnMints != globalBudget {
+			t.Fatal("rejected join consumed admission budget or changed membership")
+		}
+	}
+	// Validation runs before admission, so the caller can mint immediately.
+	create(h, waiting)
+	if got := packets(t, waiting); got[len(got)-1].GetRoomJoined() == nil {
+		t.Fatalf("caller lost its own mint budget to rejected admissions: %v", got)
+	}
+}
+
+func TestRejectedRecoveryKeepsBothMintBudgets(t *testing.T) {
+	h := newHub()
+	host, roomID := fillRoom(h, t)
+	room := h.rooms[roomID]
+	claim := room.packet()
+	claim.RecoveryToken = memberToken(claim, 300, 300)
+	waiting := testClient(h)
+	packets(t, waiting)
+	memberBudget, globalBudget := waiting.memberMints, h.turnMints
+	for i := 0; i < 5; i++ {
+		reply := h.joinRoom(waiting, &protocol.ClientRoomJoin{
+			RoomId: roomID, ClientId: 300, SessionId: 300, RecoveryRoom: claim,
+		})
+		if reply.GetError() == nil {
+			t.Fatal("recovery attached to a full room")
+		}
+		if waiting.roomID != 0 || waiting.memberMints != memberBudget || h.turnMints != globalBudget {
+			t.Fatal("rejected recovery consumed admission budget or changed membership")
+		}
+	}
+	// A valid destination after the rejections proves the caller can still mint.
+	create(h, host)
+	otherRoom := host.roomID
+	packets(t, host)
+	packets(t, waiting)
+	join(h, waiting, otherRoom)
+	if got := packets(t, waiting); got[len(got)-1].GetRoomJoined() == nil {
+		t.Fatal("caller could not mint after rejected recoveries")
+	}
+}
+
+func TestStaleSessionReplayCannotReplaceLiveMembership(t *testing.T) {
+	h := newHub()
+	a, b := testClient(h), testClient(h)
+	create(h, a)
+	roomID := a.roomID
+	join(h, b, roomID)
+	stale := h.rooms[roomID].memberPacket(b)
+	staleSession := b.sessionID
+	packets(t, a)
+	packets(t, b)
+	h.handle(b, &protocol.ClientPacket{Payload: &protocol.ClientPacket_RoomLeave{RoomLeave: &protocol.ClientRoomLeave{}}})
+	join(h, b, roomID) // renews the session; the old capability stays valid HMAC-wise
+	packets(t, a)
+	packets(t, b)
+	liveSession := b.sessionID
+	memberBudget, globalBudget := b.memberMints, h.turnMints
+	reply := h.joinRoom(b, &protocol.ClientRoomJoin{
+		RoomId: roomID, ClientId: b.meshID(), SessionId: staleSession, RecoveryRoom: stale,
+	})
+	if reply.GetError() == nil || b.sessionID != liveSession || len(h.rooms[roomID].clients) != 2 {
+		t.Fatal("stale replay replaced the live session")
+	}
+	if b.memberMints != memberBudget || h.turnMints != globalBudget {
+		t.Fatal("rejected replay consumed admission budget")
+	}
+	if got := packets(t, a); len(got) != 0 {
+		t.Fatalf("rejected replay notified peers: %v", got)
+	}
+}
+
+// A shared-budget refusal must not drain the caller's own burst: the rejected
+// request never mints, so retrying from a fresh socket or once the hub frees
+// up must still work for the caller that was merely unlucky.
+func TestGlobalRefusalPreservesCallerBudget(t *testing.T) {
+	h := newHub()
+	for i := 0; i < int(globalMintBurst); i++ {
+		if h.createRoom(testClient(h), "fill").GetRoomJoined() == nil {
+			t.Fatal("unexpected admission failure")
+		}
+	}
+	caller := testClient(h)
+	memberBudget := caller.memberMints
+	if h.createRoom(caller, "denied").GetError() == nil {
+		t.Fatal("global budget was not enforced")
+	}
+	if caller.memberMints != memberBudget {
+		t.Fatal("global refusal drained the caller's per-socket budget")
+	}
+}
+
+func TestRepeatedRecoveryKeepsSessionAndMintsCredentials(t *testing.T) {
+	saved := turn
+	turn = turnConfig{secret: "test-shared-secret", urls: []string{"turn:turn.example:3478"}, ttl: 24 * time.Hour}
+	defer func() { turn = saved }()
+	h := newHub()
+	a, b := testClient(h), testClient(h)
+	create(h, a)
+	roomID := a.roomID
+	join(h, b, roomID)
+	packets(t, a)
+	packets(t, b)
+	claim := h.rooms[roomID].memberPacket(b)
+	session := b.sessionID
+	for i := 0; i < 2; i++ {
+		joined := h.joinRoom(b, &protocol.ClientRoomJoin{
+			RoomId: roomID, ClientId: b.meshID(), SessionId: session, RecoveryRoom: claim,
+		}).GetRoomJoined()
+		if joined == nil {
+			t.Fatal("idempotent recovery was rejected")
+		}
+		if joined.SessionId != session {
+			t.Fatal("idempotent recovery renewed the active session")
+		}
+		if joined.GetTurn() == nil || joined.GetTurn().GetUsername() == "" || joined.GetTurn().GetPassword() == "" {
+			t.Fatal("idempotent recovery did not mint TURN credentials")
+		}
+	}
+	if clients := h.rooms[roomID].clients; len(clients) != 2 || clients[b.meshID()] != b {
+		t.Fatal("idempotent recovery changed room membership")
+	}
+	if got := packets(t, a); len(got) != 0 {
+		t.Fatalf("idempotent recovery notified peers: %v", got)
 	}
 }

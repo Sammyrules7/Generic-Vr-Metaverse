@@ -14,6 +14,14 @@ const (
 	pingPeriod       = pongWait / 2
 	packetBurst      = 200.0
 	packetsPerSecond = 100.0
+
+	// Membership mint budgets. The per-socket rate must stay below the global
+	// rate so repeated admissions from a single socket cannot starve every
+	// other caller of the shared budget.
+	memberMintRate  = 1.0
+	memberMintBurst = 4.0
+	globalMintRate  = 2.0
+	globalMintBurst = 20.0
 )
 
 // Each limiter belongs to one client's read pump; no locking is needed.
@@ -50,6 +58,7 @@ type Client struct {
 	roomID       uint32    // guarded by hub.mu
 	sessionID    uint32    // guarded by hub.mu; renewed on every room entry
 	roomCommands rateLimit // owned by the read pump
+	memberMints  rateLimit // guarded by hub.mu; one socket cannot drain the global budget
 }
 
 func (client *Client) meshID() uint32 {

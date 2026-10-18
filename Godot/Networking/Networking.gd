@@ -11,7 +11,7 @@ signal signaling_disconnected
 signal network_error(reason: String)
 
 var ws := WebSocketPeer.new()
-# Release CI embeds this setting; local development defaults to the local server.
+# Release CI embeds this setting; local servers are selected with the env override.
 # Mutable so transport tests can use an isolated endpoint.
 var ws_url: String = _configured_server_url()
 var client_id := 0
@@ -50,9 +50,9 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var disconnect_reason := "Disconnected from signaling server"
 	room_networking.poll_recovery()
-	if room_networking.request_expired():
-		# The server may have applied the command even though its reply is missing.
-		# Reconnect to discard ambiguous membership instead of retrying the command.
+	if room_networking.request_expired() and not room_networking.finish_expired_refresh():
+		# Membership changes may have applied even though their replies are missing.
+		# An idempotent TURN refresh instead completes locally and retries on backoff.
 		ws.close(-1)
 		disconnect_reason = "Room request timed out"
 	var previous_state := ws.get_ready_state()

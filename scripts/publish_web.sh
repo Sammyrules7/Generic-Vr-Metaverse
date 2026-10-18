@@ -27,16 +27,19 @@ if s3 ls "$prefix/commit.txt" >/dev/null 2>&1; then
   pointer_commit="$(s3 cat "$prefix/commit.txt" | tr -d '[:space:]' || true)"
 fi
 [[ "$pointer_commit" =~ ^[0-9a-f]{40}$ ]] || pointer_commit=""
-# s5cmd 2.3.0 lists under the queried prefix: directory rows are "<sha>/"
-# (the row's second field is a DIR marker), and the wildcard-object listing
-# prints relative keys "<sha>/complete.txt" with slashed-date timestamps.
-recent="$(s3 ls "$prefix/builds/*/complete.txt" 2>/dev/null | awk '$NF ~ /complete\.txt$/')"
-if [[ -z "$(printf '%s' "$recent" | tr -d '[:space:]')" ]]; then
+# s5cmd 2.3.0 listing contracts (verified against Garage 1.3). A prefix
+# listing emits only "DIR <sha>/" rows for directory placeholders: the DIR
+# marker is the first field and the key the second. The wildcard-object
+# listing prints relative keys "<sha>/complete.txt" with slashed dates and a
+# size column ("<date> <time> <size> <key>"), and errors on empty results.
+if ! recent="$(s3 ls "$prefix/builds/*/complete.txt" 2>/dev/null | awk '$NF ~ /complete\.txt$/')" \
+  || [[ -z "$(printf '%s' "$recent" | tr -d '[:space:]')" ]]; then
   echo "Could not list completed builds; keeping every snapshot" >&2
 else
-  keep=" $BUILD_COMMIT $pointer_commit"
+  # Delimit every entry, including the last, so membership matches whole SHAs.
+  keep=" $BUILD_COMMIT $pointer_commit "
   while read -r sha; do
-    keep="$keep $sha"
+    keep="$keep$sha "
   done < <(printf '%s\n' "$recent" | sort -r | \
     sed -E 's|^\s*\S+\s+\S+\s+\S+\s+([0-9a-f]{40})/complete\.txt$|\1|' | head -n "$keep_newest" | sort -u)
   # Prune everything that is neither the incoming build, the branch pointer

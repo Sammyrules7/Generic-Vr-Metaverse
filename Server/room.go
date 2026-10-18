@@ -75,7 +75,7 @@ func (room *Room) peers(except uint32) []*protocol.Peer {
 }
 
 func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ...string) *protocol.ServerPacket {
-	if len(h.rooms) >= 128 || !h.turnMints.allow(2, 20) {
+	if len(h.rooms) >= 128 {
 		return errorPacket("room admission limit exceeded")
 	}
 	worldID := "floating_island"
@@ -89,6 +89,9 @@ func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ..
 	if len(name) > 48 {
 		return errorPacket("room name is too long")
 	}
+	if !h.admitMembership(client) {
+		return errorPacket("membership mint quota exceeded")
+	}
 	h.leaveRoom(client)
 	h.nextRoomID++
 	if name == "" {
@@ -100,9 +103,6 @@ func (h *Hub) createRoom(client *Client, requestedName string, requestedWorld ..
 }
 
 func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protocol.ServerPacket {
-	if !h.turnMints.allow(2, 20) {
-		return errorPacket("membership mint quota exceeded")
-	}
 	roomID := request.RoomId
 	// Validate the destination before leaving: a rejected switch keeps the old room.
 	room := h.rooms[roomID]
@@ -112,12 +112,15 @@ func (h *Hub) joinRoom(client *Client, request *protocol.ClientRoomJoin) *protoc
 	if room == nil {
 		return errorPacket("room does not exist")
 	}
+	if client.roomID != roomID && len(room.clients) >= maxRoomPlayers {
+		return errorPacket("room is full")
+	}
+	if !h.admitMembership(client) {
+		return errorPacket("membership mint quota exceeded")
+	}
 	if client.roomID == roomID {
 		// Acknowledge without changing the session, which preserves the active mesh.
 		return roomJoinedPacket(room.memberPacket(client), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
-	}
-	if len(room.clients) >= maxRoomPlayers {
-		return errorPacket("room is full")
 	}
 	h.leaveRoom(client)
 	return h.enterRoom(client, room)
@@ -157,9 +160,6 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 		if len(room.clients) >= maxRoomPlayers && room.clients[recovery.ClientId] != client {
 			return errorPacket("room is full")
 		}
-		if room.clients[recovery.ClientId] == client && client.sessionID == recovery.SessionId {
-			return roomJoinedPacket(room.memberPacket(client), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
-		}
 	}
 	if _, supported := supportedWorlds[recovery.RecoveryRoom.WorldId]; !supported {
 		return errorPacket("unknown world")
@@ -167,6 +167,12 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 	name := strings.TrimSpace(recovery.RecoveryRoom.Name)
 	if name == "" || len(name) > 48 {
 		return errorPacket("invalid room name")
+	}
+	if !h.admitMembership(client) {
+		return errorPacket("membership mint quota exceeded")
+	}
+	if room != nil && room.clients[recovery.ClientId] == client && client.sessionID == recovery.SessionId {
+		return roomJoinedPacket(room.memberPacket(client), room.peers(client.meshID()), client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
 	}
 
 	if room == nil {
@@ -201,6 +207,24 @@ func (h *Hub) recoverRoom(client *Client, recovery *protocol.ClientRoomJoin, roo
 	}
 	h.broadcast(roomUpdatedPacket(room.packet()))
 	return roomJoinedPacket(room.memberPacket(client), peers, client.sessionID, mintTurnCredentials(time.Now(), client.meshID()))
+}
+
+// Admission runs after validation, before changing membership or minting credentials.
+// The per-socket rate stays below the global rate so one caller cannot starve it.
+// Socket churn and multiple callers are still bounded by the global budget.
+// Caller holds hub.mu, so consuming both budgets only succeeds or leaves both.
+func (h *Hub) admitMembership(client *Client) bool {
+	member := client.memberMints
+	if !member.allow(memberMintRate, memberMintBurst) {
+		return false
+	}
+	if h.turnMints.allow(globalMintRate, globalMintBurst) {
+		client.memberMints = member // persist the consumed per-socket token
+		return true
+	}
+	// The shared budget rejected the request, so the caller keeps its own
+	// token instead of being drained by other sockets' load.
+	return false
 }
 
 func (h *Hub) enterRoom(client *Client, room *Room) *protocol.ServerPacket {

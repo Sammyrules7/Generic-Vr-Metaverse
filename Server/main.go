@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -46,15 +47,18 @@ func main() {
 	if address == "" {
 		address = ":8080"
 	}
-	fmt.Printf("Starting server on %s\n", address)
-
 	server := &http.Server{
 		Addr:              address,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    16 * 1024,
 	}
-	err := server.ListenAndServe()
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Fatalf("HTTP server failed: %s", err)
+	}
+	fmt.Printf("Starting server on %s\n", listener.Addr())
+	err = server.Serve(listener)
 	if err != nil {
 		log.Fatalf("HTTP server failed: %s", err)
 	}

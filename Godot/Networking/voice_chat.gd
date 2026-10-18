@@ -11,6 +11,10 @@ const SAMPLES_PER_FRAME := SAMPLE_RATE * FRAME_MS / 1000
 const BIT_RATE := 24000
 const MAX_PACKET_BYTES := 1275
 const MAX_PENDING_JOBS := 16
+# One hostile peer must not crowd the shared job queue and starve other
+# speakers' decodes: drop that peer's excess pending packets instead. The
+# playback ring (~10 frames) would shed them shortly anyway.
+const MAX_PENDING_DECODES_PER_PEER := 6
 const MAX_READY_FRAMES := 16
 const SILENCE_THRESHOLD := 0.003
 const SILENCE_HANGOVER_FRAMES := 12
@@ -347,6 +351,9 @@ func _process(_delta: float) -> void:
 		var speaker := speakers.get(result.peer_id) as AudioStreamPlayer3D
 		if result.frames > 0 and is_instance_valid(speaker) and speaker.get_stream_playback() == result.playback:
 			if result.playback.queue_length_frames() >= PLAYBACK_START_FRAMES:
+				# The true variant clears the atomic stream-end marker; it does
+				# not reset the Opus decoder. The false variant resets that decoder
+				# and stays confined to the worker via the "end" job below.
 				result.playback.mark_end_opus_stream(true)
 			if not peer_activity_deadlines.has(result.peer_id):
 				peer_speaking_changed.emit(result.peer_id, true)
@@ -364,6 +371,14 @@ func _process(_delta: float) -> void:
 
 func _queue_job(job: Dictionary) -> void:
 	worker_mutex.lock()
+	if job.has("decode"):
+		var pending_for_peer := 0
+		for queued: Dictionary in jobs:
+			if queued.get("peer_id", 0) == job.peer_id:
+				pending_for_peer += 1
+		if pending_for_peer >= MAX_PENDING_DECODES_PER_PEER:
+			worker_mutex.unlock()
+			return
 	if jobs.size() >= MAX_PENDING_JOBS:
 		jobs.pop_front()
 	jobs.append(job)

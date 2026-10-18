@@ -8,6 +8,9 @@ on:
       - Protocol/**
       - native-libraries.json
       - scripts/check_delivery.py
+      - scripts/check_runtime.sh
+      - scripts/publish_web.sh
+      - scripts/tests/**
       - flake.nix
       - flake.lock
       - .gitattributes
@@ -66,8 +69,10 @@ jobs:
           export HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
           nix develop --command bash -euo pipefail -c '
             python3 scripts/check_delivery.py
+            python3 -m unittest discover -s scripts/tests -v
             godot --headless --xr-mode off --editor --import --path Godot
             bash Protocol/generate.sh
             git diff --exit-code -- Server/protocol/packets.pb.go Godot/Networking/Generated/Packets.gd
+            bash scripts/check_runtime.sh
             godot --headless --xr-mode off --path Godot res://tests/world_loading_test.tscn
           '

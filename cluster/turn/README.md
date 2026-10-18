@@ -34,9 +34,35 @@ key rotation revokes them. Old unsigned clients must rejoin after this upgrade.
 
 Admission is bounded to 256 signaling sockets, 128 rooms and a global membership
 mint budget of 2/second with burst 20, including repeated joins and recovery.
+Validated admissions also have a per-socket mint budget of 1/second with burst 4;
+invalid requests consume neither mint budget. This prevents one persistent socket
+from draining the shared budget; multiple callers can still exhaust it.
 Coturn additionally enforces 4 allocations per username and 64 total allocations.
-These are abuse limits, not a change to the experimental 16-player capacity or
-its media budget. Anonymous distributed users can still exhaust these limits.
+These abuse limits also constrain relay-dependent rooms below the experimental
+16-player admission limit. Anonymous distributed users can exhaust them.
+
+## Relay capacity limits
+
+Evidence for the numbers above (`Server/room.go` `maxRoomPlayers`, `job.yaml`):
+
+- Rooms are experimental at 16 players and signal as a mesh: every client
+  keeps one peer connection per other member, and each connection that fails
+  direct STUN dialing needs its own TURN allocation.
+- coturn is configured with `user-quota=4` and `total-quota=64`, and the relay
+  range 49160–49200 provides exactly 41 relayed ports. Each allocation holds
+  one port, so port exhaustion caps simultaneous allocations at 41 even though
+  `total-quota=64` allows more.
+- Consequences: a symmetric-NAT client relaying all 15 mesh peers of a full
+  room exceeds `user-quota=4` and stops receiving relayed peer connections
+  mid-room; across rooms, allocations hard-stop at 41 before 64.
+
+These are the current deployment bounds, not a verified 16-player relay capacity.
+ICE implementations can gather relay candidates even when a direct route wins,
+so direct connectivity alone does not establish the allocation budget.
+Options include keeping the present bounds with reduced relay coverage, lowering
+`total-quota` to 41 so quota and ports agree, or raising
+either limit past 41 also requires widening `min-port`/`max-port` **and** the
+generated Service port list, which is a deliberate deployment change.
 
 ## DNS
 

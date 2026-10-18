@@ -138,6 +138,18 @@ func request_expired() -> bool:
 	return pending_operation != Operation.NONE and Time.get_ticks_msec() >= _deadline
 
 
+func finish_expired_refresh() -> bool:
+	# A TURN refresh is a same-room join: idempotent and membership-preserving.
+	# When its reply is lost, complete the operation locally and retry after the
+	# refresh backoff instead of discarding the ambiguous session (callers close
+	# the socket only for membership-changing operations).
+	if pending_operation != Operation.REFRESH or not request_expired():
+		return false
+	_turn_refresh_retry_at = Time.get_ticks_msec() + TURN_REFRESH_RETRY_MS
+	_finish_operation(false, "Turn refresh timed out")
+	return true
+
+
 func _finish_operation(success: bool, reason := "") -> void:
 	if pending_operation == Operation.NONE:
 		return
@@ -328,7 +340,15 @@ func _apply_turn_credentials(joined: Packets.ServerRoomJoined) -> void:
 	_turn_expires_at = now + ttl_ms
 	# Refresh early enough for a command round trip; scale down for short TTLs.
 	@warning_ignore("integer_division")
-	_turn_refresh_at = now + maxi(1, ttl_ms - mini(60000, ttl_ms / 5))
+	var lead := maxi(1, ttl_ms - mini(60000, ttl_ms / 5))
+	# Peers joining together would otherwise refresh in one herd against the
+	# server's credential mint budget. Offset each peer deterministically within
+	# its ID, always refreshing earlier than the shared lead so no peer can
+	# race its credentials past expiry.
+	@warning_ignore("integer_division")
+	var jitter := mini(15000, lead / 4)
+	@warning_ignore("integer_division")
+	_turn_refresh_at = now + lead - (multiplayer.get_unique_id() % 16) * (jitter / 16)
 
 
 func _refresh_turn_if_due(now: int) -> bool:

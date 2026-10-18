@@ -495,13 +495,13 @@ func _check_request(result: Error) -> void:
 
 func _operation_started(operation: RoomNetworking.Operation) -> void:
 	_update_controls()
-	if operation != RoomNetworking.Operation.RECOVER:
+	if operation not in [RoomNetworking.Operation.RECOVER, RoomNetworking.Operation.REFRESH]:
 		_set_status({RoomNetworking.Operation.CREATE: "Creating room…", RoomNetworking.Operation.JOIN: "Joining room…", RoomNetworking.Operation.LEAVE: "Leaving room…"}[operation])
 
 
 func _operation_finished(operation: RoomNetworking.Operation, success: bool, reason: String) -> void:
 	_update_controls()
-	if operation == RoomNetworking.Operation.RECOVER:
+	if operation in [RoomNetworking.Operation.RECOVER, RoomNetworking.Operation.REFRESH]:
 		return
 	if not success:
 		_show_error(reason)

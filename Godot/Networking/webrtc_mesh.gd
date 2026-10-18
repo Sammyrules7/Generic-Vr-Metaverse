@@ -150,7 +150,11 @@ func receive_relay(relay: Packets.ServerRelay) -> void:
 	var peer_id: int = relay.get_sender_id()
 	# Membership notifications precede relays on the ordered signaling socket.
 	var connection := _get_connection(peer_id)
-	if connection == null and relay.get_signal_case() == Packets.ServerRelay.SignalCase.DESCRIPTION and peer_sessions.has(peer_id):
+	# Only an inbound offer may resurrect a locally dropped connection: a fresh
+	# connection answers it. An answer with no local connection is stale for this
+	# negotiation - applying it to a rebuilt connection would corrupt its SDP
+	# state - so it is dropped and the bounded re-offer retry repairs instead.
+	if connection == null and relay.get_signal_case() == Packets.ServerRelay.SignalCase.DESCRIPTION and relay.get_description().get_type() == "offer" and peer_sessions.has(peer_id):
 		# Our side already dropped the dead connection (Godot prunes failed
 		# peers while polling) but the membership session is intact: rebuild
 		# quietly and accept the re-offer instead of dropping it.
