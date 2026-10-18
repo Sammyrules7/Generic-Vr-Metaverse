@@ -1,5 +1,9 @@
 name: Web preview
 
+# The runner's cache listener must stay reachable from job pods: it is pinned
+# to 0.0.0.0:42503 on the runner (allowed by public-internet-only egress) so
+# the Godot import cache below restores and saves instead of ECONNREFUSED.
+
 concurrency:
   group: web-publish
   cancel-in-progress: false
