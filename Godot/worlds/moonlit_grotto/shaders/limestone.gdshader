@@ -12,7 +12,12 @@ void fragment() {
     float strata = fbm(vec3(p.x*.7, p.y*3.4 + patch*2.5, p.z*.7));
     float grain = noise3(p*28.0);
     float wet = (1.0-smoothstep(-.25,.65+patch*.45,p.y)) * (.6+patch*.4);
-    float moss = smoothstep(.3,.85,world_normal.y) * smoothstep(.42,.7,fbm(p*.95+8.0));
+    float moss = 0.0;
+    // Vertical/underside faces have no moss; avoid three noise octaves there.
+    float moss_slope = smoothstep(.3,.85,world_normal.y);
+    if (moss_slope > 0.0) {
+        moss = moss_slope * smoothstep(.42,.7,fbm(p*.95+8.0));
+    }
     ALBEDO = mix(vec3(.16,.20,.24),vec3(.32,.35,.38),strata*.65+patch*.25+grain*.1);
     ALBEDO = mix(ALBEDO,vec3(.085,.15,.105),moss*.8);
     ALBEDO *= mix(1.0,.65,wet);

@@ -9,6 +9,9 @@ var ui: Control
 var xr_active := false
 var pointers: Array[Node3D] = []
 const WORLD_ADAPTER := preload("res://worlds/world_adapter.gd")
+const WORLD_RUNTIME := preload("res://worlds/world_runtime.gd")
+var _desktop_msaa: int
+var _desktop_screen_aa: int
 var _world_load_generation := 0
 var _pending_world: Node3D
 var _panel_body_cache: Node3D
@@ -34,6 +37,13 @@ func _enable_xr_lobby() -> void:
 	if xr_active:
 		return
 	xr_active = true
+	_desktop_msaa = get_viewport().msaa_3d
+	_desktop_screen_aa = get_viewport().screen_space_aa
+	get_viewport().msaa_3d = Viewport.MSAA_2X
+	get_viewport().screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	var world := get_node_or_null("World") as Node3D
+	if world != null:
+		WORLD_RUNTIME.set_xr_mode(world, true)
 	get_viewport().use_xr = true
 	lobby_origin = XROrigin3D.new()
 	lobby_origin.name = "LobbyOrigin"
@@ -71,7 +81,14 @@ func _disable_xr_lobby() -> void:
 	# opening the runtime dashboard is not an application menu action.
 	if $StartXR.xr_interface != null and $StartXR.xr_interface.get_name() == "OpenXR" and $StartXR.xr_interface.is_initialized():
 		return
+	if not xr_active:
+		return
 	xr_active = false
+	get_viewport().msaa_3d = _desktop_msaa
+	get_viewport().screen_space_aa = _desktop_screen_aa
+	var world := get_node_or_null("World") as Node3D
+	if world != null:
+		WORLD_RUNTIME.set_xr_mode(world, false)
 	get_viewport().use_xr = false
 	if is_instance_valid(panel):
 		panel.release_touch()
@@ -106,32 +123,30 @@ func load_world(world_id: String) -> Marker3D:
 		return null
 	ui.begin_world_loading(id)
 	# Give both the desktop and XR panel a rendered loading frame before any
-	# cached resource, scene instantiation, or synchronous fallback can run.
+	# cached resource or scene instantiation can run.
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if generation != _world_load_generation or not is_inside_tree():
 		return null
 	var path: String = WorldCatalog.WORLDS[id].scene_path
+	var load_started := Time.get_ticks_usec()
 	var error := ResourceLoader.load_threaded_request(path)
 	if error != OK:
-		# A resource can already be cached or have a platform-specific threaded
-		# loader failure. Loading it synchronously is a safe fallback here because
-		# every path comes from the bundled world allowlist.
-		push_warning("Threaded world load did not start (%s); retrying directly" % error_string(error))
+		# A direct fallback can block XR for seconds. Report the failure instead.
+		push_error("Threaded world load did not start: " + error_string(error))
+		ui.finish_world_loading(false)
+		return null
 	var packed: PackedScene
-	if error == OK:
-		var status := ResourceLoader.load_threaded_get_status(path)
-		while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-			var progress := []
-			ResourceLoader.load_threaded_get_status(path, progress)
-			if generation == _world_load_generation:
-				ui.set_world_loading_progress("Loading world…", float(progress[0]) * 0.7 if not progress.is_empty() else 0.0)
-			await get_tree().process_frame
-			status = ResourceLoader.load_threaded_get_status(path)
-		if status == ResourceLoader.THREAD_LOAD_LOADED:
-			packed = ResourceLoader.load_threaded_get(path) as PackedScene
-	if packed == null:
-		packed = load(path) as PackedScene
+	var status := ResourceLoader.load_threaded_get_status(path)
+	while status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		var progress := []
+		ResourceLoader.load_threaded_get_status(path, progress)
+		if generation == _world_load_generation:
+			ui.set_world_loading_progress("Loading world…", float(progress[0]) * 0.7 if not progress.is_empty() else 0.0)
+		await get_tree().process_frame
+		status = ResourceLoader.load_threaded_get_status(path)
+	if status == ResourceLoader.THREAD_LOAD_LOADED:
+		packed = ResourceLoader.load_threaded_get(path) as PackedScene
 	# Consume the loader's result even when cancelled, releasing its request.
 	if generation != _world_load_generation or not is_inside_tree():
 		return null
@@ -139,17 +154,21 @@ func load_world(world_id: String) -> Marker3D:
 		push_error("Could not load world: " + path)
 		ui.finish_world_loading(false)
 		return null
+	var resources_loaded := Time.get_ticks_usec()
 	ui.set_world_loading_progress("Preparing world…", 0.7)
 	await get_tree().process_frame
 	if generation != _world_load_generation or not is_inside_tree():
 		return null
+	var instantiation_started := Time.get_ticks_usec()
 	var instance := packed.instantiate()
+	var instantiation_finished := Time.get_ticks_usec()
 	var world := instance as Node3D
 	if world == null or not WORLD_ADAPTER.validate(world):
 		if is_instance_valid(instance):
 			instance.free()
 		ui.finish_world_loading(false)
 		return null
+	WORLD_RUNTIME.prepare_particles(world)
 	world.set_meta("defer_world_build", true)
 	if world.has_signal("world_build_progress"):
 		world.connect("world_build_progress", func(progress: float):
@@ -159,7 +178,9 @@ func load_world(world_id: String) -> Marker3D:
 	world.name = "PendingWorld"
 	_pending_world = world
 	world.hide()
+	var enter_started := Time.get_ticks_usec()
 	add_child(world)
+	var enter_finished := Time.get_ticks_usec()
 	if world.has_method("prepare_world"):
 		world.set_meta("preparation_pending", true)
 		await world.prepare_world()
@@ -169,6 +190,9 @@ func load_world(world_id: String) -> Marker3D:
 		if is_instance_valid(world):
 			world.queue_free()
 		return null
+	WORLD_RUNTIME.prepare_particles(world)
+	WORLD_RUNTIME.set_xr_mode(world, xr_active)
+	print("World startup %s: resources %.1f ms; instantiate %.1f ms; enter tree %.1f ms; preparation %.1f ms" % [id, (resources_loaded - load_started) / 1000.0, (instantiation_finished - instantiation_started) / 1000.0, (enter_finished - enter_started) / 1000.0, (Time.get_ticks_usec() - enter_finished) / 1000.0])
 	var spawn := WORLD_ADAPTER.spawn_point(world)
 	if spawn == null:
 		_pending_world = null
@@ -310,13 +334,15 @@ func _update_pointers() -> void:
 		var in_lobby := is_instance_valid(lobby_origin) and controller.get_parent() == lobby_origin
 		var correct_rig: bool = in_lobby != in_room_cached
 		var hand := "left" if controller.tracker == &"left_hand" else "right"
-		var tracked := PlatformXRInput.hand_tracker(hand)
+		# A briefly lost optical tracker must not reveal a frozen controller hand
+		# or enable its stale aim ray while optical tracking reacquires.
+		var tracked := PlatformXRInput.hand_tracker(hand, false)
 		pointer.enabled = panel_visible and correct_rig and controller.get_is_active() and not PlatformXRInput.optical_hand(tracked)
 		# Legacy controller hands stay local to the moving rig. Optical hands
 		# are rendered from joint data by the tracked-hand sibling instead.
 		var grip := controller.get_parent().get_node_or_null("LeftHand" if hand == "left" else "RightHand")
 		if grip != null and grip.get_child_count() > 0:
-			grip.get_child(0).visible = correct_rig and tracked == null and grip.get_is_active()
+			grip.get_child(0).visible = correct_rig and not PlatformXRInput.optical_hand(tracked) and grip.get_is_active()
 
 
 func _process(delta: float) -> void:

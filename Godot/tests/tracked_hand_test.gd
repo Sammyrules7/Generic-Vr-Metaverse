@@ -43,13 +43,14 @@ func fixture(side: String, curl: float, hand_basis: Basis) -> Array[Transform3D]
 	return joints
 
 
-func apply_fixture(tracker: XRHandTracker, joints: Array[Transform3D]) -> void:
+func apply_fixture(tracker: XRHandTracker, joints: Array[Transform3D], update_pose := true) -> void:
 	for joint in joints.size():
 		var pose := joints[joint]
 		pose.basis *= OPENXR_TO_HUMANOID
 		tracker.set_hand_joint_transform(joint, pose)
 		tracker.set_hand_joint_flags(joint, VALID)
-	tracker.set_pose("default", tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+	if update_pose:
+		tracker.set_pose("default", tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 
 
 func verify_pose(driver: XRNode3D, origin: XROrigin3D, joints: Array[Transform3D], snapshot: Dictionary, label: String) -> void:
@@ -153,6 +154,33 @@ func run() -> void:
 		await process_frame
 		await process_frame
 		verify_pose(driver, origin, joints, snapshot, side + " curled/tilted")
+		tracker.has_tracking_data = false
+		driver._process(0.016)
+		check(not driver.visible and not driver.modifier.active, "Tracking gap left a frozen optical mesh visible")
+		check(PlatformXRInput.hand_tracker(side) == null and PlatformXRInput.hand_tracker(side, false) == tracker, "Lost optical tracker must remain identifiable for controller suppression")
+		tracker.has_tracking_data = true
+		joints = fixture(side, 0.2, Basis(Vector3.UP, 0.4))
+		# Recover joints without publishing another default pose: the old anchor
+		# must not freeze while fingers start updating again.
+		apply_fixture(tracker, joints, false)
+		await process_frame
+		await process_frame
+		check(driver.visible and driver.modifier.active, "Optical hand did not resume after tracking gap")
+		verify_pose(driver, origin, joints, snapshot, side + " recovered joints")
+		XRServer.remove_tracker(tracker)
+		driver._process(0.016)
+		check(not driver.visible, "Removed tracker left a frozen hand visible")
+		tracker = XRHandTracker.new()
+		tracker.name = "/user/hand_tracker/" + side
+		tracker.hand = XRPositionalTracker.TRACKER_HAND_LEFT if side == "left" else XRPositionalTracker.TRACKER_HAND_RIGHT
+		tracker.has_tracking_data = true
+		tracker.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED
+		apply_fixture(tracker, joints)
+		XRServer.add_tracker(tracker)
+		await process_frame
+		await process_frame
+		check(driver.visible, "Replacement tracker did not restore the existing hand")
+		verify_pose(driver, origin, joints, snapshot, side + " replacement tracker")
 		origin.transform = Transform3D(Basis(Vector3.UP, 1.1), Vector3(12, 3, -7))
 		XRServer.world_scale = 1.7
 		tracker.set_pose("default", tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)

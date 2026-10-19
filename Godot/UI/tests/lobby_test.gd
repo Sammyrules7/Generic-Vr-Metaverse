@@ -79,6 +79,13 @@ func _run() -> void:
 	ui.get_node("%OpenVoiceSettings").pressed.emit()
 	check(ui.get_node("%VoiceSettings").visible and not ui.get_node("VBoxContainer").visible, "Main-menu voice settings did not replace the room menu")
 	check(ui.theme.has_stylebox("normal", "OptionButton") and ui.theme.has_stylebox("panel", "PopupMenu"), "Microphone selector does not use the menu theme")
+	for control_name in ["MicrophoneEnabled", "SessionMicrophoneEnabled", "QuickMicrophoneEnabled", "InGameMicrophone", "PushToTalk"]:
+		var toggle: CheckButton = ui.get_node("%" + control_name)
+		var normal := toggle.get_theme_stylebox("normal")
+		for style_name in ["hover", "pressed", "hover_pressed", "disabled"]:
+			var style := toggle.get_theme_stylebox(style_name)
+			for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+				check(is_equal_approx(normal.get_margin(side), style.get_margin(side)), "Toggle text shifts in %s state: %s" % [style_name, control_name])
 	ui.get_node("%InputGain").value = 125
 	check(is_equal_approx(PlayerProfile.input_gain, 1.25) and is_equal_approx(ui.get_node("%InputGain").value, 125.0), "Main-menu voice settings did not synchronize")
 	ui.get_node("%CloseVoiceSettings").pressed.emit()
@@ -254,6 +261,7 @@ func _run() -> void:
 	check(ui.get_node("%CreateRoom").disabled and ui.get_node("%roomList").get_child_count() == 1, "Offline UI has stale rooms or active actions")
 	check(ui.get_node("%RoomName").text == "Friday room", "Offline recovery lost room name")
 	check(Networking.retry_connection("https://invalid") == ERR_INVALID_PARAMETER, "Invalid server address accepted")
+	_test_tracking_fallback(game, panel)
 	# Flush stopped audio playbacks before shutting down the audio server.
 	panel.click_audio.stop()
 	game.get_node("World").queue_free()
@@ -595,3 +603,45 @@ func _test_feedback(ui: Control, panel: Node3D) -> void:
 	XRServer.primary_interface = saved_interface
 	XRServer.remove_interface(interface)
 	panel.click_feedback.disconnect(capture)
+
+
+func _test_tracking_fallback(game: Node3D, panel: Node3D) -> void:
+	var controller_tracker := XRControllerTracker.new()
+	controller_tracker.name = "left_hand"
+	controller_tracker.type = XRServer.TRACKER_CONTROLLER
+	for pose in ["default", "grip", "aim"]:
+		controller_tracker.set_pose(pose, Transform3D.IDENTITY, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+	XRServer.add_tracker(controller_tracker)
+	var origin := XROrigin3D.new()
+	game.add_child(origin)
+	var grip := XRController3D.new()
+	grip.name = "LeftHand"
+	grip.tracker = "left_hand"
+	grip.pose = "grip"
+	origin.add_child(grip)
+	var controller_mesh := Node3D.new()
+	grip.add_child(controller_mesh)
+	game.lobby_origin = origin
+	game.panel = panel
+	game._attach_pointer(grip)
+	var optical := XRHandTracker.new()
+	optical.name = "/user/hand_tracker/left"
+	optical.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED
+	optical.hand = XRPositionalTracker.TRACKER_HAND_LEFT
+	optical.has_tracking_data = true
+	XRServer.add_tracker(optical)
+	game._update_pointers()
+	check(not controller_mesh.visible and not game.pointers[-1].enabled, "Optical input enabled controller fallback")
+	optical.has_tracking_data = false
+	game._update_pointers()
+	check(not controller_mesh.visible and not game.pointers[-1].enabled, "Optical tracking gap exposed a frozen controller hand/ray")
+	optical.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER
+	game._update_pointers()
+	check(controller_mesh.visible and game.pointers[-1].enabled, "Controller-sourced hand data hid the controller mesh")
+	XRServer.remove_tracker(optical)
+	game._update_pointers()
+	check(controller_mesh.visible and game.pointers[-1].enabled, "Actual controller input did not recover after optical tracker removal")
+	XRServer.remove_tracker(controller_tracker)
+	origin.free()
+	game.lobby_origin = null
+	game.panel = null

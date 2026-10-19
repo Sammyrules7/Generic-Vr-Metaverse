@@ -5,8 +5,29 @@ var _surfaces: Dictionary = {}
 var _materials: Dictionary = {}
 var _collision: StaticBody3D
 var _atmosphere: Node3D
+signal world_build_progress(progress: float)
+var _interactive_load := false
+var _build_cancelled := false
+var _build_deadline := 0
+
+func cancel_world_preparation() -> void:
+	_build_cancelled = true
+
+func prepare_world() -> void:
+	_interactive_load = true
+	_build_deadline = Time.get_ticks_usec() + 4000
+	await _build_world()
+
+func _build_frame() -> void:
+	if _interactive_load and Time.get_ticks_usec() >= _build_deadline:
+		await get_tree().process_frame
+		_build_deadline = Time.get_ticks_usec() + 4000
 
 func _ready() -> void:
+	if not get_meta("defer_world_build", false):
+		_build_world()
+
+func _build_world() -> void:
 	_material("plaster", Color("303b42"))
 	_material("wood", Color("251b1a"))
 	_material("oak", Color("765038"))
@@ -28,14 +49,13 @@ func _ready() -> void:
 	_atmosphere = preload("res://worlds/blackthorn_house/house_atmosphere.gd").new()
 	_atmosphere.name = "Atmosphere"
 	add_child(_atmosphere)
-	_build_shell()
-	_build_library()
-	_build_lounge()
-	_build_dining()
-	_build_gallery()
-	_build_foyer()
-	_atmosphere.build(self)
-	_flush_meshes()
+	var steps: Array[Callable] = [_build_shell, _build_library, _build_lounge, _build_dining, _build_gallery, _build_foyer, _atmosphere.build.bind(self), _flush_meshes]
+	for index in steps.size():
+		await _build_frame()
+		if _build_cancelled:
+			return
+		await steps[index].call()
+		world_build_progress.emit(float(index + 1) / steps.size())
 
 func _material(key: String, color: Color, roughness: float = 0.85, glow: float = 0.0) -> void:
 	var mat := StandardMaterial3D.new()
@@ -84,6 +104,9 @@ func _sphere(at: Vector3, radius: float, finish: String) -> void:
 
 func _flush_meshes() -> void:
 	for key: String in _surfaces:
+		await _build_frame()
+		if _build_cancelled:
+			return
 		var mesh: ArrayMesh = _surfaces[key].commit()
 		if mesh == null:
 			continue
@@ -98,6 +121,9 @@ func _flush_meshes() -> void:
 func _build_shell() -> void:
 	_box(Vector3(0, -0.18, 0), Vector3(28, 0.36, 24), "wood", true)
 	for x: int in range(28):
+		await _build_frame()
+		if _build_cancelled:
+			return
 		for z: int in range(8):
 			_box(Vector3(x - 13.5, 0.005, z * 3 - 10.5), Vector3(0.985, 0.025, 2.985), "floor" if (x + z) % 3 else "alternate")
 	_box(Vector3(0, 4.45, 0), Vector3(28, 0.2, 24), "plaster", true)
@@ -123,9 +149,18 @@ func _build_shell() -> void:
 		for offset: float in [-1.55, 1.55]:
 			_box(Vector3(side * 8.8 + offset, 1.75, 0), Vector3(0.16, 3.5, 0.4), "oak")
 	for z: float in [-8.0, -2.0, 5.0, 9.0]:
+		await _build_frame()
+		if _build_cancelled:
+			return
 		_window(Vector3(-13.8, 2.6, z), PI / 2)
+		await _build_frame()
+		if _build_cancelled:
+			return
 		_window(Vector3(13.8, 2.6, z), -PI / 2)
 	for x: float in [-9.0, 0.0, 9.0]:
+		await _build_frame()
+		if _build_cancelled:
+			return
 		_window(Vector3(x, 2.6, -11.8), 0)
 	# Coffered ceiling beams and room cornices.
 	for x: float in [-13.7, -8.5, -3.3, 3.3, 8.5, 13.7]:
@@ -230,6 +265,9 @@ func _bookshelf(at: Vector3, yaw: float = 0.0) -> void:
 	var yaw_basis := Basis(Vector3.UP, yaw)
 	_box(at + Vector3(0, 1.5, 0), Vector3(2.6, 3, 0.45), "wood", true, yaw)
 	for level: int in range(5):
+		await _build_frame()
+		if _build_cancelled:
+			return
 		_box(at + Vector3(0, 0.3 + level * 0.54, 0) + yaw_basis * Vector3(0, 0, 0.25), Vector3(2.7, 0.09, 0.6), "oak", false, yaw)
 		for i: int in range(12):
 			var height := 0.3 + fmod(i * 0.073 + level * 0.037, 0.18)
@@ -272,8 +310,12 @@ func _portrait(at: Vector3, yaw: float = 0.0, missing: bool = false) -> void:
 func _build_library() -> void:
 	_rug(Vector3(-8.5, 0, -6), 6.5, 6.5)
 	for x: float in [-12.0, -8.8, -5.6]:
-		_bookshelf(Vector3(x, 0, -11.5))
-	_bookshelf(Vector3(-3.5, 0, -9), -PI / 2)
+		await _bookshelf(Vector3(x, 0, -11.5))
+		if _build_cancelled:
+			return
+	await _bookshelf(Vector3(-3.5, 0, -9), -PI / 2)
+	if _build_cancelled:
+		return
 	_table(Vector3(-9, 0, -6), 3.2, 1.5)
 	_chair(Vector3(-9, 0, -7.1))
 	_lamp(Vector3(-10.1, 0.88, -6))

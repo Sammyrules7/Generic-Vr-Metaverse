@@ -135,6 +135,40 @@ func _run() -> void:
 	check(incremental.has_node("WeatherControl") and incremental.has_node("SpawnPoint"), "Prepared world must include weather controls and a spawn")
 	print("Prairie startup: immediate %.1f ms; incremental %.1f ms across %d frames; longest frame interval %.1f ms" % [immediate_ms, incremental_ms, yielded, _longest_frame_usec / 1000.0])
 	incremental.free()
+	# Blackthorn previously did its entire build in _ready, stalling XR input.
+	var house_scene = load("res://worlds/blackthorn_house/blackthorn_house.tscn")
+	var house = house_scene.instantiate()
+	get_tree().root.add_child(house)
+	var expected_house_meshes: int = house.find_children("*", "MeshInstance3D", true, false).size()
+	var expected_colliders: int = house.get_node("ArchitectureCollision").get_child_count()
+	house.free()
+	house = house_scene.instantiate()
+	house.set_meta("defer_world_build", true)
+	get_tree().root.add_child(house)
+	check(not house.has_node("ArchitectureCollision"), "Deferred Blackthorn built synchronously in _ready")
+	frames_before = Engine.get_process_frames()
+	started = Time.get_ticks_usec()
+	_last_frame_usec = started
+	_longest_frame_usec = 0
+	_measure_frames = true
+	await house.prepare_world()
+	_measure_frames = false
+	check(Engine.get_process_frames() > frames_before, "Blackthorn preparation never yielded to hand tracking")
+	check(house.find_children("*", "MeshInstance3D", true, false).size() == expected_house_meshes and house.get_node("ArchitectureCollision").get_child_count() == expected_colliders, "Incremental Blackthorn changed its geometry/collision")
+	for emitter in house.find_children("*", "CPUParticles3D", true, false):
+		check(emitter.preprocess == 0.0, "Blackthorn particle prewarm blocks entry")
+	print("Blackthorn startup: %.1f ms across %d frames; longest frame interval %.1f ms" % [(Time.get_ticks_usec() - started) / 1000.0, Engine.get_process_frames() - frames_before, _longest_frame_usec / 1000.0])
+	house.free()
+	_load_world(game, "blackthorn_house")
+	for frame in 600:
+		if game.get_node_or_null("PendingWorld") != null:
+			break
+		await get_tree().process_frame
+	state.room_left.emit()
+	for frame in 10:
+		await get_tree().process_frame
+	check(completed == 3 and last_spawn == null and game.get_node_or_null("CancelledWorld") == null, "Cancelled Blackthorn build leaked or installed a world")
+	_test_runtime_policy()
 	game.free()
 	await get_tree().create_timer(0.08).timeout
 	if profile_existed:
@@ -143,3 +177,40 @@ func _run() -> void:
 		DirAccess.remove_absolute("user://profile.cfg")
 	print("World loading: %d assertions, %d failures" % [assertions, failures])
 	get_tree().quit(1 if failures else 0)
+
+
+func _test_runtime_policy() -> void:
+	var runtime = preload("res://worlds/world_runtime.gd")
+	var world := Node3D.new()
+	var environment_node := WorldEnvironment.new()
+	var authored := Environment.new()
+	authored.ssao_enabled = true
+	authored.glow_enabled = true
+	authored.volumetric_fog_enabled = true
+	environment_node.environment = authored
+	world.add_child(environment_node)
+	var weather_environment := WorldEnvironment.new()
+	var live_weather := Environment.new()
+	weather_environment.environment = live_weather
+	world.add_child(weather_environment)
+	var lamp := OmniLight3D.new()
+	lamp.light_bake_mode = Light3D.BAKE_STATIC
+	lamp.shadow_enabled = true
+	world.add_child(lamp)
+	var sun := DirectionalLight3D.new()
+	sun.directional_shadow_max_distance = 100.0
+	world.add_child(sun)
+	var particles := GPUParticles3D.new()
+	particles.preprocess = 12.0
+	world.add_child(particles)
+	runtime.prepare_particles(world)
+	check(particles.preprocess == 0.0, "GPU particle prewarm must be cleared before entering the scene tree")
+	runtime.set_xr_mode(world, true)
+	check(not environment_node.environment.ssao_enabled and not environment_node.environment.glow_enabled and not environment_node.environment.volumetric_fog_enabled, "XR retained costly screen effects")
+	check(authored.ssao_enabled and authored.glow_enabled and authored.volumetric_fog_enabled, "XR modified shared authored resources")
+	check(weather_environment.environment == live_weather, "XR replaced procedural weather's cached environment")
+	check(lamp.visible and lamp.light_bake_mode == Light3D.BAKE_STATIC and lamp.distance_fade_enabled, "XR must retain nearby baked lights for dynamic objects")
+	check(is_equal_approx(sun.directional_shadow_max_distance, 25.0), "XR shadow distance was not limited")
+	runtime.set_xr_mode(world, false)
+	check(environment_node.environment == authored and not lamp.distance_fade_enabled and is_equal_approx(sun.directional_shadow_max_distance, 100.0), "Leaving XR did not restore desktop lighting")
+	world.free()

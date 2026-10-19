@@ -61,6 +61,9 @@ reconnection. Conflicting recovered identities are rejected without replacing th
 surviving mesh. The mesh uses STUN and optional server-issued TURN credentials;
 see [TURN setup](cluster/turn/README.md) for networks that require a relay.
 
+See [XR rendering and world startup](docs/xr-runtime-performance.md) for the
+headset quality defaults, remaining real-time lighting, and startup timing logs.
+
 ## Web builds
 
 The root URL serves the latest main build. `/<branch-slug>/` serves the latest

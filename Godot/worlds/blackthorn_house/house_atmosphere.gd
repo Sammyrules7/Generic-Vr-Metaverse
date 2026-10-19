@@ -233,7 +233,7 @@ func _particles(label: String, at: Vector3, count: int, extent: Vector3, velocit
 	particles.name = label
 	particles.amount = count
 	particles.lifetime = lifetime
-	particles.preprocess = lifetime
+	particles.preprocess = 0.0
 	particles.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	particles.emission_box_extents = extent
 	particles.gravity = velocity * 0.04

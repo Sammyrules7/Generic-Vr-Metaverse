@@ -39,4 +39,9 @@ func _process(_delta: float) -> void:
 	visible = valid
 	modifier.active = valid
 	if valid:
+		# Refresh the anchor from the same joint snapshot as the modifier. After
+		# tracking loss, joint data can recover before a new default-pose signal.
+		var palm := hand_tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM)
+		palm.origin *= XRServer.world_scale
+		transform = XRServer.get_reference_frame() * palm
 		skeleton.scale = Vector3.ONE * XRServer.world_scale

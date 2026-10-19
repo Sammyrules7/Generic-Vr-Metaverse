@@ -72,7 +72,9 @@ else
       compressed_file=""
     fi
   done < <(find "$EXPORT_DIR" -type f \( -name '*.pck' -o -name '*.wasm' -o -name '*.js' \) -print0)
-  s3 sync "$EXPORT_DIR/" "$build_prefix/assets/"
+  # Upload the large originals only once, with their explicit MIME types below.
+  # Compressed siblings still belong in the general sync.
+  s3 sync --exclude '*.wasm' --exclude '*.pck' "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --content-type text/plain "$pointer_file" "$build_prefix/complete.txt"

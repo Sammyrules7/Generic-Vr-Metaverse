@@ -120,11 +120,13 @@ func _apply_theme() -> void:
 	var ui_theme := Theme.new()
 	ui_theme.default_font_size = 18
 	for type: String in ["Button", "OptionButton", "LineEdit", "PanelContainer", "PopupMenu"]:
-		var states := ["normal", "hover", "pressed", "disabled", "focus"] if type in ["Button", "OptionButton"] else ["normal", "focus"] if type == "LineEdit" else ["panel", "hover"] if type == "PopupMenu" else ["panel"]
+		# CheckButton inherits Button styles, including its enabled hover state.
+		# Keep the same content margins so hovering a checked toggle cannot move its text.
+		var states := ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"] if type in ["Button", "OptionButton"] else ["normal", "focus"] if type == "LineEdit" else ["panel", "hover"] if type == "PopupMenu" else ["panel"]
 		for state: String in states:
 			var style := StyleBoxFlat.new()
 			style.bg_color = Color("#142237") if type in ["PanelContainer", "PopupMenu"] else Color("#21344b")
-			if state in ["hover", "pressed"]:
+			if state in ["hover", "pressed", "hover_pressed"]:
 				style.bg_color = Color("#354e65")
 			style.set_corner_radius_all(8)
 			style.content_margin_left = 16

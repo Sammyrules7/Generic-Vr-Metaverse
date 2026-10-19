@@ -1,5 +1,6 @@
 """Exercise publisher retention against s5cmd's listing format, without S3."""
 import json
+import gzip
 import os
 from pathlib import Path
 import subprocess
@@ -22,6 +23,10 @@ class PublishTests(unittest.TestCase):
             export = root / 'export'
             export.mkdir()
             (export / 'delivery-identity.txt').write_text('test identity\n')
+            assets = {'index.pck': b'pack data' * 100, 'index.wasm': b'wasm data' * 100,
+                      'index.js': b'javascript' * 100}
+            for name, data in assets.items():
+                (export / name).write_bytes(data)
             state = root / 'state.json'
             state.write_text(json.dumps(dict(completed=completed, directories=directories,
                                              pointer=pointer, listing_error=listing_error)))
@@ -54,7 +59,24 @@ elif command == 'cat': print(state['pointer'])
             result = subprocess.run(['bash', str(PUBLISH), 'branches/test'], env=env,
                                     text=True, capture_output=True)
             calls = [json.loads(line) for line in log.read_text().splitlines()]
+            if result.returncode == 0:
+                for name, data in assets.items():
+                    self.assertEqual((export / name).read_bytes(), data)
+                    self.assertEqual(gzip.decompress((export / (name + '.gz')).read_bytes()), data)
             return result, calls
+
+    def test_large_originals_uploaded_once_with_correct_mime_types(self):
+        result, calls = self.publish([], [], pointer='')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sync = next(args for args in calls if args[0] == 'sync')
+        self.assertEqual(sync[1:5], ['--exclude', '*.wasm', '--exclude', '*.pck'])
+        for extension, mime in [('wasm', 'application/wasm'), ('pck', 'application/octet-stream')]:
+            uploads = [args for args in calls if args[:3] == ['cp', '--include', '*.' + extension]]
+            self.assertEqual(len(uploads), 1)
+            self.assertEqual(uploads[0][3:5], ['--content-type', mime])
+        complete = next(i for i, args in enumerate(calls) if args[0] == 'cp' and args[-1].endswith('/complete.txt'))
+        pointer = next(i for i, args in enumerate(calls) if args[0] == 'cp' and args[-1].endswith('/commit.txt'))
+        self.assertLess(complete, pointer)
 
     def test_keep_pointer_incoming_and_three_newest(self):
         result, calls = self.publish(NEWEST + [CURRENT, OLD],

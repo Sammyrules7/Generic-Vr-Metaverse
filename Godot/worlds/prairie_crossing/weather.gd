@@ -194,7 +194,7 @@ func _rainfall() -> void:
 	rain.name = "OverlookRain"
 	rain.amount = 1400
 	rain.lifetime = 1.6
-	rain.preprocess = 1.6
+	rain.preprocess = 0.0
 	rain.local_coords = true
 	rain.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	rain.emission_box_extents = Vector3(19, 0.25, 21)

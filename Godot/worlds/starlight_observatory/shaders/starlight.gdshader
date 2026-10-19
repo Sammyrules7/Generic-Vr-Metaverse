@@ -60,9 +60,12 @@ void sky() {
     vec3 moon_dir = normalize(LIGHT0_DIRECTION);
     float moon_distance = length(d - moon_dir);
     COLOR += vec3(0.6, 0.74, 0.9) * exp(-moon_distance * 18.0) * 0.14;
-    float craters = nebula(d * 380.0);
-    vec3 lunar_surface = vec3(0.88, 0.86, 0.72) * (0.55 + craters * 0.55);
-    COLOR = mix(COLOR, lunar_surface, 1.0 - smoothstep(0.026, 0.028, moon_distance));
+    // Crater detail contributes only inside the moon's tiny disc.
+    if (moon_distance < 0.028) {
+        float craters = nebula(d * 380.0);
+        vec3 lunar_surface = vec3(0.88, 0.86, 0.72) * (0.55 + craters * 0.55);
+        COLOR = mix(COLOR, lunar_surface, 1.0 - smoothstep(0.026, 0.028, moon_distance));
+    }
     if (d.y < 0.0) {
         COLOR = mix(horizon, vec3(0.02, 0.035, 0.07), min(-d.y * 3.0, 1.0));
     }

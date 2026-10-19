@@ -16,7 +16,7 @@ static func stick(controller: XRController3D) -> Vector2:
 static var _tracker_paths := {"left": &"/user/hand_tracker/left", "right": &"/user/hand_tracker/right"}
 
 
-static func hand_tracker(hand: String) -> XRHandTracker:
+static func hand_tracker(hand: String, require_tracking := true) -> XRHandTracker:
 	# Trackers can appear, disappear, or be replaced after the rig is created,
 	# so the handle is always resolved live. The path StringNames are built
 	# once; per-call string concatenation was the actual alloc overhead here.
@@ -24,7 +24,7 @@ static func hand_tracker(hand: String) -> XRHandTracker:
 	# singleton signal teardown, so no cache and no signal hooks.)
 	var path: StringName = _tracker_paths.get(hand, StringName("/user/hand_tracker/" + hand))
 	var tracker := XRServer.get_tracker(path) as XRHandTracker
-	return tracker if tracker != null and tracker.has_tracking_data else null
+	return tracker if tracker != null and (not require_tracking or tracker.has_tracking_data) else null
 
 
 static func joint_valid(tracker: XRHandTracker, joint: int) -> bool:

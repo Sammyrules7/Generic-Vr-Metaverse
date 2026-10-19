@@ -26,10 +26,12 @@ float cloud_top(vec3 position) {
 }
 
 float density(vec3 position) {
-    vec3 p = position * vec3(0.04, 0.095, 0.04) - vec3(TIME * 0.009, 0.0, TIME * 0.003);
-    float billows = noise(p) * 0.62 + noise(p * 2.07 + 7.0) * 0.26 + noise(p * 4.1) * 0.12;
+    if (position.y <= -18.0) { return 0.0; }
     float top = cloud_top(position);
     float vertical = smoothstep(-18.0, -12.0, position.y) * (1.0 - smoothstep(top - 4.0, top + 0.2, position.y));
+    if (vertical <= 0.0) { return 0.0; }
+    vec3 p = position * vec3(0.04, 0.095, 0.04) - vec3(TIME * 0.009, 0.0, TIME * 0.003);
+    float billows = noise(p) * 0.62 + noise(p * 2.07 + 7.0) * 0.26 + noise(p * 4.1) * 0.12;
     return smoothstep(0.34, 0.7, billows) * vertical;
 }
 
@@ -41,6 +43,9 @@ void vertex() {
 }
 
 void fragment() {
+    float edge = 1.0 - smoothstep(165.0, 215.0, length(world_position.xz));
+    // The square mesh extends beyond the circular bank. Those pixels are invisible.
+    if (edge <= 0.0) { discard; }
     vec3 ray = normalize(world_position - CAMERA_POSITION_WORLD);
     float step_length = min(1.1 / max(abs(ray.y), 0.06), 7.0);
     vec3 light_direction = normalize(moon_direction);
@@ -51,13 +56,14 @@ void fragment() {
     for (int i = 0; i < 12; i++) {
         vec3 p = world_position + ray * (float(i) + 0.5) * step_length;
         float cloud = density(p);
+        // Empty samples contribute neither opacity nor radiance.
+        if (cloud <= 0.0) { continue; }
         float edge_light = clamp((cloud - density(p + light_direction * 3.0)) * 2.3 + 0.5, 0.0, 1.0);
         vec3 color = mix(vec3(0.065, 0.095, 0.15), vec3(0.23, 0.3, 0.41), edge_light);
         float sample_opacity = 1.0 - exp(-cloud * step_length * 0.3);
         radiance += (1.0 - opacity) * color * sample_opacity;
         opacity += (1.0 - opacity) * sample_opacity;
     }
-    float edge = 1.0 - smoothstep(165.0, 215.0, length(world_position.xz));
     ALBEDO = radiance / max(opacity, 0.001);
     ALPHA = opacity * edge;
 }
