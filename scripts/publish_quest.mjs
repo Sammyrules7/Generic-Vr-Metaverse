@@ -53,7 +53,7 @@ export async function publish(env = process.env, request = fetch) {
   if (uploaded.status !== 201) throw new Error(`Forgejo APK upload failed (HTTP ${uploaded.status}); release remains a draft`);
   const asset = await uploaded.json();
   const url = asset.browser_download_url;
-  if (!url || new URL(url).origin !== new URL(server).origin) throw new Error('Forgejo returned an unexpected APK download origin');
+  if (!url || new URL(url).origin !== new URL(env.FORGEJO_PUBLIC_URL || server).origin) throw new Error('Forgejo returned an unexpected APK download origin');
   const published = await request(`${api}/${release.id}`, {
     method: 'PATCH', redirect: 'error', headers, body: JSON.stringify({ draft: false }),
     signal: AbortSignal.timeout(30000),

@@ -92,3 +92,14 @@ test('manual build can publish APK without changing the SideQuest listing', asyn
     assert.equal(calls.length, 4);
   });
 });
+
+test('internal API address can return an explicitly trusted public download host', async () => {
+  await fixture({ NOTIFY_SIDEQUEST: 'false', GITHUB_SERVER_URL: 'http://forgejo.internal:3000',
+    FORGEJO_PUBLIC_URL: 'https://forgejo.example' },
+  [created(), uploaded(), published(), visible()], async (run, calls) => {
+    await run();
+    assert.ok(calls[0].url.startsWith('http://forgejo.internal:3000/api/'));
+    assert.equal(calls[3].url, apkUrl);
+    assert.equal(calls[3].headers.Authorization, undefined);
+  });
+});

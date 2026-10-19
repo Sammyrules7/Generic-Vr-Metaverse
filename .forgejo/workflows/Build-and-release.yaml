@@ -319,6 +319,8 @@ jobs:
       - name: Publish downloadable Quest APK and optionally notify SideQuest
         env:
           APK_PATH: ${{ env.EXPORT_DIR }}/android/${{ env.EXPORT_NAME }}.apk
+          # The runner's API address is internal; release downloads are public.
+          FORGEJO_PUBLIC_URL: https://forgejo.maio-tech.com
           SIDEQUEST_WEBHOOK_URL: ${{ secrets.SIDEQUEST_WEBHOOK_URL }}
           NOTIFY_SIDEQUEST: ${{ github.ref_name == 'main' && (inputs.notify_sidequest || (github.event_name == 'push' && secrets.SIDEQUEST_WEBHOOK_URL != '')) }}
         run: node scripts/publish_quest.mjs
