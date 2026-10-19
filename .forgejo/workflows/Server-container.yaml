@@ -75,7 +75,8 @@ jobs:
           # Nix verifies that $HOME is owned by the current uid; the plugin
           # leaves /tmp root-owned and the image has no passwd entry, so use a
           # fresh user-owned directory instead.
-          export HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
+          ci_home="$(mktemp -d /tmp/nix-home.XXXXXX)"
+          export HOME="$ci_home"
           nix run .#attic-client -- login ci "$ATTIC_SERVER" "$ATTIC_TOKEN"
           bash scripts/update_ci_images.sh "$IMAGE_SCOPE"
 
