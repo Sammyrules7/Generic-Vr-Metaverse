@@ -80,6 +80,16 @@ jobs:
         id: engine
         run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
 
+      # Share compatible native imports with Delivery checks, keeping the
+      # current commit immutable and falling back to the latest snapshot.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: Godot/.godot/imported
+          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          restore-keys: |
+            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+
       - name: Run Headless Import
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
 
@@ -184,6 +194,16 @@ jobs:
             ${{ env.GRADLE_USER_HOME }}/caches
             ${{ env.GRADLE_USER_HOME }}/wrapper
           key: quest-gradle-${{ runner.os }}-${{ steps.engine.outputs.version }}-${{ hashFiles('flake.lock', 'Godot/export_presets.cfg') }}
+
+      # Share compatible native imports with Delivery checks, keeping the
+      # current commit immutable and falling back to the latest snapshot.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: Godot/.godot/imported
+          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          restore-keys: |
+            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
 
       - name: Run Headless Import
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
