@@ -132,6 +132,8 @@ func run() -> void:
 		driver.set_script(load("res://player/tracked_hand.gd"))
 		driver.hand = side
 		origin.add_child(driver)
+		for mesh: MeshInstance3D in driver.find_children("*", "MeshInstance3D", true, false):
+			check(mesh.gi_mode == GeometryInstance3D.GI_MODE_DYNAMIC, "Moving optical hand must receive lightmap probes")
 		var tracker := XRHandTracker.new()
 		tracker.name = "/user/hand_tracker/" + side
 		tracker.hand = XRPositionalTracker.TRACKER_HAND_LEFT if side == "left" else XRPositionalTracker.TRACKER_HAND_RIGHT
