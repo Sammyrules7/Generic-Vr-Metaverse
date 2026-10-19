@@ -1,6 +1,8 @@
 name: Delivery drift checks
 on:
   push:
+    branches: ['**']
+    tags-ignore: ['**']
     paths:
       - Godot/**
       - Server/**

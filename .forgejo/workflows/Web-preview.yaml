@@ -14,6 +14,8 @@ concurrency:
 on:
   # Every commit is previewable, including branches added after this workflow.
   push:
+    branches: ['**']
+    tags-ignore: ['**']
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
