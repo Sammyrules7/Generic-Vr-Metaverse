@@ -145,6 +145,23 @@ as a Forgejo release asset, verifies anonymous download access, and
 prints the link in the job summary. Branch builds are marked as prereleases.
 This uses the automatic repository token and works without SideQuest configured.
 
+To ship with the current pipeline:
+
+1. Test the PR preview and, when needed, run **Build native platforms** on its
+   branch to test installable builds.
+2. Merge into `main` after checks pass. Game or release-workflow changes trigger
+   the native jobs; every main push updates the web client.
+3. Check the main **Web preview** and **Build native platforms** runs. Native
+   jobs upload downloads to Forgejo Releases and publish to the existing Itch
+   channels. The Quest job also notifies SideQuest when its secret is configured.
+4. Confirm the live website, Itch downloads, and SideQuest version. The first
+   real SideQuest submission still needs this end-to-end confirmation.
+
+These are continuous releases: desktop and Quest have separate generated tags,
+and APK versions use a monotonic build number. Creating a `vX.Y.Z` tag alone
+does not trigger a release. A shared semantic version, combined release page,
+and approval before storefront publication are not implemented yet.
+
 Under repository **Settings → Actions → Secrets**, configure:
 
 - `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_ALIAS`, and
