@@ -179,6 +179,13 @@ jobs:
             fi
           done
 
+      - name: Verify house audio in exported client
+        shell: bash
+        run: |
+          audio_check_project="$(mktemp -d /tmp/house-audio-check.XXXXXX)"
+          printf 'config_version=5\n' > "$audio_check_project/project.godot"
+          godot --headless --xr-mode off --path "$audio_check_project" --script "$GITHUB_WORKSPACE/scripts/check_house_audio.gd" -- "$EXPORT_DIR/index.pck"
+
       - name: Publish immutable branch build
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash

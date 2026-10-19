@@ -9,6 +9,7 @@ on:
       - Protocol/**
       - native-libraries.json
       - scripts/check_delivery.py
+      - scripts/check_house_audio.gd
       - scripts/check_runtime.sh
       - scripts/publish_web.sh
       - scripts/publish_quest.mjs

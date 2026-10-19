@@ -1,6 +1,12 @@
 extends Node3D
 ## Cosmetic, local-only atmosphere. No round or networking state lives here.
 ## Particle counts are capped; only the moon and hearth use shadow maps.
+const SOUNDS := {
+	"clock": preload("res://worlds/blackthorn_house/audio/clock.wav"),
+	"gramophone": preload("res://worlds/blackthorn_house/audio/gramophone.wav"),
+	"fire": preload("res://worlds/blackthorn_house/audio/fire.wav"),
+	"rain": preload("res://worlds/blackthorn_house/audio/rain.wav"),
+}
 var _time := 0.0
 var _flicker_accum := 0.0
 var _lights: Array[Dictionary] = []
@@ -265,15 +271,13 @@ func _particles(label: String, at: Vector3, count: int, extent: Vector3, velocit
 	return particles
 
 func _sound(file: String, at: Vector3, volume: float, reach: float) -> void:
-	var path := "res://worlds/blackthorn_house/audio/" + file + ".wav"
-	if not ResourceLoader.exists(path):
-		return
 	var sound := AudioStreamPlayer3D.new()
 	sound.name = file.capitalize() + "Sound"
-	sound.stream = load(path)
+	sound.stream = SOUNDS[file].duplicate() as AudioStreamWAV
 	if sound.stream is AudioStreamWAV:
+		# QOA/ADPCM byte counts aren't sample counts. Loop the full recording.
+		sound.stream.loop_end = roundi(sound.stream.get_length() * sound.stream.mix_rate)
 		sound.stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		sound.stream.loop_end = sound.stream.data.size() / 2
 	sound.volume_db = volume
 	sound.unit_size = 2.0
 	sound.max_distance = reach

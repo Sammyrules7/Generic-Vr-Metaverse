@@ -157,6 +157,12 @@ func _run() -> void:
 	check(house.find_children("*", "MeshInstance3D", true, false).size() == expected_house_meshes and house.get_node("ArchitectureCollision").get_child_count() == expected_colliders, "Incremental Blackthorn changed its geometry/collision")
 	for emitter in house.find_children("*", "CPUParticles3D", true, false):
 		check(emitter.preprocess == 0.0, "Blackthorn particle prewarm blocks entry")
+	for kind in ["clock", "gramophone", "fire", "rain"]:
+		var sound := house.find_child(kind.capitalize() + "Sound", true, false) as AudioStreamPlayer3D
+		check(sound != null and sound.playing, "Missing house ambience: " + kind)
+		if sound != null:
+			var stream := sound.stream as AudioStreamWAV
+			check(stream.loop_mode == AudioStreamWAV.LOOP_FORWARD and stream.loop_end == roundi(stream.get_length() * stream.mix_rate), "House audio loop truncates compressed samples: " + kind)
 	print("Blackthorn startup: %.1f ms across %d frames; longest frame interval %.1f ms" % [(Time.get_ticks_usec() - started) / 1000.0, Engine.get_process_frames() - frames_before, _longest_frame_usec / 1000.0])
 	house.free()
 	_load_world(game, "blackthorn_house")
