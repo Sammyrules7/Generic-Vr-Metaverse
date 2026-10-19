@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Keep credentials out of command lines, responses, and exception messages.
-import { createReadStream } from 'node:fs';
+import { openAsBlob } from 'node:fs';
 import { stat, appendFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
@@ -25,27 +25,48 @@ export function versionWebhook(raw, code) {
 export async function publish(env = process.env, request = fetch) {
   const { APK_PATH: apk, VERSION_CODE: code, VERSION_NAME: version,
     GITHUB_SERVER_URL: server, GITHUB_REPOSITORY: repo } = env;
-  if (!apk || !/^\d+$/.test(code) || !version || !server || !repo) {
+  if (!apk || !/^\d+$/.test(code) || !version || !server || !repo || !/^[0-9a-f]{40}$/.test(env.GITHUB_SHA)) {
     throw new Error('Missing Quest build identity');
   }
-  const token = env.FORGEJO_PACKAGE_TOKEN || env.FORGEJO_TOKEN || env.GITHUB_TOKEN;
-  if (!token) throw new Error('Forgejo package upload credential is missing');
-  const owner = repo.split('/')[0];
-  const url = `${server}/api/packages/${encodeURIComponent(owner)}/generic/Generic-Vr-Platform/${encodeURIComponent(version)}/Generic-Vr-Platform.apk`;
-  const size = (await stat(apk)).size;
-  const uploaded = await request(url, {
-    method: 'PUT', redirect: 'error', duplex: 'half',
-    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/vnd.android.package-archive', 'Content-Length': String(size) },
-    body: createReadStream(apk), signal: AbortSignal.timeout(600000),
+  const token = env.FORGEJO_TOKEN || env.GITHUB_TOKEN;
+  if (!token) throw new Error('Forgejo repository upload credential is missing');
+  const api = `${server}/api/v1/repos/${repo}/releases`;
+  const headers = { Authorization: `token ${token}`, 'Content-Type': 'application/json' };
+  const created = await request(api, {
+    method: 'POST', redirect: 'error', headers,
+    body: JSON.stringify({ tag_name: `quest-v${version}`, target_commitish: env.GITHUB_SHA,
+      name: `Generic-Vr-Platform ${version}`, draft: true,
+      prerelease: env.GITHUB_REF_NAME !== 'main',
+      body: `Signed Quest APK. Android versionCode: ${code}. Commit: ${env.GITHUB_SHA}.` }),
+    signal: AbortSignal.timeout(30000),
   });
-  if (uploaded.status !== 201) {
-    throw new Error(`Forgejo APK upload failed (HTTP ${uploaded.status}); package:write permission is required`);
-  }
-  // SideQuest must be able to fetch the APK without our credentials.
-  const available = await request(url, { method: 'HEAD', redirect: 'error', signal: AbortSignal.timeout(30000) });
-  if (!available.ok || Number(available.headers.get('content-length')) !== size) {
-    throw new Error('Published APK is not publicly downloadable; check Forgejo package visibility');
-  }
+  if (created.status !== 201) throw new Error(`Forgejo draft release failed (HTTP ${created.status})`);
+  const release = await created.json();
+  const size = (await stat(apk)).size;
+  const form = new FormData();
+  form.set('attachment', await openAsBlob(apk), 'Generic-Vr-Platform.apk');
+  const uploaded = await request(`${api}/${release.id}/assets?name=Generic-Vr-Platform.apk`, {
+    method: 'POST', redirect: 'error',
+    headers: { Authorization: `token ${token}` }, body: form,
+    signal: AbortSignal.timeout(600000),
+  });
+  if (uploaded.status !== 201) throw new Error(`Forgejo APK upload failed (HTTP ${uploaded.status}); release remains a draft`);
+  const asset = await uploaded.json();
+  const url = asset.browser_download_url;
+  if (!url || new URL(url).origin !== new URL(server).origin) throw new Error('Forgejo returned an unexpected APK download origin');
+  const published = await request(`${api}/${release.id}`, {
+    method: 'PATCH', redirect: 'error', headers, body: JSON.stringify({ draft: false }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!published.ok) throw new Error(`Forgejo release publication failed (HTTP ${published.status})`);
+  // A ranged, anonymous GET also works if storage redirects to a GET-signed URL.
+  const available = await request(url, { method: 'GET', redirect: 'follow',
+    headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(30000) });
+  const validSize = available.status === 206
+    ? available.headers.get('content-range') === `bytes 0-0/${size}`
+    : available.status === 200 && Number(available.headers.get('content-length')) === size;
+  await available.body?.cancel();
+  if (!validSize) throw new Error('Published APK is not publicly downloadable; check the release visibility');
   console.log(`Quest APK: ${url}`);
   if (env.GITHUB_STEP_SUMMARY) {
     await appendFile(env.GITHUB_STEP_SUMMARY, `\nQuest APK: [Generic-Vr-Platform ${version}](${url})\n\nAndroid versionCode: ${code}\n`);

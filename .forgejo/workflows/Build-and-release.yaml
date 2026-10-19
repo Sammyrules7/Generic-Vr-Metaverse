@@ -48,7 +48,7 @@ jobs:
       - name: Checkout repository with large files
         env:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-          FETCH_REF: ${{ github.ref }}
+          FETCH_REF: ${{ github.sha }}
         run: |
           set -euo pipefail
           TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
@@ -155,7 +155,7 @@ jobs:
       - name: Checkout repository with large files
         env:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-          FETCH_REF: ${{ github.ref }}
+          FETCH_REF: ${{ github.sha }}
         run: |
           set -euo pipefail
           TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
@@ -188,7 +188,8 @@ jobs:
         run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
 
       - name: Restore Gradle downloads
-        uses: https://code.forgejo.org/actions/cache@v4
+        id: gradle-cache
+        uses: https://code.forgejo.org/actions/cache/restore@v4
         with:
           path: |
             ${{ env.GRADLE_USER_HOME }}/caches
@@ -292,6 +293,16 @@ jobs:
           sed -i -E "s/(ndkVersion[[:space:]]*:[[:space:]]*)'[^']*'/\1'${ndk##*\/}'/" "$PROJECT_PATH/android/build/config.gradle"
           godot --headless --xr-mode off --verbose --path "$PROJECT_PATH" --export-release "Android - Release" "$EXPORT_DIR/android/$EXPORT_NAME.apk"
 
+      # Preserve a successful build's downloads even if publication later fails.
+      - name: Save Gradle downloads
+        if: steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: https://code.forgejo.org/actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
+
       - name: Remove signing key
         if: always()
         run: rm -f "$GITHUB_WORKSPACE/release.keystore"
@@ -308,7 +319,6 @@ jobs:
       - name: Publish downloadable Quest APK and optionally notify SideQuest
         env:
           APK_PATH: ${{ env.EXPORT_DIR }}/android/${{ env.EXPORT_NAME }}.apk
-          FORGEJO_PACKAGE_TOKEN: ${{ secrets.FORGEJO_PACKAGE_TOKEN }}
           SIDEQUEST_WEBHOOK_URL: ${{ secrets.SIDEQUEST_WEBHOOK_URL }}
           NOTIFY_SIDEQUEST: ${{ github.ref_name == 'main' && (inputs.notify_sidequest || (github.event_name == 'push' && secrets.SIDEQUEST_WEBHOOK_URL != '')) }}
         run: node scripts/publish_quest.mjs

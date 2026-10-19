@@ -129,9 +129,10 @@ main web channel.
 **Native releases and SideQuest** has independent desktop and Quest jobs. A main
 push affecting the game builds both. Dispatch it on any branch for a signed Quest
 APK; desktop publication and SideQuest notification are restricted to main.
-The Quest job checks the signature and application ID, publishes an immutable APK
-to Forgejo's generic package registry, verifies anonymous download access, and
-prints the link in the job summary. This works even without SideQuest configured.
+The Quest job checks the signature and application ID, publishes a versioned APK
+as a Forgejo release asset, verifies anonymous download access, and
+prints the link in the job summary. Branch builds are marked as prereleases.
+This uses the automatic repository token and works without SideQuest configured.
 
 Under repository **Settings → Actions → Secrets**, configure:
 
@@ -141,8 +142,6 @@ Under repository **Settings → Actions → Secrets**, configure:
 - `SIDEQUEST_WEBHOOK_URL`: the private URL from the SideQuest developer portal.
   Main pushes notify SideQuest when configured. For a manual main build, enable
   **notify_sidequest** to submit it. Keep this URL out of commits and chat.
-- `FORGEJO_PACKAGE_TOKEN`: optional fallback if the runner's automatic token cannot
-  upload packages. It needs package write access for the repository owner.
 - `BUTLER_API_KEY`: the existing Itch publication credential.
 
 The APK's versionCode uses seconds since 2020, rather than a workflow-local run

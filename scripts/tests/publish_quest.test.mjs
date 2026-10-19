@@ -24,7 +24,8 @@ async function fixture(overrides, replies, verify) {
     await writeFile(apk, 'signed-apk-fixture');
     const env = { APK_PATH: apk, VERSION_CODE: '123', VERSION_NAME: '0.1.123',
       GITHUB_SERVER_URL: 'https://forgejo.example', GITHUB_REPOSITORY: 'owner/project',
-      GITHUB_TOKEN: 'forgejo-test-token', SIDEQUEST_WEBHOOK_URL: webhook,
+      GITHUB_TOKEN: 'forgejo-test-token', GITHUB_SHA: 'a'.repeat(40),
+      GITHUB_REF_NAME: 'test-branch', SIDEQUEST_WEBHOOK_URL: webhook,
       NOTIFY_SIDEQUEST: 'true', GITHUB_STEP_SUMMARY: summary, ...overrides };
     const calls = [];
     const request = async (url, options) => {
@@ -40,35 +41,45 @@ async function fixture(overrides, replies, verify) {
     await verify(() => publish(env, request), calls, () => readFile(summary, 'utf8'));
   } finally { await rm(root, { recursive: true, force: true }); }
 }
-const uploaded = () => ({ status: 201 });
-const visible = () => ({ status: 200, headers: { 'content-length': '18' } });
+const apkUrl = 'https://forgejo.example/owner/project/releases/download/quest-v0.1.123/Generic-Vr-Platform.apk';
+const created = () => ({ status: 201, body: JSON.stringify({ id: 42 }) });
+const uploaded = () => ({ status: 201, body: JSON.stringify({ browser_download_url: apkUrl }) });
+const published = () => ({ status: 200 });
+const visible = () => ({ status: 206, headers: { 'content-range': 'bytes 0-0/18' } });
 
-test('upload, verify anonymous download, then notify with APK URL only', async () => {
-  await fixture({}, [uploaded(), visible(), { status: 200 }], async (run, calls, summary) => {
+test('publish draft with signed APK, verify public download, then notify', async () => {
+  await fixture({}, [created(), uploaded(), published(), visible(), { status: 200 }], async (run, calls, summary) => {
     await run();
-    assert.deepEqual(calls.map(x => x.method), ['PUT', 'HEAD', 'POST']);
+    assert.deepEqual(calls.map(x => x.method), ['POST', 'POST', 'PATCH', 'GET', 'POST']);
     assert.equal(calls[0].headers.Authorization, 'token forgejo-test-token');
-    assert.equal(calls[1].headers, undefined);
-    assert.equal(calls[2].headers.Authorization, undefined);
-    assert.deepEqual(JSON.parse(calls[2].body), { url: calls[0].url });
-    assert.ok(calls[2].url.includes('/version-webhook/123/'));
-    assert.ok((await summary()).includes(calls[0].url));
+    assert.equal(calls[1].headers.Authorization, 'token forgejo-test-token');
+    assert.equal(calls[1].body.get('attachment').name, 'Generic-Vr-Platform.apk');
+    const release = JSON.parse(calls[0].body);
+    assert.equal(release.target_commitish, 'a'.repeat(40));
+    assert.equal(release.draft, true);
+    assert.equal(release.prerelease, true);
+    assert.equal(calls[3].headers.Authorization, undefined);
+    assert.equal(calls[4].headers.Authorization, undefined);
+    assert.deepEqual(JSON.parse(calls[4].body), { url: apkUrl });
+    assert.ok(calls[4].url.includes('/version-webhook/123/'));
+    assert.ok((await summary()).includes(apkUrl));
     assert.ok(!(await summary()).includes('private-test-token'));
   });
 });
 
 test('failed upload or private APK must never reach SideQuest', async () => {
-  for (const replies of [[{ status: 403 }], [uploaded(), { status: 401 }]]) {
+  for (const replies of [[{ status: 403 }], [created(), { status: 500 }],
+    [created(), uploaded(), published(), { status: 401 }]]) {
     await fixture({}, replies, async (run, calls) => {
       await assert.rejects(run);
-      assert.ok(calls.every(x => x.method !== 'POST'));
+      assert.ok(calls.every(x => !x.url.includes('sidequestvr.com')));
     });
   }
 });
 
 test('retired webhook fails clearly while preserving the APK link', async () => {
   for (const reply of [{ status: 410 }, { status: 200, body: 'No! repo' }]) {
-    await fixture({}, [uploaded(), visible(), reply], async (run, calls, summary) => {
+    await fixture({}, [created(), uploaded(), published(), visible(), reply], async (run, calls, summary) => {
       await assert.rejects(run, /SideQuest notification failed/);
       assert.ok((await summary()).includes('Generic-Vr-Platform.apk'));
     });
@@ -76,8 +87,8 @@ test('retired webhook fails clearly while preserving the APK link', async () => 
 });
 
 test('manual build can publish APK without changing the SideQuest listing', async () => {
-  await fixture({ NOTIFY_SIDEQUEST: 'false' }, [uploaded(), visible()], async (run, calls) => {
+  await fixture({ NOTIFY_SIDEQUEST: 'false' }, [created(), uploaded(), published(), visible()], async (run, calls) => {
     await run();
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 4);
   });
 });
