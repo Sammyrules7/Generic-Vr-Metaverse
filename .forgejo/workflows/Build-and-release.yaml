@@ -274,7 +274,16 @@ jobs:
           set -euo pipefail
           : "${GODOT_ANDROID_KEYSTORE_RELEASE_USER:?}" "${GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD:?}"
           mkdir -p ${{ env.EXPORT_DIR }}/android
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --install-android-build-template --quit
+          # The CLI install flag only works as part of an export, so unpack
+          # first to configure Gradle before Godot starts the Android build.
+          template_version="$(godot --version | cut -d. -f1-4)"
+          source_zip="/share/godot/export_templates/$template_version/android_source.zip"
+          test -f "$source_zip"
+          mkdir -p "$PROJECT_PATH/android/build"
+          unzip -q "$source_zip" -d "$PROJECT_PATH/android/build"
+          printf '%s\n' "$template_version" > "$PROJECT_PATH/android/.build_version"
+          touch "$PROJECT_PATH/android/build/.gdignore"
+          chmod +x "$PROJECT_PATH/android/build/gradlew"
           # The template's NDK revision can differ from the pinned image.
           # This export packages prebuilt native libraries; use the installed
           # NDK for stripping instead of downloading into a read-only SDK.
