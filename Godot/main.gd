@@ -173,7 +173,7 @@ func load_world(world_id: String) -> Marker3D:
 	if world.has_signal("world_build_progress"):
 		world.connect("world_build_progress", func(progress: float):
 			if generation == _world_load_generation:
-				ui.set_world_loading_progress("Preparing world…", 0.7 + progress * 0.25)
+				ui.set_world_loading_progress("Preparing world…", 0.7 + progress * 0.18)
 		)
 	world.name = "PendingWorld"
 	_pending_world = world
@@ -192,13 +192,49 @@ func load_world(world_id: String) -> Marker3D:
 		return null
 	WORLD_RUNTIME.prepare_particles(world)
 	WORLD_RUNTIME.set_xr_mode(world, xr_active)
-	print("World startup %s: resources %.1f ms; instantiate %.1f ms; enter tree %.1f ms; preparation %.1f ms" % [id, (resources_loaded - load_started) / 1000.0, (instantiation_finished - instantiation_started) / 1000.0, (enter_finished - enter_started) / 1000.0, (Time.get_ticks_usec() - enter_finished) / 1000.0])
+	var preparation_finished := Time.get_ticks_usec()
 	var spawn := WORLD_ADAPTER.spawn_point(world)
 	if spawn == null:
 		_pending_world = null
 		world.queue_free()
 		ui.finish_world_loading(false)
 		return null
+	# Draw from the actual entry pose. Otherwise meshes out of the lobby
+	# camera's frustum would still compile/upload together after the handoff.
+	var loading_camera: Camera3D
+	if xr_active and is_instance_valid(lobby_origin):
+		lobby_origin.global_transform = spawn.global_transform
+		lobby_origin.current = true
+		lobby_origin.show()
+		lobby_camera.current = true
+		panel.bind_rig(lobby_origin, lobby_camera)
+	else:
+		loading_camera = Camera3D.new()
+		world.add_child(loading_camera)
+		loading_camera.global_transform = spawn.global_transform
+		loading_camera.global_position += Vector3.UP * 1.7
+		loading_camera.current = true
+	# Hidden worlds do not warm their draw calls. Reveal small batches while
+	# loading feedback remains up, so first-use GL work is spread across frames.
+	var visuals: Array[GeometryInstance3D] = WORLD_RUNTIME.hide_visuals(world)
+	world.show()
+	var batch_started := Time.get_ticks_usec()
+	var batch_count := 0
+	for index in visuals.size():
+		if generation != _world_load_generation or not is_inside_tree() or not is_instance_valid(world):
+			return null
+		visuals[index].show()
+		batch_count += 1
+		if batch_count >= 16 or Time.get_ticks_usec() - batch_started >= 2000:
+			ui.set_world_loading_progress("Drawing world…", 0.88 + 0.07 * float(index + 1) / visuals.size())
+			await get_tree().process_frame
+			batch_started = Time.get_ticks_usec()
+			batch_count = 0
+	if generation != _world_load_generation or not is_inside_tree() or not is_instance_valid(world):
+		return null
+	print("World startup %s: resources %.1f ms; instantiate %.1f ms; enter tree %.1f ms; preparation %.1f ms; drawing %.1f ms" % [id, (resources_loaded - load_started) / 1000.0, (instantiation_finished - instantiation_started) / 1000.0, (enter_finished - enter_started) / 1000.0, (preparation_finished - enter_finished) / 1000.0, (Time.get_ticks_usec() - preparation_finished) / 1000.0])
+	if loading_camera != null:
+		loading_camera.free()
 	_pending_world = null
 	var old_world := get_node_or_null("World") as Node3D
 	if old_world != null:

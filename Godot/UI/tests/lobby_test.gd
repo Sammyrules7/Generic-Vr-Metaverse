@@ -207,10 +207,19 @@ func _run() -> void:
 	start_xr.xr_interface = saved_interface
 	game._controller_button_pressed("menu_button", &"left_hand")
 	check(ui.menu_open and state.pending_operation == RoomNetworking.Operation.NONE and state.current_room != null, "Triple-line menu button must open UI without leaving the room")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var first_session_size: Vector2 = ui.get_node("Session").size
+	check(first_session_size.y < 560.0, "First in-world menu retained its tall authored height")
 	game._controller_button_pressed("menu_button", &"left_hand")
 	check(not ui.menu_open and ui.get_node("QuickSession").visible, "Closing the menu did not restore compact VR UI")
 	check(ui.xr_point_is_visible(ui.get_node("%InGameMicrophone").get_global_rect().get_center()), "Compact VR microphone is not touchable")
 	ui.set_menu_open(true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(ui.get_node("Session").size.is_equal_approx(first_session_size), "First and subsequent room-menu opens have different heights")
+	var loading_style := ui.get_node("%WorldLoading").get_theme_stylebox("panel") as StyleBoxFlat
+	check(loading_style != null and loading_style.corner_radius_top_left > 0 and loading_style.corner_radius_bottom_right > 0, "World loading card does not use rounded corners")
 	ui.get_node("%OpenSessionVoiceSettings").pressed.emit()
 	check(ui.get_node("%VoiceSettings").visible and not ui.get_node("Session").visible, "Session voice settings did not replace the room menu")
 	check(is_equal_approx(ui.get_node("%InputGain").value, 145.0), "Shared voice form lost microphone gain after joining")

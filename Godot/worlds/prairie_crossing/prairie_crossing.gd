@@ -15,6 +15,10 @@ var solid_vertices := PackedVector3Array()
 var _interactive_load := false
 var _build_deadline := 0
 var _build_cancelled := false
+# These primitives are identical for every instance; only their append transform
+# changes. Reusing them avoids rebuilding/uploading hundreds of temporary meshes.
+var _box_mesh := BoxMesh.new()
+var _sphere_mesh := SphereMesh.new()
 
 
 func cancel_world_preparation() -> void:
@@ -51,7 +55,9 @@ func _build_world() -> void:
 	await _terrain()
 	if _build_cancelled:
 		return
-	_landmarks()
+	await _landmarks()
+	if _build_cancelled:
+		return
 	_weather_station()
 	await _build_frame()
 	await _vegetation()
@@ -83,6 +89,10 @@ func _build_frame() -> void:
 
 
 func _palette() -> void:
+	_sphere_mesh.radial_segments = 7
+	_sphere_mesh.rings = 3
+	_sphere_mesh.radius = 1
+	_sphere_mesh.height = 2
 	var colors := {
 		"meadow": "929f67", "meadow_light": "97a36c", "meadow_dark": "8d9b63",
 		"earth": "b1a180", "gravel": "d8c7a6", "asphalt": "647576", "line": "e8c878",
@@ -174,16 +184,11 @@ func _primitive(mesh: PrimitiveMesh, p: Vector3, mesh_scale: Vector3, key: Strin
 
 
 func _box(p: Vector3, size: Vector3, key: String, solid: bool = false, yaw: float = 0.0) -> void:
-	_primitive(BoxMesh.new(), p, size, key, Basis(Vector3.UP, yaw), solid)
+	_primitive(_box_mesh, p, size, key, Basis(Vector3.UP, yaw), solid)
 
 
 func _ball(p: Vector3, size: Vector3, key: String) -> void:
-	var mesh := SphereMesh.new()
-	mesh.radial_segments = 7
-	mesh.rings = 3
-	mesh.radius = 1
-	mesh.height = 2
-	_primitive(mesh, p, size, key)
+	_primitive(_sphere_mesh, p, size, key)
 
 
 func _beam(a: Vector3, b: Vector3, radius: float, key: String, solid: bool = false) -> void:
@@ -299,10 +304,16 @@ func _pylon(p: Vector3, size: float) -> void:
 func _landmarks() -> void:
 	var towers := [ground(0, -24), ground(-139, -90), ground(82, 92)]
 	for p: Vector3 in towers:
+		await _build_frame()
+		if _build_cancelled:
+			return
 		_pylon(p, 1.0)
 	for pair in [[0, 1], [0, 2]]:
 		for h in [23.2, 30.2, 36.2]:
 			for side in [-7, 7]:
+				await _build_frame()
+				if _build_cancelled:
+					return
 				var start: Vector3 = towers[pair[0]] + Vector3(side, h, 0)
 				var end: Vector3 = towers[pair[1]] + Vector3(side, h, 0)
 				for i in 24:
@@ -315,6 +326,9 @@ func _landmarks() -> void:
 	_sign(ground(-5, -12), "RAVINE OVERLOOK", "STAY A LITTLE WHILE")
 	# Small homes along the opposite ridge, as in the reference photographs.
 	for i in 12:
+		await _build_frame()
+		if _build_cancelled:
+			return
 		var p := ground(-153 - rng.randf_range(0, 14), -125 + i * 21)
 		_box(p + Vector3(0, 1.6, 0), Vector3(7, 3.2, 5), "house")
 		_box(p + Vector3(0, 3.35, 0), Vector3(8, 0.4, 6), "roof")
@@ -463,13 +477,20 @@ func _flush() -> void:
 		add_child(instance)
 	var body := StaticBody3D.new()
 	body.name = "TerrainAndLandmarkCollision"
-	var collider := CollisionShape3D.new()
-	var shape := ConcavePolygonShape3D.new()
-	shape.backface_collision = true
-	shape.set_faces(solid_vertices)
-	collider.shape = shape
-	body.add_child(collider)
 	add_child(body)
+	# Building one large triangle BVH is indivisible main-thread work. Bound
+	# each shape to 2048 triangles and yield between chunks during room entry.
+	const COLLISION_CHUNK_VERTICES := 2048 * 3
+	for first in range(0, solid_vertices.size(), COLLISION_CHUNK_VERTICES):
+		await _build_frame()
+		if _build_cancelled:
+			return
+		var collider := CollisionShape3D.new()
+		var shape := ConcavePolygonShape3D.new()
+		shape.backface_collision = true
+		shape.set_faces(solid_vertices.slice(first, mini(first + COLLISION_CHUNK_VERTICES, solid_vertices.size())))
+		collider.shape = shape
+		body.add_child(collider)
 	batches.clear()
 	solid_vertices.clear()
 

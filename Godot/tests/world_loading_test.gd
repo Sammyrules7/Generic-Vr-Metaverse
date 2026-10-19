@@ -117,7 +117,7 @@ func _run() -> void:
 	get_tree().root.add_child(immediate)
 	var immediate_ms := (Time.get_ticks_usec() - started) / 1000.0
 	var expected_nodes: int = immediate.get_child_count()
-	var expected_faces: int = immediate.get_node("TerrainAndLandmarkCollision").get_child(0).shape.get_faces().size()
+	var expected_faces: int = _collision_faces(immediate).size()
 	immediate.free()
 	var incremental = scene.instantiate()
 	incremental.set_meta("defer_world_build", true)
@@ -131,7 +131,7 @@ func _run() -> void:
 	var incremental_ms := (Time.get_ticks_usec() - started) / 1000.0
 	var yielded := Engine.get_process_frames() - frames_before
 	check(yielded > 5, "Procedural generation must yield to UI and headset updates")
-	check(incremental.get_child_count() == expected_nodes and incremental.get_node("TerrainAndLandmarkCollision").get_child(0).shape.get_faces().size() == expected_faces, "Incremental build changed world geometry")
+	check(incremental.get_child_count() == expected_nodes and _collision_faces(incremental).size() == expected_faces, "Incremental build changed world geometry")
 	check(incremental.has_node("WeatherControl") and incremental.has_node("SpawnPoint"), "Prepared world must include weather controls and a spawn")
 	print("Prairie startup: immediate %.1f ms; incremental %.1f ms across %d frames; longest frame interval %.1f ms" % [immediate_ms, incremental_ms, yielded, _longest_frame_usec / 1000.0])
 	incremental.free()
@@ -169,6 +169,7 @@ func _run() -> void:
 		await get_tree().process_frame
 	check(completed == 3 and last_spawn == null and game.get_node_or_null("CancelledWorld") == null, "Cancelled Blackthorn build leaked or installed a world")
 	_test_runtime_policy()
+	await _test_staged_entry(game)
 	game.free()
 	await get_tree().create_timer(0.08).timeout
 	if profile_existed:
@@ -214,3 +215,95 @@ func _test_runtime_policy() -> void:
 	runtime.set_xr_mode(world, false)
 	check(environment_node.environment == authored and not lamp.distance_fade_enabled and is_equal_approx(sun.directional_shadow_max_distance, 100.0), "Leaving XR did not restore desktop lighting")
 	world.free()
+
+
+func _collision_faces(world: Node3D) -> PackedVector3Array:
+	var faces := PackedVector3Array()
+	for collider: CollisionShape3D in world.get_node("TerrainAndLandmarkCollision").get_children():
+		faces.append_array(collider.shape.get_faces())
+	return faces
+
+
+func _test_staged_entry(game: Node3D) -> void:
+	var fixture := Node3D.new()
+	var spawn := Marker3D.new()
+	spawn.name = "SpawnPoint"
+	spawn.position = Vector3(12, 0, 9)
+	spawn.rotation.y = 0.7
+	fixture.add_child(spawn)
+	spawn.owner = fixture
+	var cube := BoxMesh.new()
+	for index in 97:
+		var mesh := MeshInstance3D.new()
+		mesh.name = "Geometry%d" % index
+		mesh.mesh = cube
+		mesh.visible = index != 96
+		fixture.add_child(mesh)
+		mesh.owner = fixture
+	var packed := PackedScene.new()
+	packed.pack(fixture)
+	var path := "user://staged_loading_test.tscn"
+	check(ResourceSaver.save(packed, path) == OK, "Could not save staged-entry fixture")
+	fixture.free()
+	var definition := WorldDefinition.new()
+	definition.id = "staged_entry"
+	definition.title = "Staged entry"
+	definition.scene_path = path
+	WorldCatalog.WORLDS[definition.id] = definition
+	var before := completed
+	var saw_partial := false
+	var drawing_frames := 0
+	_load_world(game, definition.id)
+	for frame in 600:
+		if completed != before:
+			break
+		var pending := game.get_node_or_null("PendingWorld")
+		if pending != null:
+			var visible_count := 0
+			for mesh in pending.find_children("*", "MeshInstance3D", true, false):
+				if mesh.is_visible_in_tree():
+					visible_count += 1
+			if visible_count > 0 and visible_count < 96:
+				if not saw_partial:
+					var camera := get_viewport().get_camera_3d()
+					check(camera != null and pending.is_ancestor_of(camera), "Staged entry has no drawing camera")
+					check(camera.global_position.is_equal_approx(pending.get_node("SpawnPoint").global_position + Vector3.UP * 1.7), "Staged entry warmed the wrong viewpoint")
+				saw_partial = true
+				drawing_frames += 1
+		await get_tree().process_frame
+	check(saw_partial and drawing_frames >= 4, "First-use world draws were not staged across frames")
+	check(completed == before + 1 and last_spawn != null, "Staged world did not finish loading")
+	check(not game.get_node("World/Geometry96").visible, "Staging revealed authored-hidden geometry")
+	Networking.room_networking.room_left.emit()
+	# Leaving during drawing must also cancel, rather than install a partial world.
+	before = completed
+	_load_world(game, definition.id)
+	for frame in 600:
+		var pending := game.get_node_or_null("PendingWorld")
+		if pending != null and pending.visible:
+			break
+		await get_tree().process_frame
+	Networking.room_networking.room_left.emit()
+	for frame in 10:
+		await get_tree().process_frame
+	check(completed == before + 1 and last_spawn == null and game.get_node_or_null("World") == null, "Cancelled staged entry installed a partial world")
+	# The XR drawing stage must use the live tracking camera at the new spawn,
+	# keeping hands and the loading tablet bound to that same origin.
+	game._enable_xr_lobby()
+	_load_world(game, definition.id)
+	var checked_xr_pose := false
+	before = completed
+	for frame in 600:
+		if completed != before:
+			break
+		var pending := game.get_node_or_null("PendingWorld")
+		if pending != null and pending.visible and not checked_xr_pose:
+			checked_xr_pose = true
+			check(game.lobby_origin.global_transform.is_equal_approx(pending.get_node("SpawnPoint").global_transform), "XR drawing did not use the spawn origin")
+			check(game.panel.origin == game.lobby_origin and get_viewport().get_camera_3d() == game.lobby_camera, "XR drawing detached the loading tablet or tracking camera")
+		await get_tree().process_frame
+	check(checked_xr_pose and last_spawn != null, "XR drawing fixture did not complete")
+	Networking.room_networking.room_left.emit()
+	game._disable_xr_lobby()
+	WorldCatalog.WORLDS.erase(definition.id)
+	DirAccess.remove_absolute(path)

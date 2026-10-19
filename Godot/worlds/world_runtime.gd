@@ -52,3 +52,12 @@ static func set_xr_mode(world: Node3D, enabled: bool) -> void:
 				light.distance_fade_enabled = fade[0]
 				light.distance_fade_begin = fade[1]
 				light.distance_fade_length = fade[2]
+
+
+static func hide_visuals(world: Node3D) -> Array[GeometryInstance3D]:
+	var visuals: Array[GeometryInstance3D] = []
+	for node: GeometryInstance3D in world.find_children("*", "GeometryInstance3D", true, false):
+		if node.visible:
+			visuals.append(node)
+			node.hide()
+	return visuals

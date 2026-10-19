@@ -21,12 +21,15 @@ var disconnect_status := false
 var _pointer_lock_callback: JavaScriptObject
 var _browser_document: JavaScriptObject
 var _last_unlock_msec := -1000
+var _fit_queued := false
 
 
 func _ready() -> void:
 	_apply_theme()
 	get_viewport().size_changed.connect(_fit_ui)
-	$VBoxContainer.minimum_size_changed.connect(_fit_ui)
+	$VBoxContainer.minimum_size_changed.connect(_queue_fit_ui)
+	for card: Control in [$Session, $QuickSession, %VoiceSettings, %WorldLoading]:
+		card.minimum_size_changed.connect(_queue_fit_ui)
 	_fit_ui()
 	PlayerProfile.restore()
 	%DisplayName.text = PlayerProfile.display_name
@@ -153,6 +156,19 @@ func _apply_theme() -> void:
 	%WorldPreviewFrame.add_theme_stylebox_override("panel", preview_frame)
 
 
+func _queue_fit_ui() -> void:
+	# Autowrapped labels settle after container layout, including the first
+	# time a hidden session card opens. Refit before keeping that stale height.
+	if not _fit_queued:
+		_fit_queued = true
+		_fit_after_layout.call_deferred()
+
+
+func _fit_after_layout() -> void:
+	_fit_queued = false
+	_fit_ui()
+
+
 func _fit_ui() -> void:
 	# Keep the full lobby visible in narrow Quest browser windows while retaining
 	# the authored size in the fixed-resolution in-headset viewport.
@@ -169,7 +185,7 @@ func _fit_ui() -> void:
 	var quick := $QuickSession as Control
 	quick.size = quick.get_combined_minimum_size().max(Vector2(540, 120))
 	quick.position = (available - quick.size) * 0.5
-	for card: Control in [$Session, %VoiceSettings]:
+	for card: Control in [$Session, %VoiceSettings, %WorldLoading]:
 		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700 if card == %VoiceSettings else 320))
 		card.scale = Vector2.ONE * minf(1.0, minf(available.x / (card_size.x + 32), available.y / (card_size.y + 32)))
 		card.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -422,8 +438,9 @@ func set_menu_open(open: bool) -> void:
 		$Session.hide()
 		$QuickSession.hide()
 		$MenuHint.hide()
-	_fit_ui()
 	%VoiceSettings.hide()
+	_fit_ui()
+	_queue_fit_ui()
 	mouse_filter = Control.MOUSE_FILTER_STOP if open or vr_mode else Control.MOUSE_FILTER_IGNORE
 	if not vr_mode:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED)
