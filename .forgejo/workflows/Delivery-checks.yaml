@@ -1,7 +1,6 @@
 name: Delivery drift checks
 on:
   push:
-    branches: [main, Multiplayer]
     paths:
       - Godot/**
       - Server/**
@@ -10,6 +9,8 @@ on:
       - scripts/check_delivery.py
       - scripts/check_runtime.sh
       - scripts/publish_web.sh
+      - scripts/publish_quest.mjs
+      - .forgejo/workflows/**
       - scripts/tests/**
       - flake.nix
       - flake.lock
@@ -66,7 +67,8 @@ jobs:
           # it a fresh user-owned directory.
           HOME: /tmp
         run: |
-          export HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
+          HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
+          export HOME
           nix develop --command bash -euo pipefail -c '
             python3 scripts/check_delivery.py
             python3 -m unittest discover -s scripts/tests -v

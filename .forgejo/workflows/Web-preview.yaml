@@ -12,21 +12,10 @@ concurrency:
   cancel-in-progress: false
 
 on:
+  # Every commit is previewable, including branches added after this workflow.
   push:
-    branches:
-      - main
-      - Multiplayer
-      - t3code/add-voip-support
-    paths:
-      - Godot/**
-      - '!Godot/**/*.md'
-      - Protocol/**
-      - scripts/publish_web.sh
-      - scripts/check_delivery.py
-      - flake.nix
-      - flake.lock
-      - nix/images/**
-      - .forgejo/workflows/Web-preview.yaml
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       ref:
@@ -58,7 +47,7 @@ jobs:
       - name: Checkout requested ref with large files
         env:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-          REQUESTED_REF: ${{ inputs.ref || github.ref }}
+          REQUESTED_REF: ${{ inputs.ref || (github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number)) || github.sha }}
         run: |
           set -euo pipefail
           TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
@@ -82,14 +71,34 @@ jobs:
           # Configure the LFS smudge filter before the first checkout so
           # large files are materialized as real content.
           git lfs install --local
-          if [ -n "$REQUESTED_REF" ]; then
-            git fetch -q --no-tags --depth=1 origin "$REQUESTED_REF" \
-              || git fetch -q --no-tags origin   # raw SHAs can need a full fetch
-            git checkout -qf --detach "$REQUESTED_REF" 2>/dev/null || git checkout -qf --detach FETCH_HEAD
-          else
+          if git fetch -q --no-tags --depth=1 origin "$REQUESTED_REF"; then
             git checkout -qf --detach FETCH_HEAD
+          else
+            # A raw commit may need full history. Resolve it explicitly;
+            # never substitute the default branch for a misspelled ref.
+            git fetch -q --no-tags origin
+            git checkout -qf --detach "$REQUESTED_REF"
           fi
           git lfs pull
+
+      - name: Describe build
+        id: describe
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.ref || github.head_ref || github.ref_name }}
+          REQUESTED_MAIN: ${{ inputs.publish_main }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          commit="$(git rev-parse HEAD)"
+          branch="$REQUESTED_REF"
+          if [ "$EVENT_NAME" = "pull_request" ]; then branch="pr-$PR_NUMBER"; fi
+          slug="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63 | sed 's/-*$//')"
+          if [ -z "$slug" ]; then slug="commit"; fi
+          publish_main=false
+          if [ "$EVENT_NAME" != "pull_request" ] && { [ "$REQUESTED_MAIN" = "true" ] || [ "$branch" = "main" ]; }; then publish_main=true; fi
+          printf 'BUILD_COMMIT=%s\nBUILD_BRANCH=%s\nBUILD_SLUG=%s\nPUBLISH_MAIN=%s\n' "$commit" "$branch" "$slug" "$publish_main" >> "$GITHUB_ENV"
+          printf 'commit=%s\nslug=%s\npublish_main=%s\n' "$commit" "$slug" "$publish_main" >> "$GITHUB_OUTPUT"
 
       # Same import cache as Delivery-checks: the web export also needs a full
       # --editor --import and both branches commit changed assets regularly.
@@ -98,25 +107,9 @@ jobs:
         uses: https://code.forgejo.org/actions/cache@v4
         with:
           path: Godot/.godot/imported
-          key: godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          key: godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ steps.describe.outputs.commit }}
           restore-keys: |
             godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
-
-      - name: Describe build
-        id: describe
-        shell: bash
-        env:
-          REQUESTED_REF: ${{ inputs.ref || github.ref_name }}
-          REQUESTED_MAIN: ${{ inputs.publish_main }}
-        run: |
-          commit="$(git rev-parse HEAD)"
-          branch="$REQUESTED_REF"
-          slug="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63 | sed 's/-*$//')"
-          if [ -z "$slug" ]; then slug="commit"; fi
-          publish_main=false
-          if [ "$REQUESTED_MAIN" = "true" ] || [ "$branch" = "main" ]; then publish_main=true; fi
-          printf 'BUILD_COMMIT=%s\nBUILD_BRANCH=%s\nBUILD_SLUG=%s\nPUBLISH_MAIN=%s\n' "$commit" "$branch" "$slug" "$publish_main" >> "$GITHUB_ENV"
-          printf 'commit=%s\nslug=%s\npublish_main=%s\n' "$commit" "$slug" "$publish_main" >> "$GITHUB_OUTPUT"
 
       - name: Read engine version
         id: engine
@@ -176,6 +169,7 @@ jobs:
           done
 
       - name: Publish immutable branch build
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
         env:
           GARAGE_BUCKET: vr-platform-web
@@ -186,7 +180,7 @@ jobs:
         run: bash scripts/publish_web.sh "branches/$BUILD_SLUG"
 
       - name: Publish main channel
-        if: env.PUBLISH_MAIN == 'true'
+        if: github.event_name != 'pull_request' && env.PUBLISH_MAIN == 'true'
         shell: bash
         env:
           GARAGE_BUCKET: vr-platform-web
@@ -197,6 +191,7 @@ jobs:
         run: bash scripts/publish_web.sh channels/main
 
       - name: Publish links
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
         env:
           BACKEND_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}

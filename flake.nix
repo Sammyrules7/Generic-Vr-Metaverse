@@ -1,5 +1,5 @@
 {
-  description = "Generic VR Platform packages and nix-snapshotter images";
+  description = "Generic-Vr-Platform packages and nix-snapshotter images";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

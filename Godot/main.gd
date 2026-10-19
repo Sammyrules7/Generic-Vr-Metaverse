@@ -44,6 +44,8 @@ func _enable_xr_lobby() -> void:
 	var world := get_node_or_null("World") as Node3D
 	if world != null:
 		WORLD_RUNTIME.set_xr_mode(world, true)
+	if is_instance_valid(_pending_world):
+		WORLD_RUNTIME.set_xr_mode(_pending_world, true)
 	get_viewport().use_xr = true
 	lobby_origin = XROrigin3D.new()
 	lobby_origin.name = "LobbyOrigin"
@@ -69,6 +71,10 @@ func _enable_xr_lobby() -> void:
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.set_menu_open(ui.menu_open)
 	panel.bind_rig(lobby_origin, lobby_camera)
+	if is_instance_valid(_pending_world) and _pending_world.visible:
+		lobby_origin.global_transform = WORLD_ADAPTER.spawn_point(_pending_world).global_transform
+		lobby_origin.current = true
+		lobby_camera.current = true
 	if is_instance_valid($PlayerManager.local_player):
 		$PlayerManager.local_player.set_control_mode(true)
 		_activate_player_rig()
@@ -89,7 +95,18 @@ func _disable_xr_lobby() -> void:
 	var world := get_node_or_null("World") as Node3D
 	if world != null:
 		WORLD_RUNTIME.set_xr_mode(world, false)
+	if is_instance_valid(_pending_world):
+		WORLD_RUNTIME.set_xr_mode(_pending_world, false)
 	get_viewport().use_xr = false
+	if is_instance_valid(_pending_world) and _pending_world.visible:
+		var entry_camera := _pending_world.get_node_or_null("WorldEntryCamera") as Camera3D
+		if entry_camera == null:
+			entry_camera = Camera3D.new()
+			entry_camera.name = "WorldEntryCamera"
+			_pending_world.add_child(entry_camera)
+		entry_camera.global_transform = WORLD_ADAPTER.spawn_point(_pending_world).global_transform
+		entry_camera.global_position += Vector3.UP * 1.7
+		entry_camera.current = true
 	if is_instance_valid(panel):
 		panel.release_touch()
 		ui.reparent(self)
@@ -235,6 +252,9 @@ func load_world(world_id: String) -> Marker3D:
 	print("World startup %s: resources %.1f ms; instantiate %.1f ms; enter tree %.1f ms; preparation %.1f ms; drawing %.1f ms" % [id, (resources_loaded - load_started) / 1000.0, (instantiation_finished - instantiation_started) / 1000.0, (enter_finished - enter_started) / 1000.0, (preparation_finished - enter_finished) / 1000.0, (Time.get_ticks_usec() - preparation_finished) / 1000.0])
 	if loading_camera != null:
 		loading_camera.free()
+	var switched_camera := world.get_node_or_null("WorldEntryCamera")
+	if switched_camera != null:
+		switched_camera.free()
 	_pending_world = null
 	var old_world := get_node_or_null("World") as Node3D
 	if old_world != null:
@@ -252,9 +272,12 @@ func _player_spawned() -> void:
 		$PlayerManager.local_player.set_control_mode(true)
 		_activate_player_rig()
 	_menu_changed(true)
-	# Keep feedback over the world's first rendered frame and camera handoff.
-	await get_tree().process_frame
-	await get_tree().process_frame
+	# The player's rig can select different draw variants from the warm-up
+	# camera. Keep the overlay until this actual viewpoint has settled.
+	var player_ref: WeakRef = weakref(player)
+	await WORLD_RUNTIME.wait_for_rendering(get_tree(), func():
+		return generation == _world_load_generation and player_ref.get_ref() != null
+	)
 	if generation != _world_load_generation or not is_instance_valid(player):
 		return
 	ui.finish_world_loading()

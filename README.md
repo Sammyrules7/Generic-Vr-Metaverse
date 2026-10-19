@@ -1,4 +1,4 @@
-# Generic VR Platform
+# Generic-Vr-Platform
 
 A free and open source social VR platform built with Godot and Go. Explore seven
 worlds using desktop controls, OpenXR, or WebXR, with peer-to-peer multiplayer,
@@ -111,3 +111,45 @@ image updates, and further optimization options.
 - Broader device validation
 - VRM avatar importing and switching
 - Inverse kinematics
+
+## Builds and distribution
+
+The app title, Android label, Windows product name, and download filenames use
+`Generic-Vr-Platform`. The Android application ID remains
+`com.maiotech.vrplatform`, and the existing desktop settings directory is retained
+so renaming does not break upgrades or discard saved preferences. Existing Itch
+storefront URLs, server names, and storage identifiers remain valid.
+
+Every branch push and PR update runs **Web preview**. Same-repository PRs publish
+under `pr-<number>/<commit>/`; fork PRs build without publishing credentials.
+Manual previews can target a branch, tag, or commit; their cache and download
+identity use the commit actually checked out. Only non-PR builds can update the
+main web channel.
+
+**Native releases and SideQuest** has independent desktop and Quest jobs. A main
+push affecting the game builds both. Dispatch it on any branch for a signed Quest
+APK; desktop publication and SideQuest notification are restricted to main.
+The Quest job checks the signature and application ID, publishes an immutable APK
+to Forgejo's generic package registry, verifies anonymous download access, and
+prints the link in the job summary. This works even without SideQuest configured.
+
+Under repository **Settings → Actions → Secrets**, configure:
+
+- `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_ALIAS`, and
+  `ANDROID_KEYSTORE_PASSWORD`: the existing release signing identity. Keep using
+  the same key for installed apps to update.
+- `SIDEQUEST_WEBHOOK_URL`: the private URL from the SideQuest developer portal.
+  Main pushes notify SideQuest when configured. For a manual main build, enable
+  **notify_sidequest** to submit it. Keep this URL out of commits and chat.
+- `FORGEJO_PACKAGE_TOKEN`: optional fallback if the runner's automatic token cannot
+  upload packages. It needs package write access for the repository owner.
+- `BUTLER_API_KEY`: the existing Itch publication credential.
+
+The APK's versionCode uses seconds since 2020, rather than a workflow-local run
+number, so workflow changes cannot reset the Android update sequence. Never run
+an older workflow to publish an update after switching to this scheme.
+
+SideQuest's direct version webhook receives the public APK URL. An HTTP success
+only confirms receipt; verify the version displayed on the listing. A retired
+endpoint (including HTTP 410 or a `No! repo` response) fails the notification step
+and preserves the APK link for manual submission in the developer portal.

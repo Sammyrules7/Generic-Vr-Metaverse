@@ -21,14 +21,10 @@ void fragment() {
     if (lagoon && length((basin_position-vec2(0,1))/vec2(12,16)) > 1.0) { discard; }
     vec2 p = water_position.xz;
     float w = wave(p);
+    float dx = wave(p+vec2(.09,0))-w;
+    float dz = wave(p+vec2(0,.09))-w;
     float distant = smoothstep(25.0,130.0,length(VERTEX));
-    NORMAL_MAP = vec3(.5,.5,1);
-    // Beyond the fade, both expensive normal probes have zero contribution.
-    if (distant < 1.0) {
-        float dx = wave(p+vec2(.09,0))-w;
-        float dz = wave(p+vec2(0,.09))-w;
-        NORMAL_MAP = mix(normalize(vec3(-dx,-dz,.85))*.5+.5,vec3(.5,.5,1),distant);
-    }
+    NORMAL_MAP = mix(normalize(vec3(-dx,-dz,.85))*.5+.5,vec3(.5,.5,1),distant);
     ALBEDO = mix(deep_color,crest_color,w*.38);
     METALLIC = .18;
     ROUGHNESS = .3 + w*.12 + distant*.18;

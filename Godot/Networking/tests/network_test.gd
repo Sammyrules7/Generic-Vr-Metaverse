@@ -595,7 +595,7 @@ func _check_game_scene() -> bool:
 	game.get_node("roomSelector")._select_world("floating_island")
 	game.get_node("roomSelector/%CreateRoom").pressed.emit()
 	var manager: PlayerManager = game.get_node("PlayerManager")
-	if not await _wait_until(func(): return manager.local_player != null and manager.local_player.is_on_floor(), "game player landing"):
+	if not await _wait_until(func(): return manager.local_player != null and manager.local_player.is_on_floor() and not game.get_node("roomSelector").world_loading, "game player landing and world readiness"):
 		return false
 	var initial := manager.local_player.global_position
 	Input.action_press("move_forward")

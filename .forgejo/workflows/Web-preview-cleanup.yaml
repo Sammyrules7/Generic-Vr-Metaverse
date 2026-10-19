@@ -1,4 +1,4 @@
-name: Remove deleted branch web preview
+name: Remove closed PR or deleted branch preview
 
 concurrency:
   group: web-publish
@@ -6,6 +6,8 @@ concurrency:
 
 on:
   delete:
+  pull_request:
+    types: [closed]
 
 env:
   GARAGE_BUCKET: vr-platform-web
@@ -16,16 +18,16 @@ env:
 
 jobs:
   remove-preview:
-    if: github.event.ref_type == 'branch' && github.event.ref != 'main'
-    name: Remove branch preview
+    if: (github.event_name == 'delete' && github.event.ref_type == 'branch' && github.event.ref != 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    name: Remove preview
     runs-on: default
     container:
       image: nix:0/nix/store/9bsmrw9myblwnxh29r3rfbmybyfb119g-nix-image-vr-platform-cleanup-ci.tar
     steps:
-      - name: Remove branch build
+      - name: Remove preview builds
         shell: bash
         env:
-          DELETED_BRANCH: ${{ github.event.ref }}
+          DELETED_BRANCH: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event.ref }}
         run: |
           slug="$(printf '%s' "$DELETED_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63 | sed 's/-*$//')"
           test -n "$slug"

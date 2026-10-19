@@ -169,6 +169,18 @@ func _run() -> void:
 		await get_tree().process_frame
 	check(completed == 3 and last_spawn == null and game.get_node_or_null("CancelledWorld") == null, "Cancelled Blackthorn build leaked or installed a world")
 	_test_runtime_policy()
+	var render_started := Time.get_ticks_usec()
+	var frames_started := Engine.get_process_frames()
+	await preload("res://worlds/world_runtime.gd").wait_for_rendering(get_tree(), func(): return true)
+	check(Engine.get_process_frames() - frames_started >= 8 and Time.get_ticks_usec() - render_started >= 250000, "Loading dismissed before the rendering settling window")
+	frames_started = Engine.get_process_frames()
+	await preload("res://worlds/world_runtime.gd").wait_for_rendering(get_tree(), func(): return false)
+	check(Engine.get_process_frames() == frames_started, "Cancelled entry waited for rendering")
+	var retired := Node.new()
+	var callback := Callable(retired, "is_inside_tree")
+	retired.free()
+	await preload("res://worlds/world_runtime.gd").wait_for_rendering(get_tree(), callback)
+	check(Engine.get_process_frames() == frames_started, "Freed world owner did not cancel rendering wait")
 	await _test_staged_entry(game)
 	game.free()
 	await get_tree().create_timer(0.08).timeout
@@ -232,6 +244,12 @@ func _test_staged_entry(game: Node3D) -> void:
 	spawn.rotation.y = 0.7
 	fixture.add_child(spawn)
 	spawn.owner = fixture
+	var environment := WorldEnvironment.new()
+	environment.name = "TestEnvironment"
+	environment.environment = Environment.new()
+	environment.environment.glow_enabled = true
+	fixture.add_child(environment)
+	environment.owner = fixture
 	var cube := BoxMesh.new()
 	for index in 97:
 		var mesh := MeshInstance3D.new()
@@ -299,6 +317,11 @@ func _test_staged_entry(game: Node3D) -> void:
 		var pending := game.get_node_or_null("PendingWorld")
 		if pending != null and pending.visible and not checked_xr_pose:
 			checked_xr_pose = true
+			check(not pending.get_node("TestEnvironment").environment.glow_enabled, "Pending world ignored XR rendering settings")
+			game._disable_xr_lobby()
+			check(pending.get_node("TestEnvironment").environment.glow_enabled, "Pending world did not restore desktop settings on XR exit")
+			game._enable_xr_lobby()
+			check(not pending.get_node("TestEnvironment").environment.glow_enabled, "Pending world did not apply settings on XR re-entry")
 			check(game.lobby_origin.global_transform.is_equal_approx(pending.get_node("SpawnPoint").global_transform), "XR drawing did not use the spawn origin")
 			check(game.panel.origin == game.lobby_origin and get_viewport().get_camera_3d() == game.lobby_camera, "XR drawing detached the loading tablet or tracking camera")
 		await get_tree().process_frame

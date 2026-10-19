@@ -61,3 +61,40 @@ static func hide_visuals(world: Node3D) -> Array[GeometryInstance3D]:
 			visuals.append(node)
 			node.hide()
 	return visuals
+
+
+static func wait_for_rendering(tree: SceneTree, still_loading: Callable) -> void:
+	# A process frame starts before rendering. Count completed draws instead,
+	# and restart the settling window when a frame stalls or pipelines compile.
+	# Headless validation has no render loop, so it uses process frames.
+	var headless := DisplayServer.get_name() == "headless"
+	var stable_frames := 0
+	var settled_seconds := 0.0
+	var previous := Time.get_ticks_usec()
+	var pipelines := _pipeline_count()
+	var deadline := previous + 10000000
+	while still_loading.is_valid() and still_loading.call() and (stable_frames < 8 or settled_seconds < 0.25):
+		await tree.process_frame
+		if not headless:
+			await RenderingServer.frame_post_draw
+		var now := Time.get_ticks_usec()
+		if now >= deadline:
+			push_warning("World rendering did not settle within 10 seconds; ending the loading overlay")
+			return
+		var elapsed := (now - previous) / 1000000.0
+		var current_pipelines := _pipeline_count()
+		if elapsed > 0.1 or current_pipelines != pipelines:
+			stable_frames = 0
+			settled_seconds = 0.0
+		else:
+			stable_frames += 1
+			settled_seconds += elapsed
+		previous = now
+		pipelines = current_pipelines
+
+
+static func _pipeline_count() -> int:
+	var total := 0
+	for metric in [RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_MESH, RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_SURFACE, RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_DRAW, RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_SPECIALIZATION]:
+		total += RenderingServer.get_rendering_info(metric)
+	return total
