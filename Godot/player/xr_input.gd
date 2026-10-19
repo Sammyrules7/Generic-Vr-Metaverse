@@ -13,6 +13,13 @@ static func stick(controller: XRController3D) -> Vector2:
 	return result
 
 
+static func prepare_hand_model(model: Node) -> void:
+	# These are moving meshes, including when a restored import cache still
+	# contains a scene generated with the importer's default Static GI mode.
+	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		mesh.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC
+
+
 static var _tracker_paths := {"left": &"/user/hand_tracker/left", "right": &"/user/hand_tracker/right"}
 
 

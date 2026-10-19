@@ -12,6 +12,7 @@ func _ready() -> void:
 	pose = &"default"
 	var side := "Left" if hand == "left" else "Right"
 	var model := (load("res://player/hands/%sHandHumanoid.gltf" % side) as PackedScene).instantiate()
+	PlatformXRInput.prepare_hand_model(model)
 	add_child(model)
 	skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
 	modifier = XRHandModifier3D.new()

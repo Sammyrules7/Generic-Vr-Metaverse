@@ -134,6 +134,9 @@ func run() -> void:
 		origin.add_child(driver)
 		for mesh: MeshInstance3D in driver.find_children("*", "MeshInstance3D", true, false):
 			check(mesh.gi_mode == GeometryInstance3D.GI_MODE_DYNAMIC, "Moving optical hand must receive lightmap probes")
+			mesh.gi_mode = GeometryInstance3D.GI_MODE_STATIC
+			PlatformXRInput.prepare_hand_model(driver)
+			check(mesh.gi_mode == GeometryInstance3D.GI_MODE_DYNAMIC, "Old cached hand imports must not restore Static GI")
 		var tracker := XRHandTracker.new()
 		tracker.name = "/user/hand_tracker/" + side
 		tracker.hand = XRPositionalTracker.TRACKER_HAND_LEFT if side == "left" else XRPositionalTracker.TRACKER_HAND_RIGHT

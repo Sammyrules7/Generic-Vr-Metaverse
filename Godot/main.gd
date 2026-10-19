@@ -349,6 +349,7 @@ func _attach_pointer(controller: XRController3D) -> void:
 	if controller.has_meta("ui_attached"):
 		return
 	controller.set_meta("ui_attached", true)
+	PlatformXRInput.prepare_hand_model(controller)
 	# Grip poses are appropriate for hand meshes, but their axes and origin are
 	# not the pointing ray (especially with optical hand tracking).
 	var aim := XRController3D.new()
