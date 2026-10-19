@@ -2,7 +2,7 @@ name: Deploy web router
 
 on:
   push:
-    branches: [main, Multiplayer]
+    branches: [main]
     paths:
       - cloudflare/**
       - wrangler.jsonc

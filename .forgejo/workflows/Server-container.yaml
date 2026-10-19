@@ -2,7 +2,7 @@ name: Build Nix images
 
 on:
   push:
-    branches: [main, Multiplayer]
+    branches: [main]
     paths:
       - Server/**
       - cluster/server/**
