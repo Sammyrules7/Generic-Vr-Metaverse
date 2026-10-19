@@ -14,6 +14,7 @@ on:
       - scripts/publish_quest.mjs
       - scripts/publish_desktop.mjs
       - scripts/report_web_preview.mjs
+      - scripts/patch_webxr.mjs
       - .forgejo/workflows/**
       - scripts/tests/**
       - flake.nix

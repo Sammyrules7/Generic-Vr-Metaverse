@@ -155,13 +155,16 @@ jobs:
             godot --version
             sha256sum "$(command -v godot)"
             find /share/godot/export_templates -name 'web_*.zip' -exec sha256sum {} + | sort
-            sha256sum flake.nix flake.lock .forgejo/workflows/Web-preview.yaml Godot/export_presets.cfg
+            sha256sum flake.nix flake.lock .forgejo/workflows/Web-preview.yaml Godot/export_presets.cfg scripts/patch_webxr.mjs
           } > "$EXPORT_DIR/delivery-identity.txt"
 
       - name: Export web client
         run: |
           mkdir -p "$EXPORT_DIR"
           godot --headless --verbose --path "$PROJECT_PATH" --export-release "Web - Preview" "$EXPORT_DIR/index.html"
+          node scripts/patch_webxr.mjs "$EXPORT_DIR/index.js"
+          node --check "$EXPORT_DIR/index.js"
+          WEBXR_EXPORTED_JS="$EXPORT_DIR/index.js" node --test scripts/tests/webxr_runtime.test.mjs
           find "$EXPORT_DIR" -maxdepth 1 -type f -printf '%s %f\n' | sort -nr
 
       # Publishing runs inline in the same job so the exported client never

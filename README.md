@@ -80,6 +80,12 @@ The web export excludes unused XR Tools hand/glove variants; the selected
 low-poly controller hands and optical hand models remain included. Adjust the
 web preset exclusions if adding another addon hand style.
 
+CI runs `node scripts/patch_webxr.mjs build/web/index.js` after the Godot web
+export. Run this command for local web exports too. It updates the pinned
+engine runtime to reconcile browser input sources at session start and before
+each XR frame, including after returning from the browser. The patch rejects
+an unexpected export-template layout; CI also tests the actual exported runtime.
+
 New publications include precompressed PCK/WASM/JavaScript files for full browser
 downloads. Compression runs in CI; the router selects the gzip variant. The CDN
 caches each immutable storage URL separately through `fetch()`, without a second

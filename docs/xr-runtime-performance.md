@@ -40,14 +40,23 @@ when joints recover before the default pose signal. A registered optical tracker
 with temporarily missing data suppresses the controller fallback and its stale
 ray. Recovery and tracker replacement are covered by the hand and lobby tests.
 
-The shipped Godot 4.7 web template only registers input sources from subsequent
-`inputsourceschange` events. On WebXR re-entry, hands can already be present
-before that listener is installed. The session bootstrap in
-`Godot/web/webxr_session_bootstrap.js` replays only missing initial sources on the
-first XR frame, once per session; normal input events and permission failures
-remain unchanged. Node regressions cover repeated entry without tracking loss,
-duplicate events, source removal/replacement, and session end. The web preset
-explicitly includes this script in its PCK.
+The shipped Godot web template only registers input sources from subsequent
+`inputsourceschange` events. The export step runs `scripts/patch_webxr.mjs` to
+reconcile the runtime's actual input-source table with `XRSession.inputSources`
+at session creation and before every XR frame. Already-connected sources and
+missing engine slots recover without a hardware event. Removed sources are
+cleared before replacements are added. Matching sources are left alone.
+The native event handler also processes removals before additions: the original
+order cleared a replacement hand when the removed source shared its left/right
+slot in the same event.
+The previous synthetic-event session bootstrap is removed.
+
+The patch is checked against the pinned template layout and rejects unknown
+layouts. Web CI executes the lifecycle functions extracted from the actual
+exported JavaScript, covering repeated sessions, the same source objects reused
+across sessions, missing slots on resume, and hand/controller replacement.
+Local web exports need the same post-export command. Quest verification remains
+necessary; these tests do not exercise the browser's physical tracking system.
 
 Validation uses `scripts/check_runtime.sh`, the lobby test and the world-loading
 test, plus `python3 -m unittest discover -s scripts/tests -v`. Headless tests verify behavior, geometry/collision equivalence and yielding;

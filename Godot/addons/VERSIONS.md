@@ -9,7 +9,7 @@ clones stay small but still get everything in one fetch.
 
 | Addon | Vendored version | Upstream | Local patches |
 | --- | --- | --- | --- |
-| godot-xr-tools | 4.5.2 (`plugin.cfg`) | https://github.com/GodotVR/godot-xr-tools | `xr/start_xr.gd` + `xr/start_xr.tscn` (WebXR-first init, `webxr_support_changed`, app-owned `start_webxr` gesture plus the initial-input-source bootstrap in `res://web/webxr_session_bootstrap.js`; upstream EnterVR button removed). The 4.5.1-era `_property_get_revert` hacks were dropped — 4.5.2 fixes them properly |
+| godot-xr-tools | 4.5.2 (`plugin.cfg`) | https://github.com/GodotVR/godot-xr-tools | `xr/start_xr.gd` + `xr/start_xr.tscn` (WebXR-first init, `webxr_support_changed`, app-owned `start_webxr` gesture; upstream EnterVR button removed). Browser input recovery is applied to the exported engine by `scripts/patch_webxr.mjs`. The 4.5.1-era `_property_get_revert` hacks were dropped — 4.5.2 fixes them properly |
 | godotopenxrvendors | 5.1.0 (`GodotOpenXRVendors_CHANGES.md`) | https://github.com/GodotVR/godot_openxr_vendors | None. Prune per-platform `.bin` binaries for storefronts you never export to |
 
 `twovoip`, `webrtc_native`, and `godobuf` are also vendored here but their

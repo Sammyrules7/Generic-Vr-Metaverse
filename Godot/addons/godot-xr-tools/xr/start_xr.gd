@@ -290,10 +290,6 @@ func _on_webxr_session_failed(message: String) -> void:
 func start_webxr() -> void:
 	if xr_interface == null or xr_interface.get_name() != "WebXR" or not webxr_supported or xr_interface.is_initialized():
 		return
-	# Register hands already present when re-entering an immersive session.
-	# The shipped engine only listens for subsequent input-source additions.
-	if OS.has_feature("web"):
-		JavaScriptBridge.eval(FileAccess.get_file_as_string("res://web/webxr_session_bootstrap.js"), true)
 	# Configure the WebXR interface
 	xr_interface.session_mode = 'immersive-ar' if enable_passthrough else 'immersive-vr'
 	xr_interface.requested_reference_space_types = 'bounded-floor, local-floor, local'
