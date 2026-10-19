@@ -417,7 +417,7 @@ func _room_left() -> void:
 	world_loading = false
 	%WorldLoading.hide()
 	%Resume.disabled = false
-	%SessionStatus.text = ""
+	_set_status("")
 	set_menu_open(true)
 	_update_controls()
 
@@ -514,8 +514,11 @@ func _check_request(result: Error) -> void:
 
 func _operation_started(operation: RoomNetworking.Operation) -> void:
 	_update_controls()
+	if operation == RoomNetworking.Operation.LEAVE:
+		_set_status("")
+		return
 	if operation not in [RoomNetworking.Operation.RECOVER, RoomNetworking.Operation.REFRESH]:
-		_set_status({RoomNetworking.Operation.CREATE: "Creating room…", RoomNetworking.Operation.JOIN: "Joining room…", RoomNetworking.Operation.LEAVE: "Leaving room…"}[operation])
+		_set_status({RoomNetworking.Operation.CREATE: "Creating room…", RoomNetworking.Operation.JOIN: "Joining room…"}[operation])
 
 
 func _operation_finished(operation: RoomNetworking.Operation, success: bool, reason: String) -> void:
