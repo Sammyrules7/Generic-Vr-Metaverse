@@ -12,6 +12,7 @@ var panel: XRToolsViewport2DIn3D
 var ui: Control
 var xr_active := false
 var pointers: Array[Node3D] = []
+var tracked_hands: Dictionary = {}
 const WORLD_ADAPTER := preload("res://worlds/world_adapter.gd")
 const WORLD_RUNTIME := preload("res://worlds/world_runtime.gd")
 var _desktop_msaa: int
@@ -33,6 +34,7 @@ func _ready() -> void:
 	ui.set_webxr_supported($StartXR.webxr_supported)
 	ui.menu_changed.connect(_menu_changed)
 	$PlayerManager.local_player_spawned.connect(_player_spawned)
+	$PlayerManager.players_clearing.connect(_retain_tracked_hands)
 	Networking.room_networking.room_left.connect(_left)
 	_menu_changed(true)
 
@@ -114,6 +116,7 @@ func _disable_xr_lobby() -> void:
 		entry_camera.current = true
 	if is_instance_valid(panel):
 		panel.release_touch()
+		panel.enabled = false
 		ui.reparent(self)
 		panel.queue_free()
 	if is_instance_valid(lobby_origin):
@@ -122,6 +125,7 @@ func _disable_xr_lobby() -> void:
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if is_instance_valid($PlayerManager.local_player):
 		$PlayerManager.local_player.set_control_mode(false)
+	tracked_hands.clear()
 	ui.set_menu_open(true)
 
 
@@ -300,6 +304,16 @@ func _activate_player_rig() -> void:
 	panel.bind_rig(controls.get_node("Origin"), controls.head)
 
 
+func _retain_tracked_hands() -> void:
+	# PlayerManager calls this before freeing the outgoing player's controls.
+	# Keep the live optical meshes/modifiers for the next world in this session.
+	if not xr_active or not is_instance_valid(lobby_origin):
+		return
+	for tracked in tracked_hands.values():
+		if is_instance_valid(tracked) and tracked.get_parent() != lobby_origin:
+			tracked.reparent(lobby_origin, false)
+
+
 func _left() -> void:
 	_world_load_generation += 1
 	if is_instance_valid(_pending_world):
@@ -356,10 +370,18 @@ func _attach_pointer(controller: XRController3D) -> void:
 	pointer.enabled = false
 	pointers.append(pointer)
 	controller.button_pressed.connect(_controller_button_pressed.bind(controller.tracker))
-	var tracked := XRNode3D.new()
-	tracked.set_script(TRACKED_HAND)
-	tracked.hand = "left" if controller.tracker == &"left_hand" else "right"
-	controller.get_parent().add_child(tracked)
+	var side := "left" if controller.tracker == &"left_hand" else "right"
+	var tracked: Variant = tracked_hands.get(side)
+	if not is_instance_valid(tracked):
+		tracked = XRNode3D.new()
+		tracked.set_script(TRACKED_HAND)
+		tracked.hand = side
+		tracked_hands[side] = tracked
+		controller.get_parent().add_child(tracked)
+	elif tracked.get_parent() != controller.get_parent():
+		# World entry moves the already-tracking hands instead of constructing
+		# a second set that needs to initialize against a live browser source.
+		tracked.reparent(controller.get_parent(), false)
 
 
 func _controller_button_pressed(action: String, controller_tracker: StringName) -> void:

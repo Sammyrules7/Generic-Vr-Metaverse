@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://UI/room_selector.gd" id="1"]
 [ext_resource type="Script" path="res://UI/lobby_navigation.gd" id="2_navigation"]
+[ext_resource type="Texture2D" path="res://UI/icons/menu.svg" id="3_menu_icon"]
 
 [node name="roomSelector" type="Control"]
 layout_mode = 3
@@ -309,7 +310,8 @@ button_pressed = true
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "☰ Menu"
+text = "Menu"
+icon = ExtResource("3_menu_icon")
 
 [node name="MenuHint" type="Label" parent="."]
 visible = false

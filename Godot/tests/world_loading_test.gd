@@ -182,6 +182,7 @@ func _run() -> void:
 	await preload("res://worlds/world_runtime.gd").wait_for_rendering(get_tree(), callback)
 	check(Engine.get_process_frames() == frames_started, "Freed world owner did not cancel rendering wait")
 	await _test_staged_entry(game)
+	await _test_tracked_world_entry(game)
 	game.free()
 	await get_tree().create_timer(0.08).timeout
 	if profile_existed:
@@ -190,6 +191,63 @@ func _run() -> void:
 		DirAccess.remove_absolute("user://profile.cfg")
 	print("World loading: %d assertions, %d failures" % [assertions, failures])
 	get_tree().quit(1 if failures else 0)
+
+
+func _test_tracked_world_entry(game: Node) -> void:
+	var trackers: Array[XRHandTracker] = []
+	for side in ["left", "right"]:
+		var tracker := XRHandTracker.new()
+		tracker.name = "/user/hand_tracker/" + side
+		tracker.hand = XRPositionalTracker.TRACKER_HAND_LEFT if side == "left" else XRPositionalTracker.TRACKER_HAND_RIGHT
+		# WebXR reports UNKNOWN even with valid optical joints.
+		tracker.has_tracking_data = true
+		var pose := Transform3D(Basis.IDENTITY, Vector3(-0.2 if side == "left" else 0.2, 1.3, -0.4))
+		for joint in XRHandTracker.HAND_JOINT_MAX:
+			tracker.set_hand_joint_flags(joint, XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID | XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID)
+			tracker.set_hand_joint_transform(joint, pose)
+		tracker.set_pose("default", pose, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+		XRServer.add_tracker(tracker)
+		trackers.append(tracker)
+	game._enable_xr_lobby()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var hands: Dictionary = game.tracked_hands.duplicate()
+	var manager: PlayerManager = game.get_node("PlayerManager")
+	var ui: Control = game.ui
+	for entry in 2:
+		var room := roomClass.new(900 + entry, "Tracked entry", 1, "moon_garden")
+		Networking.room_networking.current_room = room
+		manager._room_joined(room)
+		for frame in 600:
+			if manager.local_player != null and not ui.world_loading:
+				break
+			await get_tree().process_frame
+		check(manager.local_player != null and not ui.world_loading, "Tracked world entry never completed")
+		if manager.local_player == null:
+			break
+		var origin: XROrigin3D = manager.local_player.controls.get_node("Origin")
+		for side in ["left", "right"]:
+			var hand: XRNode3D = hands[side]
+			check(game.tracked_hands[side] == hand and hand.get_parent() == origin, "World entry replaced or abandoned a live " + side + " hand")
+			check(hand.is_visible_in_tree() and hand.modifier.active, "World entry hid a continuously tracked " + side + " hand")
+		# Update joints without changing tracking validity or publishing a new
+		# default pose. The hand must move without an occlusion/reconnection.
+		var moved := Transform3D(Basis(Vector3.UP, 0.3), Vector3(0.35, 1.4, -0.6))
+		trackers[1].set_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM, moved)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var right: XRNode3D = hands.right
+		var expected := origin.global_transform * XRServer.get_reference_frame() * moved
+		check(right.global_transform.is_equal_approx(expected), "World-entry hand froze until a new tracking event")
+		manager._clear_players()
+		for hand in hands.values():
+			check(is_instance_valid(hand) and hand.get_parent() == game.lobby_origin, "Player cleanup freed a live session hand")
+		Networking.room_networking.current_room = null
+		game._left()
+		await get_tree().process_frame
+	game._disable_xr_lobby()
+	for tracker in trackers:
+		XRServer.remove_tracker(tracker)
 
 
 func _test_runtime_policy() -> void:

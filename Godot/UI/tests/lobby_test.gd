@@ -44,6 +44,8 @@ func _run() -> void:
 	var game = load("res://Main.tscn").instantiate()
 	add_child(game)
 	var ui = game.get_node("roomSelector")
+	var menu_button: Button = ui.get_node("%OpenRoomMenu")
+	check(menu_button.text == "Menu" and menu_button.icon != null, "Menu icon must be a bundled texture, not a font fallback glyph")
 	var registry := load(WorldCatalog.REGISTRY_PATH) as WorldRegistry
 	check(registry != null and not registry.worlds.is_empty(), "Bundled world registry did not load")
 	check(WorldCatalog.WORLDS.size() == 7 and WorldCatalog.WORLDS.has("moon_garden") and WorldCatalog.WORLDS.has("moonlit_grotto") and WorldCatalog.WORLDS.has("starlight_observatory") and WorldCatalog.WORLDS.has("blackthorn_house") and WorldCatalog.WORLDS.has("briarwick_manor"), "Bundled worlds are missing from the registry")

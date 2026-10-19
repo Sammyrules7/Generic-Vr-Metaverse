@@ -154,6 +154,30 @@ func run() -> void:
 		await process_frame
 		await process_frame
 		verify_pose(driver, origin, joints, snapshot, side + " curled/tilted")
+		# World entry constructs a rig after the tracker and its poses already
+		# exist. Do not publish another pose or remove/re-add the tracker.
+		var late_origin := XROrigin3D.new()
+		root.add_child(late_origin)
+		late_origin.transform = Transform3D(Basis(Vector3.UP, 0.8), Vector3(5, 1, -4))
+		var late_driver := XRNode3D.new()
+		late_driver.set_script(load("res://player/tracked_hand.gd"))
+		late_driver.hand = side
+		late_origin.add_child(late_driver)
+		var late_snapshot: Dictionary = {}
+		late_driver.modifier.modification_processed.connect(func():
+			for bone in late_driver.skeleton.get_bone_count():
+				late_snapshot[bone] = late_driver.skeleton.global_transform * late_driver.skeleton.get_bone_global_pose(bone)
+		)
+		await process_frame
+		await process_frame
+		check(late_driver.visible and late_driver.modifier.active, "World-entry hand did not bind an already-live tracker")
+		verify_pose(late_driver, late_origin, joints, late_snapshot, side + " already-tracked world entry")
+		late_driver.reparent(origin, false)
+		await process_frame
+		await process_frame
+		verify_pose(late_driver, origin, joints, late_snapshot, side + " reused hand in new origin")
+		late_driver.free()
+		late_origin.free()
 		tracker.has_tracking_data = false
 		driver._process(0.016)
 		check(not driver.visible and not driver.modifier.active, "Tracking gap left a frozen optical mesh visible")
