@@ -12,6 +12,8 @@ on:
       - scripts/check_runtime.sh
       - scripts/publish_web.sh
       - scripts/publish_quest.mjs
+      - scripts/publish_desktop.mjs
+      - scripts/report_web_preview.mjs
       - .forgejo/workflows/**
       - scripts/tests/**
       - flake.nix

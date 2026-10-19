@@ -1,4 +1,4 @@
-name: Native releases and SideQuest
+name: Build native platforms
 
 concurrency:
   group: native-release
@@ -13,12 +13,13 @@ on:
       - .itch.toml
       - .forgejo/workflows/Build-and-release.yaml
       - scripts/publish_quest.mjs
+      - scripts/publish_desktop.mjs
   workflow_dispatch:
     inputs:
       desktop:
-        description: Also build and publish Linux and Windows (main only)
+        description: Build Linux and Windows downloads alongside the Quest APK
         type: boolean
-        default: false
+        default: true
       notify_sidequest:
         description: Submit the signed APK to SideQuest (main only)
         type: boolean
@@ -36,7 +37,7 @@ env:
 jobs:
   desktop:
     name: Linux and Windows release
-    if: github.ref_name == 'main' && (github.event_name == 'push' || inputs.desktop)
+    if: github.event_name == 'push' || inputs.desktop
     runs-on: default
     container:
       # The image bundles godot, export templates, the Android SDK, and butler.
@@ -123,6 +124,15 @@ jobs:
         run: |
           mkdir -p ${{ env.EXPORT_DIR }}/windows
           godot --headless --verbose --path ${{ env.PROJECT_PATH }} --export-release "Windows - Release" "${{ env.EXPORT_DIR }}/windows/${{ env.EXPORT_NAME }}.exe"
+
+      - name: Package desktop downloads
+        run: |
+          chmod +x "$EXPORT_DIR/linux/$EXPORT_NAME.x86_64"
+          tar -czf "$EXPORT_DIR/$EXPORT_NAME-linux.tar.gz" -C "$EXPORT_DIR/linux" .
+          tar -czf "$EXPORT_DIR/$EXPORT_NAME-windows.tar.gz" -C "$EXPORT_DIR/windows" .
+
+      - name: Publish desktop downloads
+        run: node scripts/publish_desktop.mjs
 
       # --- ITCH.IO RELEASE ---
       # Runs inline in the same job so the exports never travel through a

@@ -122,13 +122,24 @@ storefront URLs, server names, and storage identifiers remain valid.
 
 Every branch push and PR update runs **Web preview**. Same-repository PRs publish
 under `pr-<number>/<commit>/`; fork PRs build without publishing credentials.
+The PR checks area includes a `preview/web` status: while building or on failure,
+its details link opens the workflow; once published, it opens that exact preview.
+`https://app.vr.maio-tech.com/pr-<number>/` follows the latest successful PR build.
+Closing the PR removes its previews.
 Manual previews can target a branch, tag, or commit; their cache and download
 identity use the commit actually checked out. Only non-PR builds can update the
 main web channel.
 
-**Native releases and SideQuest** has independent desktop and Quest jobs. A main
-push affecting the game builds both. Dispatch it on any branch for a signed Quest
-APK; desktop publication and SideQuest notification are restricted to main.
+For a manual build, open [Actions → Build native platforms](https://forgejo.maio-tech.com/Sammy/Generic-Vr-Platform/actions?workflow=Build-and-release.yaml),
+choose **Run workflow**, select the branch, and run with the default options.
+This builds Linux, Windows, and a signed Quest APK. Downloads appear in the job
+summaries and Forgejo Releases; branch builds are marked as prereleases. Disable
+the desktop checkbox for a Quest-only build. Windows and Linux downloads are
+compressed `.tar.gz` archives; extract them before running.
+
+**Build native platforms** has independent desktop and Quest jobs. A main
+push affecting the game builds both. Itch publication and SideQuest notification
+are restricted to main.
 The Quest job checks the signature and application ID, publishes a versioned APK
 as a Forgejo release asset, verifies anonymous download access, and
 prints the link in the job summary. Branch builds are marked as prereleases.
