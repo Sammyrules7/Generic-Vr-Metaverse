@@ -647,6 +647,13 @@ func _test_tracking_fallback(game: Node3D, panel: Node3D) -> void:
 	optical.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER
 	game._update_pointers()
 	check(controller_mesh.visible and game.pointers[-1].enabled, "Controller-sourced hand data hid the controller mesh")
+	optical.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_UNKNOWN
+	optical.has_tracking_data = true
+	game._update_pointers()
+	check(not controller_mesh.visible and not game.pointers[-1].enabled, "Live WebXR joints exposed a duplicate controller hand")
+	optical.has_tracking_data = false
+	game._update_pointers()
+	check(controller_mesh.visible and game.pointers[-1].enabled, "Stale WebXR hand tracker hid a live controller")
 	XRServer.remove_tracker(optical)
 	game._update_pointers()
 	check(controller_mesh.visible and game.pointers[-1].enabled, "Actual controller input did not recover after optical tracker removal")

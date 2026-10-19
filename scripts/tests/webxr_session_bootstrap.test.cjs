@@ -54,6 +54,31 @@ test('does not duplicate real initial input-source additions or replay removed s
     assert.deepEqual(engine.added, [left, right]);
     assert.deepEqual(engine.removed, [right]);
 });
+test('recovers sources announced before the engine subscribes, even after an early XR frame', async () => {
+    const hands = [{ handedness: 'left' }, { handedness: 'right' }];
+    const { xr } = install(async () => new Session([]));
+    const session = await xr.requestSession('immersive-vr');
+    const earlyConsumer = engineListener(session);
+    session.change(hands);
+    session.frame();
+    const engine = engineListener(session);
+    session.frame();
+    assert.deepEqual(engine.added, hands);
+    assert.deepEqual(earlyConsumer.added, hands, 'must not duplicate sources for existing consumers');
+});
+test('removed and aborted listeners cannot receive a queued snapshot', async () => {
+    const { xr } = install(async () => new Session([{}]));
+    const session = await xr.requestSession();
+    let calls = 0;
+    const listener = () => calls++;
+    session.addEventListener('inputsourceschange', listener);
+    session.removeEventListener('inputsourceschange', listener);
+    const abort = new AbortController();
+    session.addEventListener('inputsourceschange', listener, { signal: abort.signal });
+    abort.abort();
+    session.frame();
+    assert.equal(calls, 0);
+});
 test('replays only missing sources and leaves later hardware events intact', async () => {
     const left = {}, right = {}, replacement = {};
     const { xr } = install(async () => new Session([left]));

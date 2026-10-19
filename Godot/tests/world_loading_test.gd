@@ -308,6 +308,9 @@ func _test_staged_entry(game: Node3D) -> void:
 	# The XR drawing stage must use the live tracking camera at the new spawn,
 	# keeping hands and the loading tablet bound to that same origin.
 	game._enable_xr_lobby()
+	for side in ["LeftHand", "RightHand"]:
+		var grip := game.lobby_origin.get_node(side) as XRController3D
+		check(not grip.find_children("*", "MeshInstance3D", true, false).is_empty(), "Lobby controller has no hand model: " + side)
 	_load_world(game, definition.id)
 	var checked_xr_pose := false
 	before = completed

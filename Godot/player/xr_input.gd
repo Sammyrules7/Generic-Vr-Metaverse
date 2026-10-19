@@ -32,7 +32,12 @@ static func joint_valid(tracker: XRHandTracker, joint: int) -> bool:
 
 
 static func optical_hand(tracker: XRHandTracker) -> bool:
-	return tracker != null and tracker.hand_tracking_source != XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER
+	if tracker == null or tracker.hand_tracking_source == XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER:
+		return false
+	# WebXR leaves the source UNKNOWN and retains the hand tracker after
+	# switching to controllers. Its old identity must not suppress live grips.
+	# Explicit optical sources still suppress fallback during brief native gaps.
+	return tracker.has_tracking_data or tracker.hand_tracking_source != XRHandTracker.HAND_TRACKING_SOURCE_UNKNOWN
 
 
 static func joint_world(origin: XROrigin3D, tracker: XRHandTracker, joint: int) -> Transform3D:

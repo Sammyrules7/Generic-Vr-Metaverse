@@ -2,6 +2,10 @@ extends Node3D
 
 const POINTER := preload("res://addons/godot-xr-tools/functions/function_pointer.tscn")
 const TRACKED_HAND := preload("res://player/tracked_hand.gd")
+const CONTROLLER_HANDS := {
+	"left_hand": preload("res://addons/godot-xr-tools/hands/scenes/lowpoly/left_hand_low.tscn"),
+	"right_hand": preload("res://addons/godot-xr-tools/hands/scenes/lowpoly/right_hand_low.tscn"),
+}
 var lobby_origin: XROrigin3D
 var lobby_camera: XRCamera3D
 var panel: XRToolsViewport2DIn3D
@@ -58,6 +62,7 @@ func _enable_xr_lobby() -> void:
 		controller.name = "LeftHand" if hand == "left_hand" else "RightHand"
 		controller.tracker = hand
 		controller.pose = "grip"
+		controller.add_child(CONTROLLER_HANDS[hand].instantiate())
 		lobby_origin.add_child(controller)
 		_attach_pointer(controller)
 	panel = load("res://UI/vr_panel.tscn").instantiate()
@@ -405,14 +410,16 @@ func _update_pointers() -> void:
 
 
 func _process(delta: float) -> void:
-	if not xr_active or not is_instance_valid(panel) or not panel.visible:
+	if not xr_active:
+		return
+	_update_pointers()
+	if not is_instance_valid(panel) or not panel.visible:
 		return
 	var stick := Vector2.ZERO
 	var point := Vector2(-1, -1)
 	if _panel_body_cache == null or not is_instance_valid(_panel_body_cache):
 		_panel_body_cache = panel.get_node("StaticBody3D")
 	var body = _panel_body_cache
-	_update_pointers()
 	for pointer in pointers:
 		if not is_instance_valid(pointer) or not pointer.enabled:
 			continue
