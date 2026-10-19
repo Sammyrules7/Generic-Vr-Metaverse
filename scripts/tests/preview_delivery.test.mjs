@@ -9,7 +9,7 @@ import { publish } from '../publish_desktop.mjs';
 const identity = { GITHUB_SERVER_URL: 'https://internal-forgejo',
   GITHUB_REPOSITORY: 'owner/project', GITHUB_TOKEN: 'test-token',
   GITHUB_SHA: 'a'.repeat(40), BUILD_COMMIT: 'b'.repeat(40),
-  GITHUB_RUN_ID: '42', GITHUB_REF_NAME: 'feature', BUILD_SLUG: 'pr-7' };
+  GITHUB_RUN_ID: '42', GITHUB_RUN_NUMBER: '27', GITHUB_REF_NAME: 'feature', BUILD_SLUG: 'pr-7' };
 
 test('PR status opens the actual built commit only after successful publication', async () => {
   for (const result of ['pending', 'success', 'failure', 'cancelled']) {
@@ -19,7 +19,7 @@ test('PR status opens the actual built commit only after successful publication'
       assert.equal(body.context, 'preview/web');
       assert.equal(body.target_url, result === 'success'
         ? `https://app.vr.maio-tech.com/pr-7/${identity.BUILD_COMMIT}/`
-        : 'https://forgejo.maio-tech.com/owner/project/actions/runs/42');
+        : 'https://forgejo.maio-tech.com/owner/project/actions/runs/27');
       assert.equal(body.state, result === 'cancelled' ? 'error' : result);
       return new Response(null, { status: 201 });
     });

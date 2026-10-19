@@ -7,7 +7,7 @@ export async function report(env = process.env, request = fetch) {
   const { BUILD_COMMIT: commit, BUILD_SLUG: slug, PREVIEW_STATUS: result,
     GITHUB_SERVER_URL: server, GITHUB_REPOSITORY: repo } = env;
   if (!/^[0-9a-f]{40}$/.test(commit) || !/^pr-[1-9][0-9]*$/.test(slug) ||
-      !repo || !server) throw new Error('Missing PR preview identity');
+      !/^\d+$/.test(env.GITHUB_RUN_NUMBER) || !repo || !server) throw new Error('Missing PR preview identity');
   const token = env.FORGEJO_TOKEN || env.GITHUB_TOKEN;
   if (!token) throw new Error('Missing repository status credential');
   const statuses = {
@@ -20,7 +20,7 @@ export async function report(env = process.env, request = fetch) {
   const [state, description] = statuses[result];
   const target = result === 'success'
     ? `https://app.vr.maio-tech.com/${slug}/${commit}/`
-    : `https://forgejo.maio-tech.com/${repo}/actions/runs/${env.GITHUB_RUN_ID}`;
+    : `https://forgejo.maio-tech.com/${repo}/actions/runs/${env.GITHUB_RUN_NUMBER}`;
   const response = await request(`${server}/api/v1/repos/${repo}/statuses/${commit}`, {
     method: 'POST', redirect: 'error',
     headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
