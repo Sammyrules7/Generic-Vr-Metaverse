@@ -1,4 +1,9 @@
 [[actions]]
 name = "play"
-path = "generic-vr-metaverse.x86_64"
+path = "Generic-Vr-Platform.x86_64"
 platform = "linux"
+
+[[actions]]
+name = "play"
+path = "Generic-Vr-Platform.exe"
+platform = "windows"

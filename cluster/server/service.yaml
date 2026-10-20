@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  labels:
+    app.kubernetes.io/name: vr-platform-server
+    app.kubernetes.io/part-of: vr-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: vr-platform-server
+  ports:
+    - name: websocket
+      port: 8080
+      targetPort: websocket
+      protocol: TCP

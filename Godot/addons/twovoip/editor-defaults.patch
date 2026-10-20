@@ -1,0 +1,13 @@
+diff --git a/src/opus_encoder_object.cpp b/src/opus_encoder_object.cpp
+index d222012..a89ca6e 100644
+--- a/src/opus_encoder_object.cpp
++++ b/src/opus_encoder_object.cpp
+@@ -437,6 +437,8 @@ void TwovoipOpusEncoder::process_denoiser(float* prepared_audio_chunk) {
+ 
+ PackedVector2Array TwovoipOpusEncoder::get_current_chunk() const {
+     PackedVector2Array frames;
++    if (!initialized)
++        return frames;
+     const float* prepared_audio_chunk = (const float*)prepared_audio_ringbuffer.ptr() + (audio_ringbuffer_index % audio_ringbuffer_size_chunks) * output_chunk_size * channels;
+     frames.resize(output_chunk_size);
+     for (int frame = 0; frame < output_chunk_size; frame++) {

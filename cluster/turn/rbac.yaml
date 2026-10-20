@@ -1,0 +1,51 @@
+# Least privilege for the one-shot turn-init Job. Reads stay pinned to the two
+# Secrets; creation is namespace-wide because Kubernetes cannot scope create
+# by resource name (the name only exists inside the request). It may prod the
+# two consuming Deployments so boot-time config is picked up, nothing else.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["turn-shared", "turn-config", "signaling-turn"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["turn-config"]
+    verbs: ["patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["server", "coturn"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+subjects:
+  - kind: ServiceAccount
+    name: turn-init
+    namespace: vr-platform
+roleRef:
+  kind: Role
+  name: turn-init
+  apiGroup: rbac.authorization.k8s.io

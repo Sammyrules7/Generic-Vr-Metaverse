@@ -1,0 +1,21 @@
+{
+  "name": "vr-platform-web",
+  "main": "cloudflare/src/worker.js",
+  "compatibility_date": "2026-09-08",
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [
+    {
+      "pattern": "app.vr.maio-tech.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "api.vr.maio-tech.com",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "ORIGIN_URL": "https://vr-builds-origin.svc.maio-tech.com",
+    "API_ORIGIN_URL": "https://vr-api-origin.svc.maio-tech.com"
+  }
+}

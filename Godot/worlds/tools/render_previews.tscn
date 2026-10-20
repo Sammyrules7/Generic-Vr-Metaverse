@@ -1,0 +1,4 @@
+[gd_scene format=3]
+[ext_resource type="Script" path="res://worlds/tools/render_previews.gd" id="1"]
+[node name="RenderPreviews" type="Node"]
+script = ExtResource("1")

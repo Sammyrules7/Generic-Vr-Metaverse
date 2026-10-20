@@ -1,0 +1,191 @@
+# Public entry point for the TURN relay. Klipper (k3s default) provisions a
+# node-anchored external IP; clients must reach it directly (UDP), so the DNS
+# record for the TURN hostname must NOT go through the Cloudflare proxy.
+#
+# externalTrafficPolicy: Local preserves the client source IP (needed for NAT
+# behavior) and avoids an extra cluster hop for relayed media.
+apiVersion: v1
+kind: Service
+metadata:
+  name: coturn
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: vr-platform-turn
+  ports:
+    - name: turn-udp
+      port: 3478
+      targetPort: turn-udp
+      protocol: UDP
+    - name: turn-tcp
+      port: 3478
+      targetPort: turn-tcp
+      protocol: TCP
+    - name: relay-49160
+      port: 49160
+      targetPort: 49160
+      protocol: UDP
+    - name: relay-49161
+      port: 49161
+      targetPort: 49161
+      protocol: UDP
+    - name: relay-49162
+      port: 49162
+      targetPort: 49162
+      protocol: UDP
+    - name: relay-49163
+      port: 49163
+      targetPort: 49163
+      protocol: UDP
+    - name: relay-49164
+      port: 49164
+      targetPort: 49164
+      protocol: UDP
+    - name: relay-49165
+      port: 49165
+      targetPort: 49165
+      protocol: UDP
+    - name: relay-49166
+      port: 49166
+      targetPort: 49166
+      protocol: UDP
+    - name: relay-49167
+      port: 49167
+      targetPort: 49167
+      protocol: UDP
+    - name: relay-49168
+      port: 49168
+      targetPort: 49168
+      protocol: UDP
+    - name: relay-49169
+      port: 49169
+      targetPort: 49169
+      protocol: UDP
+    - name: relay-49170
+      port: 49170
+      targetPort: 49170
+      protocol: UDP
+    - name: relay-49171
+      port: 49171
+      targetPort: 49171
+      protocol: UDP
+    - name: relay-49172
+      port: 49172
+      targetPort: 49172
+      protocol: UDP
+    - name: relay-49173
+      port: 49173
+      targetPort: 49173
+      protocol: UDP
+    - name: relay-49174
+      port: 49174
+      targetPort: 49174
+      protocol: UDP
+    - name: relay-49175
+      port: 49175
+      targetPort: 49175
+      protocol: UDP
+    - name: relay-49176
+      port: 49176
+      targetPort: 49176
+      protocol: UDP
+    - name: relay-49177
+      port: 49177
+      targetPort: 49177
+      protocol: UDP
+    - name: relay-49178
+      port: 49178
+      targetPort: 49178
+      protocol: UDP
+    - name: relay-49179
+      port: 49179
+      targetPort: 49179
+      protocol: UDP
+    - name: relay-49180
+      port: 49180
+      targetPort: 49180
+      protocol: UDP
+    - name: relay-49181
+      port: 49181
+      targetPort: 49181
+      protocol: UDP
+    - name: relay-49182
+      port: 49182
+      targetPort: 49182
+      protocol: UDP
+    - name: relay-49183
+      port: 49183
+      targetPort: 49183
+      protocol: UDP
+    - name: relay-49184
+      port: 49184
+      targetPort: 49184
+      protocol: UDP
+    - name: relay-49185
+      port: 49185
+      targetPort: 49185
+      protocol: UDP
+    - name: relay-49186
+      port: 49186
+      targetPort: 49186
+      protocol: UDP
+    - name: relay-49187
+      port: 49187
+      targetPort: 49187
+      protocol: UDP
+    - name: relay-49188
+      port: 49188
+      targetPort: 49188
+      protocol: UDP
+    - name: relay-49189
+      port: 49189
+      targetPort: 49189
+      protocol: UDP
+    - name: relay-49190
+      port: 49190
+      targetPort: 49190
+      protocol: UDP
+    - name: relay-49191
+      port: 49191
+      targetPort: 49191
+      protocol: UDP
+    - name: relay-49192
+      port: 49192
+      targetPort: 49192
+      protocol: UDP
+    - name: relay-49193
+      port: 49193
+      targetPort: 49193
+      protocol: UDP
+    - name: relay-49194
+      port: 49194
+      targetPort: 49194
+      protocol: UDP
+    - name: relay-49195
+      port: 49195
+      targetPort: 49195
+      protocol: UDP
+    - name: relay-49196
+      port: 49196
+      targetPort: 49196
+      protocol: UDP
+    - name: relay-49197
+      port: 49197
+      targetPort: 49197
+      protocol: UDP
+    - name: relay-49198
+      port: 49198
+      targetPort: 49198
+      protocol: UDP
+    - name: relay-49199
+      port: 49199
+      targetPort: 49199
+      protocol: UDP
+    - name: relay-49200
+      port: 49200
+      targetPort: 49200
+      protocol: UDP
