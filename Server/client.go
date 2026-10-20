@@ -1,0 +1,144 @@
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
+
+const (
+	writeWait        = 10 * time.Second
+	pongWait         = 60 * time.Second
+	pingPeriod       = pongWait / 2
+	packetBurst      = 200.0
+	packetsPerSecond = 100.0
+
+	// Membership mint budgets. The per-socket rate must stay below the global
+	// rate so repeated admissions from a single socket cannot starve every
+	// other caller of the shared budget.
+	memberMintRate  = 1.0
+	memberMintBurst = 4.0
+	globalMintRate  = 2.0
+	globalMintBurst = 20.0
+)
+
+// Each limiter belongs to one client's read pump; no locking is needed.
+type rateLimit struct {
+	tokens  float64
+	updated time.Time
+}
+
+func (limit *rateLimit) allow(rate, burst float64) bool {
+	return limit.allowAt(time.Now(), rate, burst)
+}
+
+func (limit *rateLimit) allowAt(now time.Time, rate, burst float64) bool {
+	if limit.updated.IsZero() {
+		limit.tokens = burst
+	} else {
+		limit.tokens = min(burst, limit.tokens+now.Sub(limit.updated).Seconds()*rate)
+	}
+	limit.updated = now
+	if limit.tokens < 1 {
+		return false
+	}
+	limit.tokens--
+	return true
+}
+
+type Client struct {
+	id           uint32      // Signaling socket identity; assigned before pumps start.
+	peerID       uint32      // Preserved WebRTC identity after room recovery, or zero.
+	outgoing     chan []byte // Do not use directly, use Client.sendPacket()
+	closed       chan struct{}
+	conn         *websocket.Conn
+	close        sync.Once
+	roomID       uint32    // guarded by hub.mu
+	sessionID    uint32    // guarded by hub.mu; renewed on every room entry
+	roomCommands rateLimit // owned by the read pump
+	memberMints  rateLimit // guarded by hub.mu; one socket cannot drain the global budget
+}
+
+func (client *Client) meshID() uint32 {
+	if client.peerID != 0 {
+		return client.peerID
+	}
+	return client.id
+}
+
+func initClient(wsConn *websocket.Conn) {
+	client := &Client{
+		outgoing: make(chan []byte, 64),
+		closed:   make(chan struct{}),
+		conn:     wsConn,
+	}
+
+	hub.addClient(client)
+	go writePump(client)
+	go readPump(client)
+}
+
+func readPump(client *Client) {
+	defer func() {
+		client.disconnect()
+		hub.removeClient(client)
+	}()
+	client.conn.SetReadDeadline(time.Now().Add(pongWait))
+	client.conn.SetPongHandler(func(string) error {
+		return client.conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
+	// Signaling is low-volume; bound floods before decoding or taking hub.mu.
+	var packets rateLimit
+	for {
+		messageType, packet, err := client.conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		now := time.Now()
+		if !packets.allowAt(now, packetsPerSecond, packetBurst) {
+			return
+		}
+		if messageType != websocket.BinaryMessage {
+			return
+		}
+
+		handlePacketAt(now, packet, client)
+	}
+}
+
+func writePump(client *Client) {
+	// One writer owns socket writes. Hub operations only enqueue bytes, so a slow
+	// connection cannot hold up every client's membership changes.
+	defer client.disconnect()
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-client.closed:
+			return
+		case <-ticker.C:
+			if err := client.conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait)); err != nil {
+				return
+			}
+		case message := <-client.outgoing:
+
+			client.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := client.conn.WriteMessage(websocket.BinaryMessage, message)
+			if err != nil {
+				return
+			}
+		}
+	}
+}
+
+// Closing the socket wakes the read pump, which removes membership. Keeping
+// that cleanup out of disconnect lets a hub send disconnect a slow client.
+func (client *Client) disconnect() {
+	client.close.Do(func() {
+		close(client.closed)
+		client.conn.Close()
+		fmt.Printf("Client %d exited\n", client.id)
+	})
+}

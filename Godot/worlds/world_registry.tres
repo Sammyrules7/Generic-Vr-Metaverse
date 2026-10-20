@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="WorldRegistry" format=3 uid="uid://vv335jga1dfu"]
+
+[ext_resource type="Texture2D" uid="uid://cai5yrsqocble" path="res://worlds/blackthorn_house/preview.png" id="blackthorn_preview"]
+[ext_resource type="Texture2D" uid="uid://cw3am17yq2wwj" path="res://worlds/briarwick_manor/preview.png" id="briarwick_preview"]
+[ext_resource type="Script" uid="uid://yjergouxrq8c" path="res://worlds/world_definition.gd" id="definition"]
+[ext_resource type="Texture2D" uid="uid://dlhpnnkui2cmk" path="res://worlds/previews/moon_garden.png" id="garden_preview"]
+[ext_resource type="Texture2D" uid="uid://bl8c0dl0xe5rf" path="res://worlds/previews/moonlit_grotto.png" id="grotto_preview"]
+[ext_resource type="Texture2D" uid="uid://bbh3m4fu6dnue" path="res://worlds/previews/floating_island.png" id="island_preview"]
+[ext_resource type="Texture2D" uid="uid://be1iae8xslcsg" path="res://worlds/previews/starlight_observatory.png" id="observatory_preview"]
+[ext_resource type="Texture2D" uid="uid://beq61jcvww5of" path="res://worlds/previews/prairie_crossing.png" id="prairie_preview"]
+[ext_resource type="Script" uid="uid://dcimhdv3uvmrx" path="res://worlds/world_registry.gd" id="registry"]
+
+[sub_resource type="Resource" id="island"]
+script = ExtResource("definition")
+id = "floating_island"
+title = "Floating Island"
+description = "Grassy island with trees."
+scene_path = "res://worlds/floating_island/floating_island.tscn"
+preview = ExtResource("island_preview")
+
+[sub_resource type="Resource" id="garden"]
+script = ExtResource("definition")
+id = "moon_garden"
+title = "Moon Garden"
+description = "Open courtyard with trees and benches."
+scene_path = "res://worlds/moon_garden/moon_garden.tscn"
+preview = ExtResource("garden_preview")
+
+[sub_resource type="Resource" id="grotto"]
+script = ExtResource("definition")
+id = "moonlit_grotto"
+title = "Moonlit Grotto"
+description = "Rocky island sanctuary with a waterfall, lagoon, quartz shrine, and glowcap mushrooms."
+scene_path = "res://worlds/moonlit_grotto/moonlit_grotto.tscn"
+preview = ExtResource("grotto_preview")
+
+[sub_resource type="Resource" id="observatory"]
+script = ExtResource("definition")
+id = "starlight_observatory"
+title = "Starlight Observatory"
+description = "Moonlit alpine terrace with a brass observatory and interactive star globe."
+scene_path = "res://worlds/starlight_observatory/observatory.tscn"
+preview = ExtResource("observatory_preview")
+
+[sub_resource type="Resource" id="blackthorn"]
+script = ExtResource("definition")
+id = "blackthorn_house"
+title = "Blackthorn House"
+description = "A quiet manor with an optional murder mystery game. Join at the hall table, or just explore."
+scene_path = "res://worlds/blackthorn_house/blackthorn_house.tscn"
+preview = ExtResource("blackthorn_preview")
+
+[sub_resource type="Resource" id="briarwick"]
+script = ExtResource("definition")
+id = "briarwick_manor"
+title = "Briarwick Manor"
+description = "A painted storybook manor at blue hour. With Murder Mystery Support."
+scene_path = "res://worlds/briarwick_manor/briarwick_manor.tscn"
+preview = ExtResource("briarwick_preview")
+
+[sub_resource type="Resource" id="prairie"]
+script = ExtResource("definition")
+id = "prairie_crossing"
+title = "Prairie Crossing"
+description = "A prairie ravine overlook with physical controls for daylight, rain, and night lights."
+scene_path = "res://worlds/prairie_crossing/prairie_crossing.tscn"
+preview = ExtResource("prairie_preview")
+
+[resource]
+script = ExtResource("registry")
+worlds = Array[ExtResource("definition")]([SubResource("island"), SubResource("garden"), SubResource("grotto"), SubResource("observatory"), SubResource("blackthorn"), SubResource("briarwick"), SubResource("prairie")])

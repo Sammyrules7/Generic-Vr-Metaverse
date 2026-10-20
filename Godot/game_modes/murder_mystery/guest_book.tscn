@@ -1,0 +1,81 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="CoverMaterial"]
+albedo_color = Color(0.21960784, 0.16078432, 0.15294118, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="CoverMesh"]
+size = Vector3(0.82, 0.48, 0.035)
+
+[sub_resource type="StandardMaterial3D" id="PaperMaterial"]
+albedo_color = Color(0.83137256, 0.7607843, 0.6039216, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="PageMesh"]
+size = Vector3(0.38, 0.43, 0.02)
+
+[sub_resource type="StandardMaterial3D" id="GoldMaterial"]
+albedo_color = Color(0.59607846, 0.43137255, 0.22352941, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="SpineMesh"]
+size = Vector3(0.015, 0.43, 0.006)
+
+[node name="GuestBook" type="Node3D"]
+
+[node name="Cover" type="MeshInstance3D" parent="."]
+material_override = SubResource("CoverMaterial")
+mesh = SubResource("CoverMesh")
+
+[node name="LeftPage" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0, 0.027)
+material_override = SubResource("PaperMaterial")
+mesh = SubResource("PageMesh")
+
+[node name="RightPage" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, 0, 0.027)
+material_override = SubResource("PaperMaterial")
+mesh = SubResource("PageMesh")
+
+[node name="Spine" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.041)
+material_override = SubResource("GoldMaterial")
+mesh = SubResource("SpineMesh")
+
+[node name="Title" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0.165, 0.043)
+pixel_size = 0.0011
+shaded = true
+double_sided = false
+modulate = Color(0.4392157, 0.2901961, 0.20392157, 1)
+text = "THE EVENING GAME"
+font_size = 27
+outline_size = 0
+
+[node name="Instructions" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, -0.023, 0.043)
+pixel_size = 0.001
+shaded = true
+double_sided = false
+modulate = Color(0.17254902, 0.1882353, 0.17254902, 1)
+text = "Sign the guest book
+E / right grip
+
+Three guests to begin
+
+Your private card
+Tab / left A or X
+
+Visitors welcome."
+font_size = 26
+outline_size = 0
+
+[node name="Status" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, 0.025, 0.043)
+pixel_size = 0.001
+shaded = true
+double_sided = false
+modulate = Color(0.17254902, 0.1882353, 0.17254902, 1)
+text = "Awaiting guests"
+font_size = 27
+outline_size = 0

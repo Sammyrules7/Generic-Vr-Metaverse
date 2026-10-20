@@ -1,0 +1,13 @@
+diff --git a/lib_utils_external.py b/lib_utils_external.py
+index 5b27ed0..c9ed332 100644
+--- a/lib_utils_external.py
++++ b/lib_utils_external.py
+@@ -150,7 +150,7 @@ def cmake_build_project(env: SConsEnvironment, lib_path: str, extra_args: list,
+     if len(linker_flags):
+         platform_args += [f'-DCMAKE_EXE_LINKER_FLAGS={";".join(linker_flags)}']
+ 
+-    curdir = os.curdir
++    curdir = os.getcwd()
+     os.chdir(lib_path)
+     try:
+         build_dir = get_cmake_build_dir(env, lib_path)

@@ -1,0 +1,232 @@
+name: Web preview
+
+# The runner's cache proxy must stay reachable from job pods: it listens on
+# pinned port 42503 and is advertised at the forgejo-runner Service, which the
+# job pods' egress policy already allows, so the Godot import cache below
+# restores and saves instead of failing with ECONNREFUSED. Initial runs
+# populate the cache; subsequent runs should report "Cache restored successfully".
+# The in-game lobby test is wall-clock sensitive and can flake on busy runners.
+
+concurrency:
+  group: web-publish
+  cancel-in-progress: false
+
+on:
+  # Every commit is previewable, including branches added after this workflow.
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to build (blank uses the selected ref)
+        required: false
+        type: string
+      publish_main:
+        description: Publish this build at app.vr.maio-tech.com
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PROJECT_PATH: Godot
+  EXPORT_DIR: ${{ github.workspace }}/build/web
+
+jobs:
+  web-preview:
+    name: Build and publish web preview
+    runs-on: default
+    container:
+      # The image bundles godot, web export templates, and s5cmd for publishing.
+      # Updated automatically from the flake by Server-container.yaml.
+      image: nix:0/nix/store/5n7k4az0wdzn2z1z76dazrvdk8gr399a-nix-image-vr-platform-godot-web-ci.tar
+    steps:
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. A workflow_dispatch run can target a ref different from
+      # the selected one. No GitHub actions: this must stay act-runner native.
+      - name: Checkout requested ref with large files
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          REQUESTED_REF: ${{ inputs.ref || (github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number)) || github.sha }}
+        run: |
+          set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p /tmp
+          ci_home="$(mktemp -d /tmp/ci-home.XXXXXX)"
+          mkdir -p "$ci_home/config" "$ci_home/data/godot"
+          # Keep the image's read-only export templates reachable through the
+          # user-owned XDG data dir.
+          ln -s /share/godot/export_templates "$ci_home/data/godot/export_templates"
+          # Godot writes user:// settings under XDG dirs that must be owned by
+          # the uid; the image defaults point at root-owned /tmp paths here,
+          # which breaks profile.cfg persistence in the tests.
+          printf 'HOME=%s\nXDG_CONFIG_HOME=%s\nXDG_DATA_HOME=%s\n' \
+            "$ci_home" "$ci_home/config" "$ci_home/data" >> "$GITHUB_ENV"
+          export HOME="$ci_home"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          # Configure the LFS smudge filter before the first checkout so
+          # large files are materialized as real content.
+          git lfs install --local
+          if git fetch -q --no-tags --depth=1 origin "$REQUESTED_REF"; then
+            git checkout -qf --detach FETCH_HEAD
+          else
+            # A raw commit may need full history. Resolve it explicitly;
+            # never substitute the default branch for a misspelled ref.
+            git fetch -q --no-tags origin
+            git checkout -qf --detach "$REQUESTED_REF"
+          fi
+          git lfs pull
+
+      - name: Describe build
+        id: describe
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.ref || github.head_ref || github.ref_name }}
+          REQUESTED_MAIN: ${{ inputs.publish_main }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          commit="$(git rev-parse HEAD)"
+          branch="$REQUESTED_REF"
+          if [ "$EVENT_NAME" = "pull_request" ]; then branch="pr-$PR_NUMBER"; fi
+          slug="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-63 | sed 's/-*$//')"
+          if [ -z "$slug" ]; then slug="commit"; fi
+          publish_main=false
+          if [ "$EVENT_NAME" != "pull_request" ] && { [ "$REQUESTED_MAIN" = "true" ] || [ "$branch" = "main" ]; }; then publish_main=true; fi
+          printf 'BUILD_COMMIT=%s\nBUILD_BRANCH=%s\nBUILD_SLUG=%s\nPUBLISH_MAIN=%s\n' "$commit" "$branch" "$slug" "$publish_main" >> "$GITHUB_ENV"
+          printf 'commit=%s\nslug=%s\npublish_main=%s\n' "$commit" "$slug" "$publish_main" >> "$GITHUB_OUTPUT"
+
+      - name: Mark PR preview as building
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          PREVIEW_STATUS: pending
+        run: node scripts/report_web_preview.mjs
+
+      # Same import cache as Delivery-checks: the web export also needs a full
+      # --editor --import and both branches commit changed assets regularly.
+      # Distinct key prefix so a web snapshot never reuses a desktop snapshot.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: Godot/.godot/imported
+          key: godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ steps.describe.outputs.commit }}
+          restore-keys: |
+            godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+
+      - name: Read engine version
+        id: engine
+        run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
+
+      - name: Import project
+        run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
+
+      - name: Test native voice codec and audiences
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_codec_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_audience_test.gd
+
+      - name: Test player movement
+        run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/movement_test.gd
+
+      - name: Test XR hand tracking and menu
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
+
+      - name: Configure main signaling backend
+        env:
+          VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tools/configure_release.gd -- --web
+
+      - name: Record delivery identity
+        env:
+          VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: |
+          mkdir -p "$EXPORT_DIR"
+          {
+            printf 'commit=%s\nendpoint=%s\n' "$BUILD_COMMIT" "$VR_PLATFORM_SERVER_URL"
+            godot --version
+            sha256sum "$(command -v godot)"
+            find /share/godot/export_templates -name 'web_*.zip' -exec sha256sum {} + | sort
+            sha256sum flake.nix flake.lock .forgejo/workflows/Web-preview.yaml Godot/export_presets.cfg scripts/patch_webxr.mjs
+          } > "$EXPORT_DIR/delivery-identity.txt"
+
+      - name: Export web client
+        run: |
+          mkdir -p "$EXPORT_DIR"
+          godot --headless --verbose --path "$PROJECT_PATH" --export-release "Web - Preview" "$EXPORT_DIR/index.html"
+          node scripts/patch_webxr.mjs "$EXPORT_DIR/index.js"
+          node --check "$EXPORT_DIR/index.js"
+          WEBXR_EXPORTED_JS="$EXPORT_DIR/index.js" node --test scripts/tests/webxr_runtime.test.mjs
+          find "$EXPORT_DIR" -maxdepth 1 -type f -printf '%s %f\n' | sort -nr
+
+      # Publishing runs inline in the same job so the exported client never
+      # travels through a GitHub-compatible artifact transfer.
+      - name: Decompress web client for HTTP range requests
+        shell: bash
+        run: |
+          find "$EXPORT_DIR" -type f -print0 | while IFS= read -r -d '' asset; do
+            if gzip -t "$asset" 2>/dev/null; then
+              gzip -cd "$asset" > "$asset.uncompressed"
+              mv "$asset.uncompressed" "$asset"
+            fi
+          done
+
+      - name: Verify house audio in exported client
+        shell: bash
+        run: |
+          audio_check_project="$(mktemp -d /tmp/house-audio-check.XXXXXX)"
+          printf 'config_version=5\n' > "$audio_check_project/project.godot"
+          godot --headless --xr-mode off --path "$audio_check_project" --script "$GITHUB_WORKSPACE/scripts/check_house_audio.gd" -- "$EXPORT_DIR/index.pck"
+
+      - name: Publish immutable branch build
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        env:
+          GARAGE_BUCKET: vr-platform-web
+          GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: garage
+        run: bash scripts/publish_web.sh "branches/$BUILD_SLUG"
+
+      - name: Publish main channel
+        if: github.event_name != 'pull_request' && env.PUBLISH_MAIN == 'true'
+        shell: bash
+        env:
+          GARAGE_BUCKET: vr-platform-web
+          GARAGE_ENDPOINT: https://s3.svc.maio-tech.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.GARAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.GARAGE_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: garage
+        run: bash scripts/publish_web.sh channels/main
+
+      - name: Publish links
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        env:
+          BACKEND_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: |
+          preview_url="https://app.vr.maio-tech.com/$BUILD_SLUG/$BUILD_COMMIT/"
+          {
+            echo "## Web build published"
+            echo
+            echo "- Preview: $preview_url"
+            echo "- Latest for this PR or branch: https://app.vr.maio-tech.com/$BUILD_SLUG/"
+            if [ "$PUBLISH_MAIN" = "true" ]; then echo "- Main: https://app.vr.maio-tech.com/"; fi
+            echo "- Backend: $BACKEND_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$preview_url"
+
+      - name: Report PR preview in checks
+        if: always() && steps.describe.outcome == 'success' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          PREVIEW_STATUS: ${{ job.status }}
+        run: node scripts/report_web_preview.mjs

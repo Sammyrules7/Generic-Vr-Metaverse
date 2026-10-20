@@ -1,0 +1,95 @@
+name: Delivery drift checks
+
+# A branch push and its pull_request event describe the same commit. Serialize
+# them so the heavyweight import, nine Godot suites, and Go server build do not
+# run twice at once; concurrent runs have exhausted the runner pod and killed
+# the job mid-step.
+concurrency:
+  group: delivery-checks-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+    paths:
+      - Godot/**
+      - Server/**
+      - Protocol/**
+      - native-libraries.json
+      - scripts/check_delivery.py
+      - scripts/check_house_audio.gd
+      - scripts/check_runtime.sh
+      - scripts/publish_web.sh
+      - scripts/publish_quest.mjs
+      - scripts/publish_desktop.mjs
+      - scripts/report_web_preview.mjs
+      - scripts/patch_webxr.mjs
+      - .forgejo/workflows/**
+      - scripts/tests/**
+      - flake.nix
+      - flake.lock
+      - .gitattributes
+      - .forgejo/workflows/Delivery-checks.yaml
+  pull_request:
+  workflow_dispatch:
+jobs:
+  drift:
+    runs-on: nix
+    # Run inside the builder image so git-lfs, python, and the nix daemon are
+    # all available; the bare host lacked node-lfs tooling.
+    container:
+      # Updated automatically from the flake by Server-container.yaml.
+      image: nix:0/nix/store/y17p9qq53r11hxcfywqmlpabcf7ik932-nix-image-vr-platform-builder-ci.tar
+    steps:
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. No GitHub actions: this must stay act-runner native.
+      - name: Checkout repository with large files
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          FETCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p "$HOME" /tmp
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          # Configure the LFS smudge filter before the first checkout so
+          # large files are materialized as real content.
+          git lfs install --local
+          git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
+          git checkout -qf --detach FETCH_HEAD
+          git lfs pull
+      # Basic import cache: restore the previous run's .godot/imported snapshot,
+      # keyed to the engine (via flake.lock), saving the refreshed snapshot at
+      # job end. Commit-specific keys with a compatibility fallback follow
+      # docs/ci-review.md. The runner must provide the Forgejo cache service;
+      # if it is not configured this step fails with the documented GHES error.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: Godot/.godot/imported
+          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          restore-keys: |
+            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+      - name: Check native libraries, world allowlist, LFS and generated protocol
+        env:
+          # Nix verifies that $HOME is owned by the current uid; the plugin
+          # leaves /tmp root-owned and the image has no passwd entry, so give
+          # it a fresh user-owned directory.
+          HOME: /tmp
+        run: |
+          HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
+          export HOME
+          nix develop --command bash -euo pipefail -c '
+            python3 scripts/check_delivery.py
+            python3 -m unittest discover -s scripts/tests -v
+            godot --headless --xr-mode off --editor --import --path Godot
+            bash Protocol/generate.sh
+            git diff --exit-code -- Server/protocol/packets.pb.go Godot/Networking/Generated/Packets.gd
+            bash scripts/check_runtime.sh
+            godot --headless --xr-mode off --path Godot res://tests/world_loading_test.tscn
+          '

@@ -1,0 +1,48 @@
+name: Deploy web router
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - cloudflare/**
+      - wrangler.jsonc
+      - .forgejo/workflows/Worker-deploy.yaml
+  workflow_dispatch:
+
+concurrency:
+  group: web-router-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: default
+    container:
+      # Updated with the publisher image by Server-container.yaml.
+      image: nix:0/nix/store/3f977p36cvnlih2rh5c5pckfgmljcpkv-nix-image-vr-platform-web-publish-ci.tar
+    steps:
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. No GitHub actions: keep act-runner native.
+      - name: Checkout router configuration
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          FETCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p "$HOME" /tmp
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
+          git checkout -qf --detach FETCH_HEAD
+
+      - name: Test browser caching and build routing
+        run: node --test cloudflare/tests/worker.test.mjs
+
+      - name: Deploy router
+        env:
+          CLOUDFLARE_ACCOUNT_ID: a92ab2f2ab0059485a5a45d61783b5da
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: wrangler deploy

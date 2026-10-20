@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  labels:
+    app.kubernetes.io/name: vr-platform-server
+    app.kubernetes.io/part-of: vr-platform
+spec:
+  # Each process has its own directory. Never overlap replicas during rollout.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vr-platform-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vr-platform-server
+        app.kubernetes.io/part-of: vr-platform
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: server
+          image: nix:0/nix/store/nrsd518ancgllrfzj05kkwwzwczf7x1z-nix-image-vr-platform-server.tar
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: websocket
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: websocket
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          env:
+            # TURN relay for symmetric-NAT clients. All three come from cluster
+            # Secrets created out of band (see cluster/turn/README). Empty
+            # secret/URLs disable the relay; clients stay STUN-only.
+            - name: VR_PLATFORM_TURN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: signaling-turn
+                  key: shared-secret
+                  optional: true
+            - name: VR_PLATFORM_TURN_URLS
+              value: "turn:turn.vr.maio-tech.com:3478"
+            - name: VR_PLATFORM_TURN_TTL_HOURS
+              value: "24"
+          livenessProbe:
+            tcpSocket:
+              port: websocket
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
