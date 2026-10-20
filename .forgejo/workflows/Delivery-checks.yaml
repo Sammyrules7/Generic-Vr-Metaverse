@@ -1,4 +1,13 @@
 name: Delivery drift checks
+
+# A branch push and its pull_request event describe the same commit. Serialize
+# them so the heavyweight import, nine Godot suites, and Go server build do not
+# run twice at once; concurrent runs have exhausted the runner pod and killed
+# the job mid-step.
+concurrency:
+  group: delivery-checks-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
 on:
   push:
     branches: ['**']
