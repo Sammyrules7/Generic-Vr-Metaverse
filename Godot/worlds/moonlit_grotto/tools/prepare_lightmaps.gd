@@ -11,6 +11,13 @@
 #   4. Sets all nine static lights to Bake Static.
 #   5. Adds a root-level LightmapGI node, ready to bake in the editor.
 #
+# lightmap_unwrap() invalidates each mesh's imported shadow_mesh (the shadow
+# copy no longer has the same vertex data as the unwrapped surface). Forward+
+# renders the depth prepass from the shadow mesh and requires it to match the
+# main mesh exactly; a stale copy makes the main geometry fail the depth test
+# and disappear. The script therefore clears shadow_mesh after unwrapping so
+# the main surface is used for the depth prepass.
+#
 # The scene is self-contained (GLB flattened to inline meshes by build_grotto.gd),
 # is referenced by path rather than uid, and carries no scene uid, so a re-save
 # through ResourceSaver is safe (same flow build_grotto.gd itself uses).
@@ -76,6 +83,10 @@ func _init() -> void:
 		if mesh is ArrayMesh:
 			if _needs_uv2(mesh):
 				mesh.lightmap_unwrap(xform, TEXEL_SIZE)
+				# The imported shadow mesh was built from the pre-unwrap vertex
+				# buffer. Forward+ requires it to match the main mesh exactly,
+				# so drop it and let the main surface feed the depth prepass.
+				(mesh as ArrayMesh).shadow_mesh = null
 				unwrapped += 1
 		else:
 			# PrimitiveMesh and friends: rebuild as an ArrayMesh, then unwrap.

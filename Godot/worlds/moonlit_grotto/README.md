@@ -26,6 +26,12 @@ which is preserved for reproducibility):
   the moon disc and the five mote particle systems. Emissive crystals,
   glowcaps and lantern flames remain included as static light sources.
 - A root-level **LightmapGI** node (directional, texel scale 1.0) is present.
+- Imported `shadow_mesh` copies are cleared from the baked meshes. Unwrapping
+  rebuilds the main vertex buffers, and Forward+ uses the shadow mesh for the
+  depth prepass, requiring its vertices to match the main mesh exactly. A stale
+  shadow copy makes the geology vanish in Forward+ only. With every light set
+  to **Bake Static**, no realtime shadow casters are needed, so the main mesh
+  can serve the depth prepass.
 
 The scene ships pre-baked: `moonlit_grotto.lmbake` (with its `.exr` data texture)
 was generated with the Forward+ renderer on this setup, using Quality **High**,
