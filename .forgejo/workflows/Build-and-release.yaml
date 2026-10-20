@@ -1,48 +1,117 @@
+name: Build native platforms
+
+concurrency:
+  group: native-release
+  cancel-in-progress: false
+
 on:
   push:
     branches: ["main"]
+    paths:
+      - Godot/**
+      - '!Godot/**/*.md'
+      - .itch.toml
+      - .forgejo/workflows/Build-and-release.yaml
+      - scripts/publish_quest.mjs
+      - scripts/publish_desktop.mjs
   workflow_dispatch:
+    inputs:
+      desktop:
+        description: Build Linux and Windows downloads alongside the Quest APK
+        type: boolean
+        default: true
+      notify_sidequest:
+        description: Submit the signed APK to SideQuest (main only)
+        type: boolean
+        default: false
 
 env:
-  GODOT_VERSION: 4.7
-  EXPORT_NAME: generic-vr-metaverse
+  EXPORT_NAME: Generic-Vr-Platform
   PROJECT_PATH: Godot
   EXPORT_DIR: ${{ github.workspace }}/build
+  GRADLE_USER_HOME: ${{ github.workspace }}/build/gradle
 
   ITCH_USER: sammyrules7
   ITCH_GAME: generic-vr-metaverse
 
 jobs:
-  export-all:
-    name: 🛠️ Build
+  desktop:
+    name: Linux and Windows release
+    if: github.event_name == 'push' || inputs.desktop
     runs-on: default
     container:
-      image: barichello/godot-ci:4.7
+      # The image bundles godot, export templates, the Android SDK, and butler.
+      # Updated automatically from the flake by Server-container.yaml.
+      image: nix:0/nix/store/2mc9172w42pw5wnhsbpr2d18bjcga0gq-nix-image-vr-platform-godot-ci.tar
     steps:
-      - name: Bootstrapping
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. No GitHub actions: this must stay act-runner native.
+      - name: Checkout repository with large files
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          FETCH_REF: ${{ github.sha }}
         run: |
-          apt-get update && apt-get install -y --no-install-recommends wget xz-utils zstd libfontconfig1
-          wget -q https://nodejs.org/dist/v20.16.0/node-v20.16.0-linux-x64.tar.xz
-          tar -xJf node-v20.16.0-linux-x64.tar.xz --strip-components=1 -C /usr/local
-          rm node-v20.16.0-linux-x64.tar.xz && rm -rf /var/lib/apt/lists/*
+          set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p /tmp
+          ci_home="$(mktemp -d /tmp/ci-home.XXXXXX)"
+          mkdir -p "$ci_home/config" "$ci_home/data/godot"
+          # Keep the image's read-only export templates reachable through the
+          # user-owned XDG data dir.
+          ln -s /share/godot/export_templates "$ci_home/data/godot/export_templates"
+          # Godot writes user:// settings under XDG dirs that must be owned by
+          # the uid; the image defaults point at root-owned /tmp paths here,
+          # which breaks profile.cfg persistence in the tests.
+          printf 'HOME=%s\nXDG_CONFIG_HOME=%s\nXDG_DATA_HOME=%s\n' \
+            "$ci_home" "$ci_home/config" "$ci_home/data" >> "$GITHUB_ENV"
+          export HOME="$ci_home"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          # Configure the LFS smudge filter before the first checkout so
+          # large files are materialized as real content.
+          git lfs install --local
+          git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
+          git checkout -qf --detach FETCH_HEAD
+          git lfs pull
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          lfs: true
+      - name: Read engine version
+        id: engine
+        run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
 
-      - name: Cache .godot folder
-        id: godot-cache
-        uses: actions/cache@v4
+      # Share compatible native imports with Delivery checks, keeping the
+      # current commit immutable and falling back to the latest snapshot.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
         with:
-          path: ${{ env.PROJECT_PATH }}/.godot
-          key: godot-assets-${{ github.ref_name }}-${{ hashFiles('**/project.godot') }}
+          path: Godot/.godot/imported
+          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
           restore-keys: |
-            godot-assets-${{ github.ref_name }}-
-            godot-assets-
+            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
 
       - name: Run Headless Import
-        run: godot --headless --editor --quit --path ${{ env.PROJECT_PATH }}
+        run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
+
+      - name: Test native voice codec and audiences
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_codec_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_audience_test.gd
+
+      - name: Test player movement
+        run: godot --headless --path ${{ env.PROJECT_PATH }} --xr-mode off --script res://tests/movement_test.gd
+
+      - name: Test XR hand tracking and menu
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
+
+      - name: Configure release signaling endpoint
+        env:
+          VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: godot --headless --xr-mode off --path ${{ env.PROJECT_PATH }} --script res://tools/configure_release.gd
 
       # --- LINUX BUILD ---
       - name: Build Linux Release
@@ -50,44 +119,162 @@ jobs:
           mkdir -p ${{ env.EXPORT_DIR }}/linux
           godot --headless --verbose --path ${{ env.PROJECT_PATH }} --export-release "Linux - Release" "${{ env.EXPORT_DIR }}/linux/${{ env.EXPORT_NAME }}.x86_64"
 
-      - name: Upload Linux Build Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: Linux-Build
-          path: ${{ env.EXPORT_DIR }}/linux
-
       # --- WINDOWS BUILD ---
       - name: Build Windows Release
         run: |
           mkdir -p ${{ env.EXPORT_DIR }}/windows
           godot --headless --verbose --path ${{ env.PROJECT_PATH }} --export-release "Windows - Release" "${{ env.EXPORT_DIR }}/windows/${{ env.EXPORT_NAME }}.exe"
 
-      - name: Upload Windows Build Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: Windows-Build
-          path: ${{ env.EXPORT_DIR }}/windows
+      - name: Package desktop downloads
+        run: |
+          chmod +x "$EXPORT_DIR/linux/$EXPORT_NAME.x86_64"
+          tar -czf "$EXPORT_DIR/$EXPORT_NAME-linux.tar.gz" -C "$EXPORT_DIR/linux" .
+          tar -czf "$EXPORT_DIR/$EXPORT_NAME-windows.tar.gz" -C "$EXPORT_DIR/windows" .
 
-      # --- ANDROID BUILD ---
-      - name: Cache Gradle Dependencies
-        uses: actions/cache@v4
+      - name: Publish desktop downloads
+        run: node scripts/publish_desktop.mjs
+
+      # --- ITCH.IO RELEASE ---
+      # Runs inline in the same job so the exports never travel through a
+      # GitHub-compatible artifact transfer.
+      - name: Prepare Itch.io builds
+        if: github.ref_name == 'main'
+        run: |
+          chmod +x "${{ env.EXPORT_DIR }}/linux/${{ env.EXPORT_NAME }}.x86_64"
+          cp .itch.toml "${{ env.EXPORT_DIR }}/linux/.itch.toml"
+          cp .itch.toml "${{ env.EXPORT_DIR }}/windows/.itch.toml"
+
+      - name: Push Builds to Itch.io
+        if: github.ref_name == 'main'
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          butler push "${{ env.EXPORT_DIR }}/linux" ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:linux
+          butler push "${{ env.EXPORT_DIR }}/windows" ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:windows
+
+  sidequest:
+    name: Signed Quest APK
+    runs-on: default
+    container:
+      # The image bundles godot, export templates, the Android SDK, and butler.
+      # Updated automatically from the flake by Server-container.yaml.
+      image: nix:0/nix/store/2mc9172w42pw5wnhsbpr2d18bjcga0gq-nix-image-vr-platform-godot-ci.tar
+    steps:
+      # This runner starts with an empty workspace, so clone explicitly with
+      # the job token. No GitHub actions: this must stay act-runner native.
+      - name: Checkout repository with large files
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          FETCH_REF: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          mkdir -p /tmp
+          ci_home="$(mktemp -d /tmp/ci-home.XXXXXX)"
+          mkdir -p "$ci_home/config" "$ci_home/data/godot"
+          # Keep the image's read-only export templates reachable through the
+          # user-owned XDG data dir.
+          ln -s /share/godot/export_templates "$ci_home/data/godot/export_templates"
+          # Godot writes user:// settings under XDG dirs that must be owned by
+          # the uid; the image defaults point at root-owned /tmp paths here,
+          # which breaks profile.cfg persistence in the tests.
+          printf 'HOME=%s\nXDG_CONFIG_HOME=%s\nXDG_DATA_HOME=%s\n' \
+            "$ci_home" "$ci_home/config" "$ci_home/data" >> "$GITHUB_ENV"
+          export HOME="$ci_home"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q "$GITHUB_WORKSPACE"
+          git remote add origin "$REPO_URL"
+          git config "http.$REPO_URL.extraheader" "$header"
+          # Configure the LFS smudge filter before the first checkout so
+          # large files are materialized as real content.
+          git lfs install --local
+          git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
+          git checkout -qf --detach FETCH_HEAD
+          git lfs pull
+
+      - name: Read engine version
+        id: engine
+        run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Gradle downloads
+        id: gradle-cache
+        uses: https://code.forgejo.org/actions/cache/restore@v4
         with:
           path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
+          key: quest-gradle-${{ runner.os }}-${{ steps.engine.outputs.version }}-${{ hashFiles('flake.lock', 'Godot/export_presets.cfg') }}
 
+      # Share compatible native imports with Delivery checks, keeping the
+      # current commit immutable and falling back to the latest snapshot.
+      - name: Restore Godot import cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: Godot/.godot/imported
+          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          restore-keys: |
+            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+
+      - name: Run Headless Import
+        run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
+
+      - name: Test native voice codec and audiences
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_codec_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_audience_test.gd
+
+      - name: Test player movement
+        run: godot --headless --path ${{ env.PROJECT_PATH }} --xr-mode off --script res://tests/movement_test.gd
+
+      - name: Test XR hand tracking and menu
+        run: |
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
+
+      - name: Configure release signaling endpoint
+        env:
+          VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
+        run: godot --headless --xr-mode off --path ${{ env.PROJECT_PATH }} --script res://tools/configure_release.gd
+
+      # --- ANDROID BUILD ---
       - name: Update Version
         run: |
           cd ${{ env.PROJECT_PATH }}
-          VERSION_NAME="0.0.${{ github.run_number }}"
-          sed -i "s/version\/code=.*/version\/code=${{ github.run_number }}/g" export_presets.cfg
+          # Seconds since 2020 stay monotonic across workflow moves and
+          # remain within Android's signed 32-bit versionCode limit until 2088.
+          VERSION_CODE="$(( $(date +%s) - 1577836800 ))"
+          VERSION_NAME="0.1.$VERSION_CODE"
+          printf 'VERSION_CODE=%s\nVERSION_NAME=%s\n' "$VERSION_CODE" "$VERSION_NAME" >> "$GITHUB_ENV"
+          sed -i "s/version\/code=.*/version\/code=$VERSION_CODE/g" export_presets.cfg
           sed -i "s/version\/name=.*/version\/name=\"$VERSION_NAME\"/g" export_presets.cfg
 
       - name: Decode Android Keystore
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/release.keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          : "${ANDROID_KEYSTORE_BASE64:?Set ANDROID_KEYSTORE_BASE64 to the existing release signing key}"
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$GITHUB_WORKSPACE/release.keystore"
+
+      - name: Point gradle at the Nix AAPT2
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:?}" "${JAVA_HOME:?}" "${GRADLE_USER_HOME:?}"
+          aapt2="$(find -L "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -1)"
+          test -x "$aapt2"
+          mkdir -p "$GRADLE_USER_HOME" "$XDG_CONFIG_HOME/godot"
+          printf 'android.aapt2FromMavenOverride=%s\n' "$aapt2" > "$GRADLE_USER_HOME/gradle.properties"
+          # Explicit editor settings avoid relying on editor auto-discovery.
+          engine_minor="$(godot --version | cut -d. -f1,2)"
+          cat > "$XDG_CONFIG_HOME/godot/editor_settings-$engine_minor.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOF
 
       - name: Build Android Release
         env:
@@ -95,88 +282,63 @@ jobs:
           GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
+          set -euo pipefail
+          : "${GODOT_ANDROID_KEYSTORE_RELEASE_USER:?}" "${GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD:?}"
           mkdir -p ${{ env.EXPORT_DIR }}/android
-          godot --headless --install-android-build-template --verbose --path ${{ env.PROJECT_PATH }} --export-release "Android - Release" "${{ env.EXPORT_DIR }}/android/${{ env.EXPORT_NAME }}.apk"
+          # The CLI install flag only works as part of an export, so unpack
+          # first to configure Gradle before Godot starts the Android build.
+          template_version="$(godot --version | cut -d. -f1-4)"
+          source_zip="/share/godot/export_templates/$template_version/android_source.zip"
+          test -f "$source_zip"
+          mkdir -p "$PROJECT_PATH/android/build"
+          unzip -q "$source_zip" -d "$PROJECT_PATH/android/build"
+          printf '%s\n' "$template_version" > "$PROJECT_PATH/android/.build_version"
+          touch "$PROJECT_PATH/android/build/.gdignore"
+          chmod +x "$PROJECT_PATH/android/build/gradlew"
+          # The template's NDK revision can differ from the pinned image.
+          # This export packages prebuilt native libraries; use the installed
+          # NDK for stripping instead of downloading into a read-only SDK.
+          ndk="$(find -L "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -n "$ndk"
+          sed -i -E "s/(ndkVersion[[:space:]]*:[[:space:]]*)'[^']*'/\1'${ndk##*\/}'/" "$PROJECT_PATH/android/build/config.gradle"
+          godot --headless --xr-mode off --verbose --path "$PROJECT_PATH" --export-release "Android - Release" "$EXPORT_DIR/android/$EXPORT_NAME.apk"
 
-      - name: Upload Android Build Artifact
-        uses: actions/upload-artifact@v3
+      # Preserve a successful build's downloads even if publication later fails.
+      - name: Save Gradle downloads
+        if: steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: https://code.forgejo.org/actions/cache/save@v4
         with:
-          name: Android-Build
-          path: ${{ env.EXPORT_DIR }}/android
+          path: |
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
 
-  deploy-itch:
-    name: 🚀 Deploy to Itch.io
-    needs: export-all
-    if: github.ref_name == 'main'
-    runs-on: default
-    container:
-      image: debian:stable-slim
-    steps:
-      - name: Bootstrapping
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$GITHUB_WORKSPACE/release.keystore"
+
+      - name: Verify APK signature and package identity
         run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            ca-certificates \
-            curl \
-            unzip \
-            wget  \
-            nodejs \
-            file \
-            gzip
+          set -euo pipefail
+          apk="$EXPORT_DIR/android/$EXPORT_NAME.apk"
+          tools="$(find -L "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$tools/apksigner" verify "$apk"
+          "$tools/aapt2" dump badging "$apk" > "$EXPORT_DIR/android/badging.txt"
+          grep -F "package: name='com.maiotech.vrplatform' versionCode='$VERSION_CODE'" "$EXPORT_DIR/android/badging.txt"
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Publish downloadable Quest APK and optionally notify SideQuest
+        env:
+          APK_PATH: ${{ env.EXPORT_DIR }}/android/${{ env.EXPORT_NAME }}.apk
+          # The runner's API address is internal; release downloads are public.
+          FORGEJO_PUBLIC_URL: https://forgejo.maio-tech.com
+          SIDEQUEST_WEBHOOK_URL: ${{ secrets.SIDEQUEST_WEBHOOK_URL }}
+          NOTIFY_SIDEQUEST: ${{ github.ref_name == 'main' && (inputs.notify_sidequest || (github.event_name == 'push' && secrets.SIDEQUEST_WEBHOOK_URL != '')) }}
+        run: node scripts/publish_quest.mjs
 
-      - name: Download Linux Build
-        uses: actions/download-artifact@v3
-        with:
-          name: Linux-Build
-          path: ${{ env.EXPORT_DIR }}/linux
-
-      - name: Download Windows Build
-        uses: actions/download-artifact@v3
-        with:
-          name: Windows-Build
-          path: ${{ env.EXPORT_DIR }}/windows
-
-      - name: Download Android Build
-        uses: actions/download-artifact@v3
-        with:
-          name: Android-Build
-          path: ${{ env.EXPORT_DIR }}/android
-
-      - name: Decompress Gzipped Artifacts & Set Permissions
-        run: |
-          echo "Scanning for API-corrupted gzip files..."
-          find "${{ env.EXPORT_DIR }}" -type f | while read -r filepath; do
-            if file "$filepath" | grep -q "gzip compressed data"; then
-              echo "Healing compressed file to its exact name: $filepath"
-              mv "$filepath" "$filepath.gz"
-              gunzip -c "$filepath.gz" > "$filepath"
-              rm "$filepath.gz"
-            fi
-          done
-
-          # Explicitly ensure the Linux executable has run permissions
-          echo "Setting Linux executable permissions..."
-          chmod +x "${{ env.EXPORT_DIR }}/linux/${{ env.EXPORT_NAME }}.x86_64"
-
-      - name: Inject .itch.toml into Build Folders
-        run: |
-          cp .itch.toml ${{ env.EXPORT_DIR }}/linux/
-          cp .itch.toml ${{ env.EXPORT_DIR }}/windows/
-
-      - name: Install Butler
-        run: |
-          mkdir -p ./.butler
-          wget -q -O butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
-          unzip -q butler.zip -d ./.butler
-          rm butler.zip
-          echo "${{ github.workspace }}/.butler" >> $GITHUB_PATH
-
-      - name: Push Builds to Itch.io
+      - name: Publish Android to Itch.io
+        if: github.ref_name == 'main'
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
         run: |
-          butler push ${{ env.EXPORT_DIR }}/linux ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:linux
-          butler push ${{ env.EXPORT_DIR }}/windows ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:windows
-          butler push ${{ env.EXPORT_DIR }}/android ${{ env.ITCH_USER }}/${{ env.ITCH_GAME }}:android
+          rm -f "$EXPORT_DIR/android/badging.txt"
+          butler push "$EXPORT_DIR/android" "$ITCH_USER/$ITCH_GAME:android" --userversion "$VERSION_NAME"

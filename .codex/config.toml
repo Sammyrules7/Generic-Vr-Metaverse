@@ -1,0 +1,32 @@
+[mcp_servers.godot]
+command = "nix"
+args = [
+  "--quiet",
+  "shell",
+  "--no-warn-dirty",
+  "nixpkgs#nodejs",
+  "-c",
+  "npx",
+  "-y",
+  "@coding-solo/godot-mcp"
+]
+disabled = false
+startup_timeout_sec = 600
+
+[mcp_servers.godot.env]
+DEBUG = "true"
+
+[mcp_servers.blender]
+command = "nix"
+args = [
+  "--quiet",
+  "shell",
+  "--no-warn-dirty",
+  "nixpkgs#blender",
+  "nixpkgs#uv",
+  "-c",
+  "uvx",
+  "blender-mcp"
+]
+disabled = false
+startup_timeout_sec = 600

@@ -1,0 +1,95 @@
+# Create-only canonical TURN key with consistency checks and repair from surviving consumers.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: turn-init
+  labels:
+    app.kubernetes.io/name: vr-platform-turn
+    app.kubernetes.io/part-of: vr-platform
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vr-platform-turn-init
+        app.kubernetes.io/part-of: vr-platform
+    spec:
+      restartPolicy: Never
+      serviceAccountName: turn-init
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: init
+          image: docker.io/python:3.13-alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsUser: 65532
+            runAsGroup: 65532
+          command:
+            - python3
+            - -c
+            - |
+              import base64, json, os, secrets, socket, ssl, urllib.request, urllib.error
+              from pathlib import Path
+              root = Path('/var/run/secrets/kubernetes.io/serviceaccount')
+              ns = (root / 'namespace').read_text().strip()
+              api = 'https://%s:%s' % (os.environ['KUBERNETES_SERVICE_HOST'], os.environ['KUBERNETES_SERVICE_PORT'])
+              context = ssl.create_default_context(cafile=str(root / 'ca.crt'))
+              headers = {'Authorization': 'Bearer ' + (root / 'token').read_text().strip()}
+              def request(path, method='GET', body=None, content='application/json'):
+                  req = urllib.request.Request(api + path, data=None if body is None else json.dumps(body).encode(), method=method,
+                      headers=dict(headers, **{'Content-Type': content}))
+                  try:
+                      with urllib.request.urlopen(req, context=context, timeout=20) as response:
+                          return json.load(response)
+                  except urllib.error.HTTPError as error:
+                      if error.code == 404 and method == 'GET': return None
+                      raise
+              base = '/api/v1/namespaces/' + ns + '/secrets'
+              def read(name):
+                  obj = request(base + '/' + name)
+                  return None if obj is None else {k: base64.b64decode(v).decode() for k, v in obj['data'].items()}
+              canonical, config, signaling = [read(n) for n in ('turn-shared', 'turn-config', 'signaling-turn')]
+              candidates = []
+              if canonical is not None: candidates.append(canonical['shared-secret'])
+              if signaling is not None: candidates.append(signaling['shared-secret'])
+              if config is not None:
+                  values = [line.split('=', 1)[1] for line in config['turnserver.conf'].splitlines() if line.startswith('static-auth-secret=')]
+                  if len(values) != 1: raise RuntimeError('invalid legacy TURN config')
+                  candidates += values
+              if candidates and (not candidates[0] or len(set(candidates)) != 1):
+                  raise RuntimeError('inconsistent TURN secrets; refusing rotation')
+              secret = candidates[0] if candidates else secrets.token_urlsafe(32)
+              def ensure(name, data, repair_config=False):
+                  if read(name) is None:
+                      try:
+                          request(base, 'POST', {'apiVersion':'v1', 'kind':'Secret', 'metadata':{'name':name, 'namespace':ns},
+                              'data':{k:base64.b64encode(v.encode()).decode() for k,v in data.items()}})
+                      except urllib.error.HTTPError as error:
+                          if error.code != 409: raise
+                  if read(name) != data:
+                      if not repair_config: raise RuntimeError('conflicting secret: ' + name)
+                      request(base + '/' + name, 'PATCH', {'data':{k:base64.b64encode(v.encode()).decode() for k,v in data.items()}}, 'application/merge-patch+json')
+                      if read(name) != data: raise RuntimeError('config repair failed')
+              # Create-only canonical key; repair always reuses any surviving key.
+              ensure('turn-shared', {'shared-secret':secret})
+              public_ip = socket.gethostbyname('turn.vr.maio-tech.com')
+              conf = ('listening-port=3478\nrealm=vr.maio-tech.com\nuse-auth-secret\nstatic-auth-secret=%s\n'
+                      'external-ip=%s\nmin-port=49160\nmax-port=49200\nuser-quota=4\ntotal-quota=64\n'
+                      'no-multicast-peers\nno-cli\nfingerprint\nlog-file=stdout\n') % (secret, public_ip)
+              # Key consistency was checked above; migrate only derived config.
+              ensure('turn-config', {'turnserver.conf':conf}, repair_config=True)
+              ensure('signaling-turn', {'shared-secret':secret})
+              for deploy in ('server', 'coturn'):
+                  path = '/apis/apps/v1/namespaces/' + ns + '/deployments/' + deploy
+                  if request(path) is not None and (config != {'turnserver.conf':conf} or signaling is None):
+                      request(path, 'PATCH', {'spec':{'template':{'metadata':{'annotations':{'vr-platform.turn-restart':secrets.token_hex(8)}}}}},
+                          'application/strategic-merge-patch+json')
