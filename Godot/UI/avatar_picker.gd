@@ -145,7 +145,7 @@ func _filter_changed() -> void:
 	if _favorites_only:
 		_filtered = _filtered.filter(func(entry: Dictionary): return str(entry.id) in PlayerProfile.avatar_favorites)
 	%GalleryTitle.text = "Favorites" if _favorites_only else collection if not collection.is_empty() else "All avatars"
-	%ResultCount.text = "%s avatars" % _filtered.size()
+	%ResultCount.text = str(_filtered.size())
 	%BrowseAll.set_pressed_no_signal(not _favorites_only and collection.is_empty())
 	%BrowseFavorites.set_pressed_no_signal(_favorites_only)
 	for index in _collection_buttons.size():

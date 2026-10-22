@@ -32,12 +32,6 @@ layout_mode = 2
 custom_minimum_size = Vector2(154, 0)
 theme_override_constants/separation = 8
 
-[node name="LibraryLabel" type="Label" parent="Content/Body/Sidebar"]
-layout_mode = 2
-text = "LIBRARY"
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
-
 [node name="BrowseAll" type="Button" parent="Content/Body/Sidebar"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -84,29 +78,38 @@ size_flags_horizontal = 3
 custom_minimum_size = Vector2(444, 0)
 theme_override_constants/separation = 12
 
-[node name="GalleryHeading" type="VBoxContainer" parent="Content/Body/Gallery"]
+[node name="GalleryContent" type="VBoxContainer" parent="Content/Body/Gallery"]
 layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
 
-[node name="GalleryTitle" type="Label" parent="Content/Body/Gallery/GalleryHeading"]
-unique_name_in_owner = true
+[node name="GalleryHeading" type="HBoxContainer" parent="Content/Body/Gallery/GalleryContent"]
 layout_mode = 2
-text = "All avatars"
-theme_override_font_sizes/font_size = 21
-size_flags_horizontal = 3
-horizontal_alignment = 1
+custom_minimum_size = Vector2(0, 42)
+theme_override_constants/separation = 12
 
-[node name="ResultCount" type="Label" parent="Content/Body/Gallery/GalleryHeading"]
+[node name="ResultCount" type="Label" parent="Content/Body/Gallery/GalleryContent/GalleryHeading"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
-horizontal_alignment = 1
+horizontal_alignment = 0
+vertical_alignment = 1
 
-[node name="SearchRow" type="HBoxContainer" parent="Content/Body/Gallery"]
+[node name="GalleryTitle" type="Label" parent="Content/Body/Gallery/GalleryContent/GalleryHeading"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "All avatars"
+theme_override_font_sizes/font_size = 21
+size_flags_horizontal = 3
+horizontal_alignment = 0
+vertical_alignment = 1
+
+[node name="SearchRow" type="HBoxContainer" parent="Content/Body/Gallery/GalleryContent"]
 layout_mode = 2
 
-[node name="AvatarSearch" type="LineEdit" parent="Content/Body/Gallery/SearchRow"]
+[node name="AvatarSearch" type="LineEdit" parent="Content/Body/Gallery/GalleryContent/SearchRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -114,7 +117,7 @@ placeholder_text = "Search in this collection"
 clear_button_enabled = true
 custom_minimum_size = Vector2(0, 42)
 
-[node name="AvatarListScroll" type="ScrollContainer" parent="Content/Body/Gallery"]
+[node name="AvatarListScroll" type="ScrollContainer" parent="Content/Body/Gallery/GalleryContent"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
@@ -122,7 +125,7 @@ custom_minimum_size = Vector2(0, 330)
 follow_focus = true
 horizontal_scroll_mode = 0
 
-[node name="AvatarList" type="GridContainer" parent="Content/Body/Gallery/AvatarListScroll"]
+[node name="AvatarList" type="GridContainer" parent="Content/Body/Gallery/GalleryContent/AvatarListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -130,7 +133,7 @@ columns = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 
-[node name="EmptyResults" type="Label" parent="Content/Body/Gallery"]
+[node name="EmptyResults" type="Label" parent="Content/Body/Gallery/GalleryContent"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "No avatars here yet.
@@ -142,17 +145,24 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="Pagination" type="HBoxContainer" parent="Content/Body/Gallery"]
+[node name="GalleryActions" type="VBoxContainer" parent="Content/Body/Gallery"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ActionDivider" type="HSeparator" parent="Content/Body/Gallery/GalleryActions"]
+layout_mode = 2
+
+[node name="Pagination" type="HBoxContainer" parent="Content/Body/Gallery/GalleryActions"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PreviousPage" type="Button" parent="Content/Body/Gallery/Pagination"]
+[node name="PreviousPage" type="Button" parent="Content/Body/Gallery/GalleryActions/Pagination"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Previous"
 custom_minimum_size = Vector2(0, 42)
 
-[node name="PageInfo" type="Label" parent="Content/Body/Gallery/Pagination"]
+[node name="PageInfo" type="Label" parent="Content/Body/Gallery/GalleryActions/Pagination"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
@@ -160,7 +170,7 @@ theme_override_font_sizes/font_size = 14
 size_flags_horizontal = 3
 horizontal_alignment = 1
 
-[node name="NextPage" type="Button" parent="Content/Body/Gallery/Pagination"]
+[node name="NextPage" type="Button" parent="Content/Body/Gallery/GalleryActions/Pagination"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Next"
@@ -171,10 +181,15 @@ layout_mode = 2
 custom_minimum_size = Vector2(290, 0)
 theme_override_constants/separation = 12
 
-[node name="SelectedHeading" type="HBoxContainer" parent="Content/Body/PreviewPane"]
+[node name="PreviewContent" type="VBoxContainer" parent="Content/Body/PreviewPane"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="SelectedHeading" type="HBoxContainer" parent="Content/Body/PreviewPane/PreviewContent"]
 layout_mode = 2
 
-[node name="SelectedTitle" type="Label" parent="Content/Body/PreviewPane/SelectedHeading"]
+[node name="SelectedTitle" type="Label" parent="Content/Body/PreviewPane/PreviewContent/SelectedHeading"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Explorer"
@@ -182,7 +197,7 @@ theme_override_font_sizes/font_size = 21
 size_flags_horizontal = 3
 clip_text = true
 
-[node name="FavoriteAvatar" type="Button" parent="Content/Body/PreviewPane/SelectedHeading"]
+[node name="FavoriteAvatar" type="Button" parent="Content/Body/PreviewPane/PreviewContent/SelectedHeading"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
@@ -190,21 +205,21 @@ custom_minimum_size = Vector2(0, 42)
 toggle_mode = true
 tooltip_text = "Save to favorites"
 
-[node name="SelectedCollection" type="Label" parent="Content/Body/PreviewPane"]
+[node name="SelectedCollection" type="Label" parent="Content/Body/PreviewPane/PreviewContent"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Bundled"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 
-[node name="PreviewFrame" type="Panel" parent="Content/Body/PreviewPane"]
+[node name="PreviewFrame" type="Panel" parent="Content/Body/PreviewPane/PreviewContent"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 custom_minimum_size = Vector2(290, 270)
 clip_contents = true
 
-[node name="Preview" type="SubViewportContainer" parent="Content/Body/PreviewPane/PreviewFrame"]
+[node name="Preview" type="SubViewportContainer" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -213,7 +228,7 @@ grow_vertical = 2
 mouse_filter = 2
 stretch = true
 
-[node name="PreviewThumbnail" type="TextureRect" parent="Content/Body/PreviewPane/PreviewFrame"]
+[node name="PreviewThumbnail" type="TextureRect" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 unique_name_in_owner = true
 visible = false
 anchors_preset = 15
@@ -225,40 +240,40 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="PreviewViewport" type="SubViewport" parent="Content/Body/PreviewPane/PreviewFrame/Preview"]
+[node name="PreviewViewport" type="SubViewport" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame/Preview"]
 gui_disable_input = true
 own_world_3d = true
 transparent_bg = true
 handle_input_locally = false
 msaa_3d = 2
 
-[node name="Stage" type="Node3D" parent="Content/Body/PreviewPane/PreviewFrame/Preview/PreviewViewport"]
+[node name="Stage" type="Node3D" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame/Preview/PreviewViewport"]
 unique_name_in_owner = true
 
-[node name="Camera" type="Camera3D" parent="Content/Body/PreviewPane/PreviewFrame/Preview/PreviewViewport"]
+[node name="Camera" type="Camera3D" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame/Preview/PreviewViewport"]
 unique_name_in_owner = true
 position = Vector3(0, 0.85, 2)
 cull_mask = 1
 fov = 40.0
 
-[node name="KeyLight" type="DirectionalLight3D" parent="Content/Body/PreviewPane/PreviewFrame/Preview/PreviewViewport"]
+[node name="KeyLight" type="DirectionalLight3D" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame/Preview/PreviewViewport"]
 unique_name_in_owner = true
 light_energy = 1.4
 light_color = Color(0.9, 0.96, 1, 1)
 
-[node name="FillLight" type="DirectionalLight3D" parent="Content/Body/PreviewPane/PreviewFrame/Preview/PreviewViewport"]
+[node name="FillLight" type="DirectionalLight3D" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame/Preview/PreviewViewport"]
 unique_name_in_owner = true
 light_energy = 0.6
 light_color = Color(0.6, 0.83, 0.84, 1)
 
-[node name="DownloadProgress" type="ProgressBar" parent="Content/Body/PreviewPane"]
+[node name="DownloadProgress" type="ProgressBar" parent="Content/Body/PreviewPane/PreviewContent"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 custom_minimum_size = Vector2(0, 6)
 show_percentage = false
 
-[node name="PreviewStatus" type="Label" parent="Content/Body/PreviewPane"]
+[node name="PreviewStatus" type="Label" parent="Content/Body/PreviewPane/PreviewContent"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
@@ -266,14 +281,14 @@ theme_override_font_sizes/font_size = 14
 visible = false
 autowrap_mode = 2
 
-[node name="RetryPreview" type="Button" parent="Content/Body/PreviewPane"]
+[node name="RetryPreview" type="Button" parent="Content/Body/PreviewPane/PreviewContent"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Retry preview"
 custom_minimum_size = Vector2(0, 42)
 visible = false
 
-[node name="Attribution" type="Label" parent="Content/Body/PreviewPane"]
+[node name="Attribution" type="Label" parent="Content/Body/PreviewPane/PreviewContent"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
@@ -281,7 +296,14 @@ theme_override_font_sizes/font_size = 12
 autowrap_mode = 2
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 
-[node name="Apply" type="Button" parent="Content/Body/PreviewPane"]
+[node name="PreviewActions" type="VBoxContainer" parent="Content/Body/PreviewPane"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ActionDivider" type="HSeparator" parent="Content/Body/PreviewPane/PreviewActions"]
+layout_mode = 2
+
+[node name="Apply" type="Button" parent="Content/Body/PreviewPane/PreviewActions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Wearing"

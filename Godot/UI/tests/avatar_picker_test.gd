@@ -133,7 +133,9 @@ func _run() -> void:
 	check(card._filtered.size() == entries.size(), "All avatars did not restore the library")
 	check(card.get_node_or_null("%RotateLeft") == null and card.get_node_or_null("%SpringEnabled") == null and card.get_node_or_null("Content/Header") == null, "Removed layout controls must not remain")
 	check(card.get_node("%CloseAvatarSettings").get_parent() == card.get_node("Content/Footer"), "Done must replace the footer toggle")
-	check(card.get_node("%GalleryTitle").horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER and card.get_node("%ResultCount").horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "Collection title and count must be centered together")
+	check(card.get_node("%GalleryTitle").horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT and card.get_node("%ResultCount").get_index() < card.get_node("%GalleryTitle").get_index(), "Avatar count must appear left of the left-aligned category title")
+	check(card.get_node_or_null("Content/Body/Sidebar/LibraryLabel") == null, "Redundant Library label must be removed")
+	check(is_equal_approx(card.get_node("%Apply").get_global_rect().end.y, card.get_node("%NextPage").get_global_rect().end.y), "Gallery and preview actions must share a stable bottom baseline")
 	check(card.get_node("%AvatarList").columns == 3, "Wardrobe must use horizontal space for a multi-column gallery")
 	var outer_margins: Vector2 = Vector2(32, 24) * ui.get_node("VBoxContainer").scale
 	check(card.get_global_rect().position.is_equal_approx(outer_margins), "Wardrobe outer margins must match the lobby")
