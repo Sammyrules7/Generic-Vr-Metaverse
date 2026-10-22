@@ -28,7 +28,7 @@ func _ready() -> void:
 	_apply_theme()
 	get_viewport().size_changed.connect(_fit_ui)
 	$VBoxContainer.minimum_size_changed.connect(_queue_fit_ui)
-	for card: Control in [$Session, $QuickSession, %VoiceSettings, %WorldLoading]:
+	for card: Control in [$Session, $QuickSession, %VoiceSettings, %AvatarSettings, %WorldLoading]:
 		card.minimum_size_changed.connect(_queue_fit_ui)
 	_fit_ui()
 	PlayerProfile.restore()
@@ -58,6 +58,11 @@ func _ready() -> void:
 	%OpenVoiceSettings.pressed.connect(_open_voice_settings)
 	%OpenSessionVoiceSettings.pressed.connect(_open_voice_settings)
 	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
+	# One shared avatar card lives in this scene (like VoiceSettings) and serves
+	# both the lobby and the in-room menu.
+	%AvatarSettings.closed.connect(_set_avatar_open.bind(false))
+	%OpenAvatarPicker.pressed.connect(_set_avatar_open.bind(true))
+	%OpenSessionAvatarPicker.pressed.connect(_set_avatar_open.bind(true))
 	Networking.voice_chat.input_permission_denied.connect(func(): _microphone_toggled(false))
 	Networking.voice_chat.local_speaking_changed.connect(_local_speaking_changed)
 	Networking.voice_chat.input_devices_changed.connect(func(_devices): _populate_input_devices())
@@ -185,8 +190,8 @@ func _fit_ui() -> void:
 	var quick := $QuickSession as Control
 	quick.size = quick.get_combined_minimum_size().max(Vector2(540, 120))
 	quick.position = (available - quick.size) * 0.5
-	for card: Control in [$Session, %VoiceSettings, %WorldLoading]:
-		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700 if card == %VoiceSettings else 320))
+	for card: Control in [$Session, %VoiceSettings, %AvatarSettings, %WorldLoading]:
+		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700 if card in [%VoiceSettings, %AvatarSettings] else 320))
 		card.scale = Vector2.ONE * minf(1.0, minf(available.x / (card_size.x + 32), available.y / (card_size.y + 32)))
 		card.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		card.size = card_size
@@ -228,7 +233,7 @@ func _update_mode_badge() -> void:
 func xr_point_is_visible(point: Vector2) -> bool:
 	if world_loading:
 		return %WorldLoading.get_global_rect().has_point(point)
-	for card: Control in [$Session, $QuickSession, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse]:
+	for card: Control in [$Session, $QuickSession, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse, %AvatarSettings]:
 		if card.is_visible_in_tree() and card.get_global_rect().has_point(point):
 			return true
 	return false
@@ -439,6 +444,7 @@ func set_menu_open(open: bool) -> void:
 		$QuickSession.hide()
 		$MenuHint.hide()
 	%VoiceSettings.hide()
+	%AvatarSettings.set_open(false)
 	_fit_ui()
 	_queue_fit_ui()
 	mouse_filter = Control.MOUSE_FILTER_STOP if open or vr_mode else Control.MOUSE_FILTER_IGNORE
@@ -476,6 +482,25 @@ func _open_voice_settings() -> void:
 	_set_voice_settings_open(true)
 
 
+func _set_avatar_open(open: bool) -> void:
+	if world_loading:
+		%AvatarSettings.set_open(false)
+		return
+	var in_room := room_networking != null and room_networking.current_room != null
+	# The two submenus are mutually exclusive; each keeps its own focus rules.
+	_set_voice_settings_open(false)
+	%AvatarSettings.set_open(open)
+	$VBoxContainer.visible = not in_room and not open
+	$Session.visible = in_room and menu_open and not open
+	_fit_ui()
+	if open:
+		%AvatarSettings.focus_entry()
+	elif in_room:
+		%OpenSessionAvatarPicker.grab_focus()
+	else:
+		%OpenAvatarPicker.grab_focus()
+
+
 func _set_voice_settings_open(open: bool) -> void:
 	if world_loading:
 		%VoiceSettings.hide()
@@ -498,7 +523,10 @@ func _input(event: InputEvent) -> void:
 		# Some browsers deliver Escape after reporting the pointer-lock loss.
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("exit") and %VoiceSettings.visible:
+	if event.is_action_pressed("exit") and %AvatarSettings.visible:
+		%AvatarSettings.close()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("exit") and %VoiceSettings.visible:
 		_set_voice_settings_open(false)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("exit") and room_networking.current_room != null:

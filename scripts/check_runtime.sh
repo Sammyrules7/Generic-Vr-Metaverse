@@ -34,9 +34,11 @@ run_godot() {
   fi
 }
 
-for suite in movement tracked_hand hand_menu voice_codec voice_audience murder_rules murder_presentation murder_session prairie_weather; do
+for suite in movement tracked_hand hand_menu avatar_loading avatar_container avatar_rig avatar_springs voice_codec voice_audience murder_rules murder_presentation murder_session prairie_weather; do
   run_godot --script "res://tests/${suite}_test.gd"
 done
+
+run_godot res://UI/tests/avatar_picker_test.tscn
 
 # Bind port zero and discover the selected port from the server's startup log.
 # Building first gives cleanup a single owned process rather than go-run children.

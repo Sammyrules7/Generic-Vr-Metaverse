@@ -1,0 +1,94 @@
+extends SceneTree
+
+var failures := 0
+
+
+func _initialize() -> void:
+	call_deferred("run")
+
+
+func check(condition: bool, message: String) -> void:
+	if not condition:
+		failures += 1
+		push_error(message)
+
+
+func run() -> void:
+	var service := root.get_node("AvatarService")
+	check(AvatarCatalog.entries().size() >= 4, "Curated avatar catalog missing")
+	check(not AvatarCatalog.has_avatar("https://example.com/evil.vrm"), "Peer URLs must not resolve")
+	var invalid: AvatarLoadRequest = service.acquire("unknown")
+	check(invalid.finished and not invalid.error.is_empty(), "Unknown avatar should fail immediately")
+	var fallback: AvatarLoadRequest = service.acquire("default")
+	check(fallback.finished and fallback.scene == null and fallback.error.is_empty(), "Fallback must work offline")
+
+	# One consumer cancelling must not interrupt another consumer's shared load.
+	var cancelled: AvatarLoadRequest = service.acquire("godette")
+	var survivor: AvatarLoadRequest = service.acquire("godette")
+	cancelled.release()
+	check(cancelled.finished and cancelled.released, "Cancellation must resolve pending awaits")
+	var deadline := Time.get_ticks_msec() + 15000
+	while not survivor.finished and Time.get_ticks_msec() < deadline:
+		await process_frame
+	check(survivor.finished and survivor.scene != null and survivor.error.is_empty(), "Bundled VRM failed: " + survivor.error)
+	if survivor.scene != null:
+		var first := survivor.scene.instantiate() as Node3D
+		var second := survivor.scene.instantiate() as Node3D
+		var skeleton := first.find_child("GeneralSkeleton", true, false) as Skeleton3D
+		var other := second.find_child("GeneralSkeleton", true, false) as Skeleton3D
+		check(skeleton != null and other != null, "VRM humanoid mapping missing")
+		if skeleton != null and other != null:
+			var head := skeleton.find_bone("Head")
+			check(head >= 0, "Humanoid Head bone missing")
+			if head >= 0:
+				var look := first.find_child("LookOffset", true, false) as Node3D
+				var eye_height := skeleton.get_bone_global_rest(head).origin.y + (look.position.y if look != null else 0.0)
+				check(absf(eye_height - 1.7) < 0.001, "Standing avatar eye height must be baked into the rest pose")
+				check(skeleton.scale.is_equal_approx(Vector3.ONE), "Native spring skeleton must remain unscaled")
+				skeleton.set_bone_pose_position(head, Vector3(1, 2, 3))
+				check(other.get_bone_pose_position(head) != Vector3(1, 2, 3), "Players must not share mutable skeleton poses")
+			var original_meshes: Array[Mesh] = []
+			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
+				original_meshes.append(mesh.mesh)
+			AvatarFirstPerson.use_tracked_hands(first, true)
+			AvatarFirstPerson.use_tracked_hands(first, false)
+			var index := 0
+			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
+				check(mesh.mesh == original_meshes[index], "Desktop switch must restore avatar hand geometry")
+				index += 1
+		first.free()
+		second.free()
+		var cached: AvatarLoadRequest = service.acquire("godette")
+		check(cached.finished and cached.scene == survivor.scene, "Repeated loads should use the parsed cache")
+		cached.release()
+	survivor.release()
+
+	var bytes := FileAccess.get_file_as_bytes("res://avatar/godette.vrm")
+	var definition := AvatarCatalog.definition("godette")
+	var verification := AvatarAssetJob.new()
+	verification.bytes = bytes
+	verification.expected_size = bytes.size()
+	verification.expected_hash = definition.sha256
+	verification.run()
+	check(verification.error.is_empty(), "Pinned bundled asset hash does not match")
+	bytes[bytes.size() - 1] ^= 1
+	verification.bytes = bytes
+	verification.run()
+	check(not verification.error.is_empty(), "Modified downloads must be rejected before parsing")
+	if "--network" in OS.get_cmdline_user_args():
+		var ca_path := OS.get_environment("SSL_CERT_FILE")
+		if not ca_path.is_empty():
+			var certificates := X509Certificate.new()
+			check(certificates.load(ca_path) == OK, "Could not load test trust store")
+			service.tls_options = TLSOptions.client(certificates)
+		for entry in AvatarCatalog.entries():
+			if entry.id in ["default", "godette"]:
+				continue
+			var remote: AvatarLoadRequest = service.acquire(entry.id)
+			deadline = Time.get_ticks_msec() + 40000
+			while not remote.finished and Time.get_ticks_msec() < deadline:
+				await process_frame
+			check(remote.finished and remote.scene != null, "Remote avatar " + str(entry.title) + ": " + remote.error)
+			remote.release()
+	print("Avatar loading: %d failures" % failures)
+	quit(1 if failures > 0 else 0)

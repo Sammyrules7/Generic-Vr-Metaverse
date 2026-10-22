@@ -365,6 +365,14 @@ func _run() -> void:
 	var remote_head := am.players.get_node(str(b.client_id) + "/Avatar/Head")
 	if not _check(a.voice_chat.speakers.has(b.client_id) and a.voice_chat.speakers[b.client_id].get_parent() == remote_head, "Remote voice was not attached to the avatar head"):
 		return
+	b.player_replication.broadcast_avatar("godette")
+	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").model != null, "reliable avatar selection and runtime import"):
+		return
+	if not _check(a.voice_chat.speakers[b.client_id].get_parent() == remote_head, "Avatar swap replaced the stable voice anchor"):
+		return
+	b.player_replication.announce_avatar.rpc("https://example.com/untrusted.vrm")
+	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == "default", "unknown avatar ID falls back without fetching peer URLs"):
+		return
 	b.voice_chat.set_audience_policy(func(_sender, _listener): return false)
 	if not _check(not b.voice_chat.speakers.has(a.client_id), "Audience change retained queued voice playback"):
 		return
@@ -403,6 +411,7 @@ func _run() -> void:
 		return
 	if not _check(bm.local_player == null and bm.players.get_child_count() == 0, "Leaving kept local players"):
 		return
+	PlayerProfile.avatar_id = "godette"
 	b.room_networking.join_room(room_id)
 	if not await _idle(b):
 		return
@@ -410,6 +419,13 @@ func _run() -> void:
 		return
 	if not _check(b.room_networking.rtc_mesh.session_id != old_session, "Rejoin reused the old session"):
 		return
+	if not await _wait_until(func(): return bm.get_player(a.client_id).get_node("Avatar").avatar_id == "godette" and am.get_player(b.client_id).get_node("Avatar").avatar_id == "godette", "avatar selection included in late-join snapshots"):
+		return
+	PlayerProfile.avatar_id = "default"
+	for manager in [am, bm]:
+		manager.local_player.set_avatar("default")
+	for client in [a, b]:
+		client.player_replication.broadcast_avatar("default")
 	var stale := Packets.ServerRelay.new()
 	stale.set_sender_id(a.client_id)
 	stale.set_sender_session_id(a.room_networking.rtc_mesh.session_id)

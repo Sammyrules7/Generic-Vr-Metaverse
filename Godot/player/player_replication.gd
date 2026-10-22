@@ -4,10 +4,12 @@ extends Node
 # This RPC endpoint outlives world scenes. Scene-owned managers subscribe to it.
 signal player_announced(peer_id: int, use_vr: bool, initial_pose: Transform3D)
 signal name_received(peer_id: int, display_name: String)
+signal avatar_received(peer_id: int, avatar_id: String)
 signal player_removed(peer_id: int)
 signal pose_received(peer_id: int, body_pose: Transform3D, head_pose: Transform3D, left_pose: Transform3D, right_pose: Transform3D)
 
 var local_player: NetworkPlayer
+var _avatar_by_peer: Dictionary = {}
 
 const REPLICATION_HZ := 15.0
 const POSITION_EPSILON := 0.002
@@ -44,7 +46,7 @@ func set_local_player(player: NetworkPlayer) -> void:
 
 func _peer_connected(peer_id: int) -> void:
 	if local_player != null:
-		spawn_player.rpc_id(peer_id, local_player.use_vr, local_player.global_transform, PlayerProfile.display_name)
+		spawn_player.rpc_id(peer_id, local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, PlayerProfile.avatar_id)
 		# Also used after a world reload: the peer may already be connected, so we
 		# cannot rely on another peer_connected event to repopulate the new scene.
 		request_player.rpc_id(peer_id)
@@ -53,21 +55,45 @@ func _peer_connected(peer_id: int) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func request_player() -> void:
 	if local_player != null:
-		spawn_player.rpc_id(multiplayer.get_remote_sender_id(), local_player.use_vr, local_player.global_transform, PlayerProfile.display_name)
+		spawn_player.rpc_id(multiplayer.get_remote_sender_id(), local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, PlayerProfile.avatar_id)
 
 
 @rpc("any_peer", "call_remote", "reliable")
 func despawn_player() -> void:
+	_avatar_by_peer.erase(multiplayer.get_remote_sender_id())
 	player_removed.emit(multiplayer.get_remote_sender_id())
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func spawn_player(use_vr: bool, initial_pose: Transform3D, display_name := "Explorer") -> void:
+func spawn_player(use_vr: bool, initial_pose: Transform3D, display_name := "Explorer", avatar_id := "default") -> void:
 	# Take identity from the transport, never a claimed ID inside the payload.
 	var peer_id := multiplayer.get_remote_sender_id()
 	if multiplayer.get_peers().has(peer_id) and initial_pose.is_finite():
 		player_announced.emit(peer_id, use_vr, initial_pose)
 		name_received.emit(peer_id, display_name.strip_edges().left(24))
+		_receive_avatar(peer_id, avatar_id)
+
+
+func broadcast_avatar(id: String) -> void:
+	if local_player != null and AvatarCatalog.has_avatar(id) and not multiplayer.get_peers().is_empty():
+		announce_avatar.rpc(id)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func announce_avatar(id: String) -> void:
+	var sender := multiplayer.get_remote_sender_id()
+	if multiplayer.get_peers().has(sender):
+		_receive_avatar(sender, id)
+
+
+func _receive_avatar(peer_id: int, id: String) -> void:
+	var valid_id := id if AvatarCatalog.has_avatar(id) else "default"
+	_avatar_by_peer[peer_id] = valid_id
+	avatar_received.emit(peer_id, valid_id)
+
+
+func forget_avatar(peer_id: int) -> void:
+	_avatar_by_peer.erase(peer_id)
 
 
 func _physics_process(delta: float) -> void:
@@ -90,8 +116,8 @@ func _physics_process(delta: float) -> void:
 	var body_pose := local_player.global_transform
 	var inv_body := body_pose.affine_inverse()
 	var head_pose := inv_body * controls.head.global_transform if controls.head != null else Transform3D.IDENTITY
-	var left_pose := inv_body * controls.left_hand.global_transform if controls.left_hand != null else Transform3D.IDENTITY
-	var right_pose := inv_body * controls.right_hand.global_transform if controls.right_hand != null else Transform3D.IDENTITY
+	var left_pose := controls.hand_pose("left") if controls.left_hand != null else Transform3D.IDENTITY
+	var right_pose := controls.hand_pose("right") if controls.right_hand != null else Transform3D.IDENTITY
 	if _have_last and not _pose_changed(body_pose, head_pose, left_pose, right_pose):
 		_send_accum = 0.0
 		return

@@ -14,9 +14,6 @@ var controls: PlayerControls
 
 
 func _ready() -> void:
-	$Avatar.visible = not is_multiplayer_authority()
-	$Avatar/LeftHand.visible = use_vr
-	$Avatar/RightHand.visible = use_vr
 	if is_multiplayer_authority():
 		controls = (VR_CONTROLS if use_vr else DESKTOP_CONTROLS).instantiate()
 		add_child(controls)
@@ -49,6 +46,11 @@ func set_control_mode(vr: bool) -> void:
 	motor.input_source = controls
 	Networking.player_replication.set_local_player(self)
 	controls_changed.emit()
+	$Avatar.control_mode_changed()
+
+
+func set_avatar(id: String) -> void:
+	$Avatar.set_avatar(id)
 
 
 func set_display_name(display_name: String) -> void:

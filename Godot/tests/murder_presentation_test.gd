@@ -54,7 +54,7 @@ func _run() -> void:
 		"items": {"clue": {"kind": "clue", "position": Vector3(1, 1, 1)}}}
 	presentation.apply_snapshot(state)
 	check(remote.get_node("Avatar").is_visible_in_tree(), "Living remote avatar visible")
-	check(not local.get_node("Avatar").visible, "Local duplicate avatar remains hidden")
+	check(local.get_node("Avatar").visible and not local.get_node("Avatar/Head").visible, "Local first-person body stays visible without its head")
 	check(not presentation._held.has(1), "Holstered local weapon is absent")
 	check(presentation._held.has(2), "Equipped remote weapon rendered")
 	check(display.card.visible, "Round start reveals private role card")

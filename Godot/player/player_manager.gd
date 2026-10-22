@@ -45,6 +45,7 @@ func _ready() -> void:
 	room_networking.peer_departed.connect(_remove_remote)
 	replication.player_announced.connect(_spawn_remote)
 	replication.name_received.connect(_set_player_name)
+	replication.avatar_received.connect(_set_player_avatar)
 	replication.player_removed.connect(_remove_remote)
 	replication.pose_received.connect(_apply_pose)
 	if room_networking.current_room != null:
@@ -73,6 +74,7 @@ func _room_joined(_room: roomClass) -> void:
 	var xr := XRServer.primary_interface
 	var use_vr: bool = xr != null and xr.is_initialized()
 	local_player = _spawn(multiplayer.get_unique_id(), use_vr, spawn_point.global_transform)
+	local_player.set_avatar(PlayerProfile.avatar_id)
 	replication.set_local_player(local_player)
 	local_player_spawned.emit()
 
@@ -111,6 +113,7 @@ func _apply_pose(peer_id: int, body_pose: Transform3D, head_pose: Transform3D, l
 
 
 func _remove_remote(peer_id: int) -> void:
+	replication.forget_avatar(peer_id)
 	voice_chat.remove_peer_anchor(peer_id)
 	_peer_cache.erase(peer_id)
 	var player := players.get_node_or_null(str(peer_id))
@@ -136,3 +139,9 @@ func _set_player_name(peer_id: int, display_name: String) -> void:
 	var player := get_player(peer_id)
 	if player != null:
 		player.set_display_name(display_name)
+
+
+func _set_player_avatar(peer_id: int, avatar_id: String) -> void:
+	var player := get_player(peer_id)
+	if player != null and player != local_player:
+		player.set_avatar(avatar_id)

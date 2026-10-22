@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cxk1b4t76a64h" path="res://player/network_player.gd" id="1"]
 [ext_resource type="Script" path="res://player/movement/character_motor.gd" id="2_motor"]
+[ext_resource type="Script" path="res://avatar/avatar_container.gd" id="3_avatar"]
 
 [sub_resource type="CapsuleShape3D" id="Collider"]
 
@@ -28,6 +29,7 @@ shape = SubResource("Collider")
 script = ExtResource("2_motor")
 
 [node name="Avatar" type="Node3D" parent="." unique_id=1874303836]
+script = ExtResource("3_avatar")
 
 [node name="Body" type="MeshInstance3D" parent="Avatar" unique_id=481854000]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

@@ -106,7 +106,12 @@ jobs:
         run: |
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_loading_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_container_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_rig_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_springs_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
+          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/avatar_picker_test.tscn
 
       - name: Configure release signaling endpoint
         env:
@@ -231,7 +236,12 @@ jobs:
         run: |
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_loading_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_container_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_rig_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_springs_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
+          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/avatar_picker_test.tscn
 
       - name: Configure release signaling endpoint
         env:

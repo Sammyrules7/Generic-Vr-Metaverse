@@ -26,6 +26,7 @@ driver/enable_input=true
 XRToolsUserSettings="*uid://bqgb8i74tm0t"
 XRToolsRumbleManager="*uid://by853dk86g1qw"
 Networking="*uid://ljq8p7wlh6di"
+AvatarService="*res://avatar/avatar_service.gd"
 
 [display]
 
