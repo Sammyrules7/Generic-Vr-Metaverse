@@ -119,6 +119,8 @@ func focus_entry() -> void:
 
 
 func _process(delta: float) -> void:
+	if visible:
+		_layout_browser()
 	if not visible:
 		# A hidden SubViewport stops rendering; the orbit must not unwind either.
 		return
@@ -236,6 +238,8 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 		return
 	_update_apply()
 	%SelectedTitle.text = str(entry.get("title", id))
+	%ArtistName.text = str(entry.get("creator", "SirRichard94 / Lyuma" if id == "godette" else ""))
+	_layout_browser()
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 	var license := str(entry.get("license", ""))
@@ -635,7 +639,51 @@ func _set_card_thumbnail(button: Button, texture: Texture2D) -> void:
 	button.get_node("Card").get_child(0).get_node("Fallback").hide()
 
 
+func _layout_browser() -> void:
+	# Keep the first sidebar row, search field and preview heading on one baseline.
+	var header_height := maxf(%BrowseAll.get_minimum_size().y, %AvatarSearch.get_minimum_size().y)
+	%BrowseAll.custom_minimum_size.y = header_height
+	%BrowseFavorites.custom_minimum_size.y = header_height
+	%AvatarSearch.custom_minimum_size.y = header_height
+	%SelectedTitle.get_parent().custom_minimum_size.y = header_height
+	var available := _scroll.size.x - _scroll.get_v_scroll_bar().size.x
+	_list.columns = clampi(int((available + 12.0) / 150.0), 2, 4)
+	var title: Label = %SelectedTitle
+	var artist: Label = %ArtistName
+	var title_width := title.get_theme_font("font").get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, title.get_theme_font_size("font_size")).x
+	var artist_width := artist.get_theme_font("font").get_string_size(artist.text, HORIZONTAL_ALIGNMENT_LEFT, -1, artist.get_theme_font_size("font_size")).x
+	var heading: HBoxContainer = title.get_parent()
+	var fits: bool = not artist.text.is_empty() and title_width + artist_width + %FavoriteAvatar.size.x + 2 * heading.get_theme_constant("separation") + 16 <= heading.size.x
+	artist.visible = fits
+	title.custom_minimum_size.x = title_width if fits else 0.0
+	artist.custom_minimum_size.x = artist_width if fits else 0.0
+
+
+func _style_scrollbar(scroll: ScrollContainer) -> void:
+	var bar := scroll.get_v_scroll_bar()
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0, 0, 0, 0)
+	track.content_margin_left = 4
+	track.content_margin_right = 4
+	bar.add_theme_stylebox_override("scroll", track)
+	bar.add_theme_stylebox_override("scroll_focus", track)
+	for state in ["grabber", "grabber_highlight", "grabber_pressed"]:
+		var thumb := StyleBoxFlat.new()
+		thumb.bg_color = Color("#354e65" if state == "grabber" else "#74869a")
+		thumb.set_corner_radius_all(4)
+		thumb.content_margin_left = 4
+		thumb.content_margin_right = 4
+		thumb.content_margin_top = 12
+		thumb.content_margin_bottom = 12
+		bar.add_theme_stylebox_override(state, thumb)
+	var blank := ImageTexture.create_from_image(Image.create(1, 1, false, Image.FORMAT_RGBA8))
+	for icon in ["increment", "increment_highlight", "increment_pressed", "decrement", "decrement_highlight", "decrement_pressed"]:
+		bar.add_theme_icon_override(icon, blank)
+
+
 func _style_browser() -> void:
+	_style_scrollbar(_scroll)
+	_style_scrollbar($Content/Body/Sidebar/CollectionScroll)
 	var list_style := StyleBoxFlat.new()
 	list_style.bg_color = Color("#142237")
 	var button_style := %BrowseAll.get_theme_stylebox("normal") as StyleBoxFlat
