@@ -4,6 +4,7 @@ extends RefCounted
 static var display_name := "Explorer"
 static var world_id := "floating_island"
 static var avatar_id := "default"
+static var avatar_favorites: Array[String] = []
 static var spring_bones_enabled := true
 static var microphone_enabled := false
 static var voice_volume := 0.8
@@ -20,6 +21,12 @@ static func restore() -> void:
 		if not AvatarCatalog.has_avatar(avatar_id):
 			# A dropped or renamed catalog entry must never wedge the avatar.
 			avatar_id = "default"
+		avatar_favorites.clear()
+		var favorites = config.get_value("profile", "avatar_favorites", [])
+		if favorites is Array:
+			for favorite in favorites:
+				if favorite is String and AvatarCatalog.has_avatar(favorite) and not favorite in avatar_favorites:
+					avatar_favorites.append(favorite)
 		spring_bones_enabled = bool(config.get_value("profile", "spring_bones_enabled", true))
 		microphone_enabled = bool(config.get_value("voice", "microphone_enabled", false))
 		voice_volume = clampf(float(config.get_value("voice", "volume", 0.8)), 0.0, 1.0)
@@ -36,6 +43,7 @@ static func save() -> Error:
 	config.set_value("profile", "display_name", display_name)
 	config.set_value("profile", "world_id", world_id)
 	config.set_value("profile", "avatar_id", avatar_id)
+	config.set_value("profile", "avatar_favorites", avatar_favorites)
 	config.set_value("profile", "spring_bones_enabled", spring_bones_enabled)
 	config.set_value("voice", "microphone_enabled", microphone_enabled)
 	config.set_value("voice", "volume", voice_volume)

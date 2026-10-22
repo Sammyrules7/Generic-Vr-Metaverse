@@ -14,6 +14,12 @@ func check(condition: bool, message: String) -> void:
 
 
 func run() -> void:
+	var gif := Marshalls.base64_to_raw("R0lGODlhAgACAIAAAAAAAP8AACH5BAEAAAAALAAAAAACAAIAAAIEBMMQBQA7")
+	var thumbnail := AvatarGIF.decode(gif)
+	check(thumbnail != null and thumbnail.get_size() == Vector2i(2, 2), "GIF first-frame thumbnail decoding failed")
+	if thumbnail != null:
+		check(thumbnail.get_pixel(0, 0).a == 0.0 and thumbnail.get_pixel(1, 0).r == 1.0, "GIF palette/transparency decoding failed")
+	check(AvatarGIF.decode(gif.slice(0, 15)) == null, "Truncated GIF must fail without a partial image")
 	var service := root.get_node("AvatarService")
 	check(AvatarCatalog.entries().size() > 4000, "Full registry catalog missing")
 	check(AvatarCatalog.collections().size() == 10, "Bundled and all upstream collections must be available")

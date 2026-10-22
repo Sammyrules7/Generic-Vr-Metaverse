@@ -8,8 +8,9 @@ own scene, skeleton, modifiers, and simulation history.
 
 The catalog snapshots all 4,274 public, non-draft HTTPS VRM entries from the nine
 Open Source Avatars collections, plus a bundled Godette sample and the built-in
-Explorer. It is metadata only: remote models download on selection. Browse by
-collection and search by name/creator, 24 entries per page. Models are not
+Explorer. It is metadata only: remote models download on selection. Browse the wide wardrobe by
+collection, with a thumbnail grid, favorites, and a persistent 3D preview. Search
+by name/creator narrows the current collection; pages contain 18 cards. Models are not
 pre-approved for compatibility: failures appear in the preview and the previous
 player model stays equipped if a replacement fails to load.
 
@@ -62,7 +63,15 @@ This keeps the complete head/body/hands in reflections without showing duplicate
 headless geometry or tracked hands. Worlds still provide the reflection surface,
 SubViewport, and reflected camera transform; this change adds no world mirror.
 
-The Avatar submenu is available from the home and in-game menus. Spring bones
+The Avatar submenu is available from the home and in-game menus. It uses the
+horizontal panel space for collection navigation, a three-column gallery, and a
+preview/equip pane. Favorites persist in the profile. The preview supports manual
+rotation, optional turntable motion, retry on failure, and disables equipping
+until a preview succeeds. Thumbnails download separately from models, with two
+concurrent requests, worker-pool image decoding, and a 64-texture memory cache.
+GIF thumbnails use their first frame; PNG/JPEG/WebP are also supported. Closing
+or changing pages cancels pending thumbnail HTTP requests. Unavailable images
+keep a text placeholder without blocking selection. Spring bones
 are a local viewing preference, enabled by default, rather than network state.
 VRM bone colliders follow their bones. Node-based colliders currently use the
 transform captured at installation; dynamically animated node colliders need a

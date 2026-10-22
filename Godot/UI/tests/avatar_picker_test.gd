@@ -48,6 +48,7 @@ func _run() -> void:
 	add_child(game)
 	var ui = game.get_node("roomSelector")
 	var card = ui.get_node("%AvatarSettings")
+	card._thumbnails.enabled = false
 	check(ui.get_node("%OpenAvatarPicker").text == "Avatar settings" and ui.get_node("%OpenSessionAvatarPicker").text == "Avatar settings", "Avatar submenu entry buttons are missing from the home and session menus")
 	check(PlayerProfile.avatar_id == "default", "Main scene did not restore the profile avatar")
 
@@ -104,10 +105,31 @@ func _run() -> void:
 	check(card.get_node("%Apply").disabled and card.get_node("%AvatarList/AvatarGodette").button_pressed, "Apply did not mark the selection as current")
 	check(PlayerProfile.spring_bones_enabled == false, "Spring preference from the current profile was changed spuriously")
 
+	# Saved looks, turntable controls, and category navigation work without model downloads.
+	PlayerProfile.avatar_favorites.clear()
+	card.get_node("%FavoriteAvatar").pressed.emit()
+	check("godette" in PlayerProfile.avatar_favorites, "Saving a favorite failed")
+	PlayerProfile.restore()
+	check("godette" in PlayerProfile.avatar_favorites, "Favorite did not persist across profile restore")
+	card.get_node("%BrowseFavorites").pressed.emit()
+	check(card._filtered.size() == 1 and card._filtered[0].id == "godette", "Favorites library must show saved looks")
+	card.get_node("%FavoriteAvatar").pressed.emit()
+	check(card._filtered.is_empty() and card.get_node("%EmptyResults").visible, "Empty favorites needs a clear empty state")
+	card.get_node("%BrowseAll").pressed.emit()
+	check(card._filtered.size() == entries.size(), "All avatars did not restore the library")
+	var yaw: float = card.get_node("%Stage").rotation.y
+	card.get_node("%RotateRight").pressed.emit()
+	check(not card.get_node("%AutoRotate").button_pressed and not is_equal_approx(card.get_node("%Stage").rotation.y, yaw), "Manual rotation must pause the turntable")
+	check(card.size.x > card.size.y and card.get_node("%AvatarList").columns == 3, "Wardrobe must use horizontal space for a multi-column gallery")
+	var frame_rect: Rect2 = card.get_node("%PreviewFrame").get_global_rect()
+	check(frame_rect.end.x <= card.get_global_rect().end.x, "Preview extends beyond the wardrobe")
+	check(card.get_node("Content/Body/Sidebar").get_global_rect().end.x < card.get_node("Content/Body/Gallery").get_global_rect().position.x, "Sidebar and gallery overlap")
+	check(card.get_node("Content/Body/Gallery").get_global_rect().end.x < frame_rect.position.x, "Gallery and preview overlap")
+
 	# Reset returns to the bundled placeholder immediately.
 	card.get_node("%ResetAvatar").pressed.emit()
 	check(PlayerProfile.avatar_id == "default" and card.get_node("%Apply").disabled, "Default reset did not apply the bundled avatar")
-	check(card.get_node("%PreviewStatus").visible and card.get_node("%PreviewStatus").text.contains("placeholder"), "Default avatar lacks its placeholder hint")
+	check(card.get_node("%PreviewStatus").visible and card.get_node("%PreviewStatus").text.contains("Explorer"), "Default avatar lacks its placeholder hint")
 	check(await _wait_until(func(): return card._model == null), "Default avatar preview kept the loaded model")
 
 	# Closing restores the menu and the focus that opened the submenu.
@@ -163,6 +185,10 @@ func _run() -> void:
 	ui.get_node("%OpenSessionAvatarPicker").pressed.emit()
 	var apply_point: Vector2 = ui.get_node("%AvatarSettings").get_global_rect().get_center()
 	check(ui.xr_point_is_visible(apply_point), "Open avatar submenu is not touchable in the VR panel")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var vr_rect: Rect2 = card.get_global_rect()
+	check(vr_rect.position.x >= 0 and vr_rect.end.x <= 1120 and vr_rect.position.y >= 0 and vr_rect.end.y <= 800, "Wide wardrobe must fit the headset panel")
 	ui.vr_mode = false
 	ui.reparent(game)
 	panel.queue_free()
