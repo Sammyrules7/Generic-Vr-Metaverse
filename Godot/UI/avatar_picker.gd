@@ -227,8 +227,8 @@ func _update_apply() -> void:
 func _sync_selection(id: String, with_preview: bool) -> void:
 	for entry_id in _buttons:
 		(_buttons[entry_id] as Button).set_pressed_no_signal(entry_id == id)
-		var badge: Label = _buttons[entry_id].get_node("Card/Badge")
-		badge.text = "Wearing" if entry_id == _applied_id else str(AvatarCatalog.definition(entry_id).get("collection", "Bundled"))
+		var badge: Label = _buttons[entry_id].get_node("Card/Credits/Badge")
+		badge.visible = entry_id == _applied_id
 	var entry := AvatarCatalog.definition(id)
 	if entry.is_empty():
 		_apply.disabled = true
@@ -236,15 +236,11 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 		return
 	_update_apply()
 	%SelectedTitle.text = str(entry.get("title", id))
-	%SelectedCollection.text = str(entry.get("collection", "Bundled"))
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
-	var creator := str(entry.get("creator", "SirRichard94 / Lyuma" if id == "godette" else ""))
 	var license := str(entry.get("license", ""))
-	%ArtistName.text = creator
-	%ArtistName.tooltip_text = str(entry.get("attribution", creator))
 	%Attribution.text = license
-	%LicenseHolder.tooltip_text = str(entry.get("attribution", license))
+	%Attribution.tooltip_text = str(entry.get("attribution", license))
 	if with_preview:
 		_show_preview(id)
 
@@ -595,15 +591,31 @@ func _make_avatar_card(entry: Dictionary) -> Button:
 	title.add_theme_font_size_override("font_size", 15)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(title)
+	var credits := HBoxContainer.new()
+	credits.name = "Credits"
+	credits.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(credits)
+	var artist := Label.new()
+	artist.name = "Artist"
+	artist.text = str(entry.get("creator", "SirRichard94 / Lyuma" if id == "godette" else ""))
+	artist.tooltip_text = artist.text
+	artist.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	artist.clip_text = true
+	artist.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	artist.add_theme_font_size_override("font_size", 11)
+	artist.add_theme_color_override("font_color", Color("#74869a"))
+	artist.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	credits.add_child(artist)
 	var badge := Label.new()
 	badge.name = "Badge"
-	badge.text = "Wearing" if id == _applied_id else str(entry.get("collection", "Bundled"))
+	badge.text = "Wearing"
+	badge.visible = id == _applied_id
 	badge.clip_text = true
 	badge.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	badge.add_theme_font_size_override("font_size", 11)
 	badge.add_theme_color_override("font_color", Color("#a0bdd4") if id == _applied_id else Color("#74869a"))
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content.add_child(badge)
+	credits.add_child(badge)
 	return button
 
 
@@ -626,7 +638,12 @@ func _set_card_thumbnail(button: Button, texture: Texture2D) -> void:
 func _style_browser() -> void:
 	var list_style := StyleBoxFlat.new()
 	list_style.bg_color = Color("#142237")
-	list_style.set_corner_radius_all(14)
+	var button_style := %BrowseAll.get_theme_stylebox("normal") as StyleBoxFlat
+	if button_style != null:
+		list_style.corner_radius_top_left = button_style.corner_radius_top_left
+		list_style.corner_radius_top_right = button_style.corner_radius_top_right
+		list_style.corner_radius_bottom_left = button_style.corner_radius_bottom_left
+		list_style.corner_radius_bottom_right = button_style.corner_radius_bottom_right
 	%ListFrame.add_theme_stylebox_override("panel", list_style)
 	# Reserve room inside the field for its result count. The built-in clear
 	# button is laid out before this margin, so neither text nor controls overlap.
