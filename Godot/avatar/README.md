@@ -6,10 +6,23 @@ selection or scene exit. Releasing the last consumer cancels HTTP; worker jobs
 are collected even when nobody still needs their result. Each player gets its
 own scene, skeleton, modifiers, and simulation history.
 
-The catalog is a pinned allowlist, not a URL supplied by another peer. It contains
-three CC0 100Avatars R1 models by ToxSam from Open Source Avatars, and a bundled
-Godette sample so selection, first-person rendering, and spring bones work
-offline. Godette by SirRichard94, adapted to VRM by Lyuma, is CC-BY 3.0; attribution
+The catalog snapshots all 4,274 public, non-draft HTTPS VRM entries from the nine
+Open Source Avatars collections, plus a bundled Godette sample and the built-in
+Explorer. It is metadata only: remote models download on selection. Browse by
+collection and search by name/creator, 24 entries per page. Models are not
+pre-approved for compatibility: failures appear in the preview and the previous
+player model stays equipped if a replacement fails to load.
+
+Registry source/revision is recorded in `catalog_source.json`. Refresh with
+`python3 scripts/sync_avatar_catalog.py <upstream-commit>`. A build uses the same
+snapshot on every peer, so avatar replication still sends IDs rather than URLs.
+The registry metadata is CC0; each model retains its collection license and the
+picker shows creator/collection attribution. Downloads use the published HTTPS
+URLs directly. SHA-256 and exact sizes are checked where pinned; the upstream
+registry does not publish these for most models, which receive GLB structure and
+64 MiB size checks instead. Disk cache keys for those models hash the source URL.
+
+Godette by SirRichard94, adapted to VRM by Lyuma, is CC-BY 3.0; attribution
 appears in the picker. See `GODOT_VRM_SAMPLE_LICENSES.txt`.
 
 VRM and MToon are vendored from V-Sekai/godot-vrm commit
@@ -37,7 +50,17 @@ selection changes. Body/head/hand poses retain their existing unreliable update
 channel. The scene-owned container keeps `Head`, `LeftHand`, and `RightHand`
 anchors stable for voice and input, replaces only model visuals, and consumes
 local tracking every display frame. Local VR keeps the existing controller and
-optical hand visuals, removing overlapping hand-weighted avatar triangles.
+optical hand visuals, removing overlapping hand-weighted avatar triangles from
+the first-person mesh only. The full mesh retains its hands for mirrors.
+
+Player cameras reserve visual layer 19 for the local VR body and tracked hands,
+and layer 20 for the full local avatar. Desktop player cameras exclude both;
+VR cameras include 19 and exclude 20. Remote avatars use world layer 1. Attach
+`avatar_mirror_camera.gd` to a mirror's Camera3D (or call
+`AvatarView.configure_mirror_camera(camera)`) to include layer 20 and exclude 19.
+This keeps the complete head/body/hands in reflections without showing duplicate
+headless geometry or tracked hands. Worlds still provide the reflection surface,
+SubViewport, and reflected camera transform; this change adds no world mirror.
 
 The Avatar submenu is available from the home and in-game menus. Spring bones
 are a local viewing preference, enabled by default, rather than network state.

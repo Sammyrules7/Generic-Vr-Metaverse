@@ -15,7 +15,12 @@ func check(condition: bool, message: String) -> void:
 
 func run() -> void:
 	var service := root.get_node("AvatarService")
-	check(AvatarCatalog.entries().size() >= 4, "Curated avatar catalog missing")
+	check(AvatarCatalog.entries().size() > 4000, "Full registry catalog missing")
+	check(AvatarCatalog.collections().size() == 10, "Bundled and all upstream collections must be available")
+	check(AvatarCatalog.search("", "100Avatars R2").size() == 100, "Collection filtering must include the entire collection")
+	check(AvatarCatalog.search("Godette").size() == 1, "Catalog name search failed")
+	for entry in AvatarCatalog.entries():
+		check(AvatarCatalog.has_avatar(entry.id), "Registry IDs must fit the replication contract")
 	check(not AvatarCatalog.has_avatar("https://example.com/evil.vrm"), "Peer URLs must not resolve")
 	var invalid: AvatarLoadRequest = service.acquire("unknown")
 	check(invalid.finished and not invalid.error.is_empty(), "Unknown avatar should fail immediately")
@@ -71,6 +76,12 @@ func run() -> void:
 	verification.expected_hash = definition.sha256
 	verification.run()
 	check(verification.error.is_empty(), "Pinned bundled asset hash does not match")
+	verification.expected_hash = ""
+	verification.expected_size = 0
+	verification.run()
+	check(verification.error.is_empty(), "Registry assets without published hashes/sizes must load")
+	verification.expected_hash = definition.sha256
+	verification.expected_size = bytes.size()
 	bytes[bytes.size() - 1] ^= 1
 	verification.bytes = bytes
 	verification.run()
@@ -82,7 +93,7 @@ func run() -> void:
 			check(certificates.load(ca_path) == OK, "Could not load test trust store")
 			service.tls_options = TLSOptions.client(certificates)
 		for entry in AvatarCatalog.entries():
-			if entry.id in ["default", "godette"]:
+			if entry.id in ["default", "godette"] or not entry.has("sha256"):
 				continue
 			var remote: AvatarLoadRequest = service.acquire(entry.id)
 			deadline = Time.get_ticks_msec() + 40000

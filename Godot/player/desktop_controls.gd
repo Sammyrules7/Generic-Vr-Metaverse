@@ -8,6 +8,7 @@ var mouse_captured := false
 func _ready() -> void:
 	super._ready()
 	head = $Camera
+	AvatarView.configure_player_camera($Camera, false)
 	$Camera.current = true
 	_capture_mouse()
 

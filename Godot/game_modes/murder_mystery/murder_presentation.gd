@@ -249,8 +249,8 @@ func _refresh_players() -> void:
 		_player_style[player.get_instance_id()] = style
 		if avatar != null:
 			_remember(avatar)
-			# The avatar container owns first-person head/hand visibility. Keep the
-			# local body visible too; game rules still hide ghosts from living peers.
+			# Camera layers control first-person and mirror visibility. Keep the
+			# local model available to mirrors; rules hide ghosts from living peers.
 			avatar.visible = visible_to_viewer
 			for mesh in meshes:
 				var original := _remember(mesh)

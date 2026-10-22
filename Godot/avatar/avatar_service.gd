@@ -8,7 +8,7 @@ const CACHE_DIR := "user://avatars"
 const MAX_DOWNLOADS := 2
 const MAX_MEMORY_SCENES := 4
 const MAX_DISK_BYTES := 128 * 1024 * 1024
-const MAX_AVATAR_BYTES := 16 * 1024 * 1024
+const MAX_AVATAR_BYTES := 64 * 1024 * 1024
 const EXTENSIONS := [
 	preload("res://addons/vrm/vrm_extension.gd"),
 	preload("res://addons/vrm/1.0/VRMC_vrm.gd"),
@@ -129,13 +129,13 @@ func _start(id: String) -> void:
 	if definition.has("bundled_path"):
 		_verify(id, FileAccess.get_file_as_bytes(str(definition.bundled_path)), "", false)
 		return
-	var path := CACHE_DIR + "/" + str(definition.sha256) + ".vrm"
+	var path := CACHE_DIR + "/" + str(definition.get("sha256", str(definition.url).sha256_text())) + ".vrm"
 	if FileAccess.file_exists(path):
 		_verify(id, PackedByteArray(), path, true)
 		return
 	var http := HTTPRequest.new()
-	http.timeout = 25.0
-	http.body_size_limit = mini(MAX_AVATAR_BYTES, int(definition.size_bytes))
+	http.timeout = 60.0
+	http.body_size_limit = mini(MAX_AVATAR_BYTES, int(definition.get("size_bytes", MAX_AVATAR_BYTES)))
 	http.max_redirects = 5
 	if tls_options != null:
 		http.set_tls_options(tls_options)
@@ -165,8 +165,8 @@ func _verify(id: String, bytes: PackedByteArray, path: String, from_cache: bool)
 	var definition := AvatarCatalog.definition(id)
 	var job := AvatarAssetJob.new()
 	job.bytes = bytes
-	job.expected_hash = definition.sha256
-	job.expected_size = int(definition.size_bytes)
+	job.expected_hash = definition.get("sha256", "")
+	job.expected_size = int(definition.get("size_bytes", 0))
 	job.path = path
 	job.from_cache = from_cache
 	_loads[id].job = job

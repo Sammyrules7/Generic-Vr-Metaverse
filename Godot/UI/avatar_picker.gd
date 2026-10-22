@@ -29,6 +29,9 @@ var _model_bounds := AABB()
 var _simulators: Array = []
 var _selection_group := ButtonGroup.new()
 var _buttons: Dictionary = {}
+const PAGE_SIZE := 24
+var _page := 0
+var _filtered: Array[Dictionary] = []
 
 @onready var _list: VBoxContainer = %AvatarList
 @onready var _scroll: ScrollContainer = %AvatarListScroll
@@ -41,6 +44,13 @@ func _ready() -> void:
 	%ResetAvatar.pressed.connect(_default_pressed)
 	%SpringEnabled.toggled.connect(_spring_toggled)
 	%CloseAvatarSettings.pressed.connect(close)
+	%AvatarSearch.text_changed.connect(func(_text: String): _filter_changed())
+	%CollectionFilter.add_item("All collections")
+	for collection in AvatarCatalog.collections():
+		%CollectionFilter.add_item(collection)
+	%CollectionFilter.item_selected.connect(func(_index: int): _filter_changed())
+	%PreviousPage.pressed.connect(_change_page.bind(-1))
+	%NextPage.pressed.connect(_change_page.bind(1))
 	_layout_preview_stage()
 	AvatarService.selection_changed.connect(_selection_changed)
 	AvatarService.springs_changed.connect(_springs_changed)
@@ -102,11 +112,32 @@ func _rebuild() -> void:
 	_applied_id = _safe_id(PlayerProfile.avatar_id)
 	_pending_id = _applied_id
 	%SpringEnabled.set_pressed_no_signal(PlayerProfile.spring_bones_enabled)
+	%AvatarSearch.text = ""
+	%CollectionFilter.select(0)
+	_page = 0
+	_filtered = AvatarCatalog.search()
+	_refresh_list()
+	_sync_selection(_pending_id, true)
+
+
+func _filter_changed() -> void:
+	var collection: String = %CollectionFilter.get_item_text(%CollectionFilter.selected) if %CollectionFilter.selected > 0 else ""
+	_filtered = AvatarCatalog.search(%AvatarSearch.text, collection)
+	_page = 0
+	_refresh_list()
+
+
+func _change_page(delta: int) -> void:
+	_page = clampi(_page + delta, 0, maxi(0, ceili(float(_filtered.size()) / PAGE_SIZE) - 1))
+	_refresh_list()
+
+
+func _refresh_list() -> void:
 	_scroll.scroll_vertical = 0
 	for child in _list.get_children():
 		child.free()
 	_buttons.clear()
-	for entry: Dictionary in AvatarCatalog.entries():
+	for entry: Dictionary in _filtered.slice(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE):
 		var id := str(entry.get("id", ""))
 		if id.is_empty():
 			continue
@@ -121,7 +152,10 @@ func _rebuild() -> void:
 		button.pressed.connect(sync_pending.bind(id))
 		_list.add_child(button)
 		_buttons[id] = button
-	_sync_selection(_pending_id, true)
+	var pages := maxi(1, ceili(float(_filtered.size()) / PAGE_SIZE))
+	%PageInfo.text = "%d/%d · %d" % [_page + 1, pages, _filtered.size()]
+	%PreviousPage.disabled = _page == 0
+	%NextPage.disabled = _page + 1 >= pages
 	# Late-built list buttons follow the same VR press/debounce rules as the rest.
 	var owner_ui := get_parent()
 	if owner_ui != null and owner_ui.has_method("_configure_buttons"):
@@ -156,7 +190,7 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 	var entry := AvatarCatalog.definition(id)
 	if entry.is_empty():
 		_apply.disabled = true
-		_set_status("This avatar is no longer in the bundled catalog.", true)
+		_set_status("This avatar is no longer in the catalog.", true)
 		return
 	_update_apply()
 	var license := str(entry.get("license", ""))
@@ -186,7 +220,7 @@ func _show_preview(id: String) -> void:
 	_release_request()
 	_clear_model()
 	if AvatarCatalog.definition(id).is_empty():
-		_set_status("This avatar is no longer in the bundled catalog.", true)
+		_set_status("This avatar is no longer in the catalog.", true)
 		return
 	var request := AvatarService.acquire(id)
 	_request = request

@@ -111,6 +111,11 @@ voice_push_to_talk={
 ]
 }
 
+[layer_names]
+
+3d_render/layer_19="Local VR body and hands"
+3d_render/layer_20="Local full avatar (mirrors)"
+
 [network]
 
 signaling/server_url="ws://localhost:8080/ws"

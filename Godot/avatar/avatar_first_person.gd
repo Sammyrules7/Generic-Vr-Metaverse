@@ -17,7 +17,7 @@ static func use_tracked_hands(model: Node3D, enabled: bool) -> void:
 	for instance: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		if not instance.has_meta("avatar_full_mesh"):
 			instance.set_meta("avatar_full_mesh", instance.mesh)
-		if not enabled:
+		if not enabled or (instance.layers & AvatarView.FULL_BODY) != 0:
 			instance.mesh = instance.get_meta("avatar_full_mesh")
 			continue
 		if instance.has_meta("avatar_handless_mesh"):

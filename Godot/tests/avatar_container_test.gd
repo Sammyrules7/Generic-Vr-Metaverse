@@ -22,7 +22,9 @@ func run() -> void:
 	var avatar = player.get_node("Avatar")
 	var anchor: Node = avatar.get_node("Head")
 	check(avatar.visible and avatar.get_node("Body").visible, "Local fallback body must be visible")
-	check(not avatar.get_node("Head").visible, "Local fallback head must not obstruct the camera")
+	check((player.controls.head.cull_mask & avatar.get_node("Head").layers) == 0, "Local fallback head must not obstruct the camera")
+	check((player.controls.head.cull_mask & avatar.get_node("Body").layers) == 0, "Desktop fallback must be hidden from the player camera")
+	check(avatar.get_node("Head").visible and avatar.get_node("Head").layers == AvatarView.FULL_BODY, "Mirrors must retain the fallback head")
 	player.set_avatar("godette")
 	var deadline := Time.get_ticks_msec() + 15000
 	while avatar.model == null and Time.get_ticks_msec() < deadline:

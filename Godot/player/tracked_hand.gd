@@ -14,6 +14,7 @@ func _ready() -> void:
 	var model := (load("res://player/hands/%sHandHumanoid.gltf" % side) as PackedScene).instantiate()
 	PlatformXRInput.prepare_hand_model(model)
 	add_child(model)
+	AvatarView.use_first_person_layer(model)
 	skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
 	modifier = XRHandModifier3D.new()
 	modifier.hand_tracker = tracker

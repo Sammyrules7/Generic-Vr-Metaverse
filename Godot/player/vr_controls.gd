@@ -18,6 +18,7 @@ var _left_hand: XRController3D
 func _ready() -> void:
 	super._ready()
 	head = $Origin/HMDView
+	AvatarView.configure_player_camera($Origin/HMDView, true)
 	left_hand = $Origin/LeftHand
 	right_hand = $Origin/RightHand
 	_origin = $Origin as XROrigin3D
@@ -32,6 +33,7 @@ func _ready() -> void:
 		var hand_mesh := get_node_or_null(path)
 		if hand_mesh != null:
 			hand_mesh.process_physics_priority = 1
+			AvatarView.use_first_person_layer(hand_mesh)
 
 
 func update(delta: float) -> void:

@@ -165,8 +165,21 @@ func _test_synthetic_fixture() -> void:
 	if body == null or headless == null:
 		return
 	# The local player sees its own headless body and never its own head.
-	check(headless.layers == 1, "Local first person mesh must render on layer 1")
-	check(body.layers == 0, "Local third person mesh must not render")
+	check(headless.layers == 0, "Desktop must not draw the first-person body")
+	check(body.layers == AvatarView.FULL_BODY, "Local full avatar must remain available to mirrors")
+	var camera := Camera3D.new()
+	AvatarView.configure_player_camera(camera, false)
+	check((camera.cull_mask & body.layers) == 0, "Desktop camera must hide the local avatar")
+	AvatarView.configure_mirror_camera(camera)
+	check((camera.cull_mask & body.layers) != 0, "Mirror camera must show the full local avatar")
+	driver.set_control_mode(true)
+	AvatarView.configure_player_camera(camera, true)
+	check((camera.cull_mask & body.layers) == 0, "VR camera must not see the full head")
+	check((camera.cull_mask & headless.layers) != 0, "VR camera must see the headless body")
+	AvatarView.configure_mirror_camera(camera)
+	check((camera.cull_mask & headless.layers) == 0, "Mirror must not draw the duplicate first-person body")
+	camera.free()
+	driver.set_control_mode(false)
 	watch_ik(driver, driver.skeleton)
 
 	await process_frame
@@ -326,7 +339,7 @@ func _test_bundled_vrm() -> void:
 	check(headless != null, "Bundled VRM has no first person mesh")
 	check(third_person != null, "Bundled VRM has no third person mesh")
 	if headless != null:
-		check(headless.layers == 1, "Local first person mesh must render on layer 1")
+		check(headless.layers == AvatarView.FIRST_PERSON, "VR body must use the first-person layer")
 	if third_person != null:
-		check(third_person.layers == 0, "Local third person mesh must not render")
+		check(third_person.layers == AvatarView.FULL_BODY, "Mirror must retain the complete avatar")
 	container.free()

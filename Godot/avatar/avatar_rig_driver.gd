@@ -7,20 +7,13 @@ extends Node3D
 ## Godot's native TwoBoneIK3D modifiers, which are parented to the skeleton so
 ## they run before the VRM spring bones.
 ##
-## Visibility follows the importer's head hiding split: the imported layer mask
-## decides what a viewer may see, the first person (headless) meshes and the
-## third person meshes are swapped between layer 1 and no layer at all, so the
-## local player sees its own body without a head while remote players keep
-## theirs. Cameras are never reconfigured.
+## Local full-body geometry stays on AvatarView.FULL_BODY for mirrors. The VR
+## body uses AvatarView.FIRST_PERSON; desktop cameras draw neither. Remote
+## avatars remain on the ordinary world layer. Import masks are kept separately.
 ##
 ## The camera is lined up with the eyes, not with the head bone origin: VRM
 ## stores the eye position in a LookOffset node under the head attachment.
 ##
-## Known alpha limitation: the avatar is never rescaled, because scaling a
-## Skeleton3D breaks the native spring bone simulator. A model that is shorter
-## than the tracked head height therefore floats above the floor instead of
-## standing on it; the eyes still track exactly.
-
 const PROCESS_PRIORITY := 10
 ## The skeleton must consume the targets of the frame the driver just wrote.
 const SKELETON_PRIORITY := 20
@@ -117,6 +110,7 @@ func configure(model: Node3D, head: Node3D, left: Node3D, right: Node3D, local: 
 ## Switch between tracked hand targets and the natural desktop rest pose.
 func set_control_mode(use_vr: bool) -> void:
 	vr_mode = use_vr
+	_apply_mesh_layers()
 	_apply_desktop_targets()
 
 
@@ -190,17 +184,14 @@ func _capture_mesh_layers() -> void:
 
 
 func _apply_mesh_layers() -> void:
-	# The imported layer mask is the contract: the first person layer carries
-	# the headless meshes, the third person layer the full ones. A mesh that
-	# was imported into both layers stays visible for every viewer.
 	for mesh in _mesh_instances():
 		var original: int = _original_layers.get(mesh, 0)
-		var visible := false
 		if is_local:
-			visible = (original & FIRST_PERSON_LAYER) != 0
+			mesh.layers = AvatarView.FULL_BODY if (original & THIRD_PERSON_LAYER) != 0 else 0
+			if vr_mode and (original & FIRST_PERSON_LAYER) != 0:
+				mesh.layers |= AvatarView.FIRST_PERSON
 		else:
-			visible = (original & THIRD_PERSON_LAYER) != 0
-		mesh.layers = VISIBLE_LAYER if visible else HIDDEN_LAYER
+			mesh.layers = VISIBLE_LAYER if (original & THIRD_PERSON_LAYER) != 0 else HIDDEN_LAYER
 
 
 # Rest geometry

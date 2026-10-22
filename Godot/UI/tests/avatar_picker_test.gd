@@ -61,12 +61,30 @@ func _run() -> void:
 	ui.get_node("%OpenAvatarPicker").pressed.emit()
 	check(card.visible and not ui.get_node("%VoiceSettings").visible and not ui.get_node("VBoxContainer").visible, "Avatar submenu did not replace the voice/main cards")
 	var entries := AvatarCatalog.entries()
-	check(card.get_node("%AvatarList").get_child_count() == entries.size(), "Avatar list does not match the bundled catalog")
+	check(card.get_node("%AvatarList").get_child_count() == mini(entries.size(), card.PAGE_SIZE), "Avatar browser must page the full catalog")
 	var default_button: Button = card.get_node("%AvatarList/AvatarExplorer")
 	check(default_button.button_pressed and card._applied_id == "default", "Current avatar is not highlighted in the list")
 	check(card.get_node("%Attribution").text.contains("Bundled") and card.get_node("%Attribution").text.contains("Explorer"), "Attribution for the default avatar is missing")
 	check(card.get_node("%Apply").disabled, "Apply is enabled without a pending change")
 	check(ui.get_viewport().gui_get_focus_owner() == card.get_node("%AvatarList/AvatarExplorer"), "Opening the submenu did not focus the list")
+
+	# Filtering/paging must not download models or discard the current preview.
+	check(not card.get_node("%NextPage").disabled, "Full registry must expose more pages")
+	card.get_node("%NextPage").pressed.emit()
+	check(card._page == 1 and card.get_node("%AvatarList").get_child_count() == card.PAGE_SIZE, "Next page did not advance")
+	card.get_node("%AvatarSearch").text = "Godette"
+	card._filter_changed()
+	check(card._page == 0 and card.get_node("%AvatarList").get_child_count() == 1, "Search must reset paging and filter results")
+	check(card._request == null, "Filtering must not download avatars")
+	card.get_node("%AvatarSearch").text = ""
+	var filter: OptionButton = card.get_node("%CollectionFilter")
+	for index in filter.item_count:
+		if filter.get_item_text(index) == "100Avatars R3":
+			filter.select(index)
+	card._filter_changed()
+	check(card._filtered.size() == 100, "Collection filter did not include all R3 avatars")
+	filter.select(0)
+	card._filter_changed()
 
 	# Selecting the bundled Godette loads it without any network use.
 	card.get_node("%AvatarList/AvatarGodette").pressed.emit()

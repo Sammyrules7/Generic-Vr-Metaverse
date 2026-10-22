@@ -110,9 +110,16 @@ func _set_springs_enabled(enabled: bool) -> void:
 
 func _update_fallback() -> void:
 	$Body.visible = model == null
-	$Head.visible = model == null and not _local
-	$LeftHand.visible = model == null and not _local and get_parent().use_vr
-	$RightHand.visible = model == null and not _local and get_parent().use_vr
+	$Head.visible = model == null
+	$LeftHand.visible = model == null and get_parent().use_vr
+	$RightHand.visible = model == null and get_parent().use_vr
+
+	for part: MeshInstance3D in [$Body, $Head, $LeftHand, $RightHand]:
+		part.layers = 1
+		if _local:
+			part.layers = AvatarView.FULL_BODY
+			if get_parent().use_vr and part == $Body:
+				part.layers |= AvatarView.FIRST_PERSON
 
 
 func _clear_model() -> void:

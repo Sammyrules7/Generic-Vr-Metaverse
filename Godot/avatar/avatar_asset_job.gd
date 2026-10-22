@@ -14,13 +14,13 @@ var task_id := -1
 func run() -> void:
 	if from_cache:
 		bytes = FileAccess.get_file_as_bytes(path)
-	if bytes.size() != expected_size or bytes.size() < 20 or bytes.size() > 16 * 1024 * 1024:
+	if (expected_size > 0 and bytes.size() != expected_size) or bytes.size() < 20 or bytes.size() > 64 * 1024 * 1024:
 		error = "Avatar download has an unexpected size"
 		return
 	var hash := HashingContext.new()
 	hash.start(HashingContext.HASH_SHA256)
 	hash.update(bytes)
-	if hash.finish().hex_encode() != expected_hash:
+	if not expected_hash.is_empty() and hash.finish().hex_encode() != expected_hash:
 		error = "Avatar download failed its integrity check"
 		return
 	if bytes.decode_u32(0) != 0x46546c67 or bytes.decode_u32(4) != 2 or bytes.decode_u32(8) != bytes.size():
