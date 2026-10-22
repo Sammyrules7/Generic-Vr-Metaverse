@@ -50,6 +50,7 @@ var _fallback_preview: Node3D
 func _ready() -> void:
 	_apply.pressed.connect(_apply_pressed)
 	%CloseAvatarSettings.pressed.connect(close)
+	%CloseAvatarSettings.icon = preload("res://UI/icons/avatar/done.svg")
 	%AvatarSearch.text_changed.connect(func(_text: String): _filter_changed())
 	%CollectionFilter.add_item("All collections")
 	for collection in AvatarCatalog.collections():
@@ -616,7 +617,7 @@ func _set_card_thumbnail(button: Button, texture: Texture2D) -> void:
 func _style_browser() -> void:
 	# Inherit the shared room-selector theme, including panel margins/colors.
 	for button: BaseButton in find_children("*", "BaseButton", true, false):
-		_decorate_button(button, button == _apply)
+		_decorate_button(button, button == _apply or button == %CloseAvatarSettings)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if _pending_id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 
 
@@ -689,7 +690,7 @@ func _update_download_progress() -> void:
 	elif total > 0:
 		var percent := clampf(100.0 * downloaded / total, 0, 100)
 		%DownloadProgress.value = percent
-		_set_status("Downloading %d%%" % roundi(percent))
+		_set_status("%.1f / %.1f MB (%d%%)" % [downloaded / 1048576.0, total / 1048576.0, roundi(percent)])
 	elif downloaded > 0:
 		_set_status("Downloading %.1f MB" % (downloaded / 1048576.0))
 	else:

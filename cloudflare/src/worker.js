@@ -247,6 +247,7 @@ async function avatarAsset(request, url) {
     const originHeaders = copyOriginHeaders(request.headers);
     // Some public storage gateways reject the default Workers user agent.
     originHeaders.set("User-Agent", "Mozilla/5.0 (compatible; GenericVRPlatform/1.0)");
+    originHeaders.set("Accept-Encoding", "identity");
     try {
       response = await fetch(target, {
         method: request.method,
@@ -261,11 +262,55 @@ async function avatarAsset(request, url) {
       await response.body?.cancel();
       continue;
     }
+
+    let body = response.body;
+    if (parts[3] === "model" && request.method === "GET" && response.status === 200) {
+      // Storage gateways often stream chunked responses without Content-Length.
+      // A VRM/GLB declares its exact byte length in its first 12 bytes. Use a
+      // fixed-length stream so browsers and Godot can report real progress,
+      // without buffering the entire model in the Worker.
+      const reader = body?.getReader();
+      let prefix = new Uint8Array();
+      try {
+        while (reader && prefix.length < 12) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          const combined = new Uint8Array(prefix.length + chunk.value.length);
+          combined.set(prefix);
+          combined.set(chunk.value, prefix.length);
+          prefix = combined;
+        }
+        const view = new DataView(prefix.buffer, prefix.byteOffset, prefix.byteLength);
+        const length = prefix.length >= 12 ? view.getUint32(8, true) : 0;
+        if (prefix.length < 12 || view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2 || length < 20 || length > 64 * 1024 * 1024 || prefix.length > length) {
+          await reader?.cancel();
+          failures.push("invalid-model");
+          continue;
+        }
+        body = new ReadableStream({
+          start(controller) { controller.enqueue(prefix); },
+          async pull(controller) {
+            const chunk = await reader.read();
+            if (chunk.done) controller.close();
+            else controller.enqueue(chunk.value);
+          },
+          cancel(reason) { return reader.cancel(reason); },
+        });
+        // FixedLengthStream makes Workers preserve Content-Length instead of
+        // converting an ordinary ReadableStream to chunked transfer encoding.
+        if (typeof FixedLengthStream !== "undefined") body = body.pipeThrough(new FixedLengthStream(length));
+        headers.set("Content-Length", String(length));
+      } catch {
+        await reader?.cancel().catch(() => {});
+        failures.push("invalid-model");
+        continue;
+      }
+    }
     for (const name of ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified", "Content-Encoding"]) {
-      if (response.headers.has(name)) headers.set(name, response.headers.get(name));
+      if (response.headers.has(name) && !(name === "Content-Length" && headers.has(name))) headers.set(name, response.headers.get(name));
     }
     headers.set("Cache-Control", response.status === 416 ? "no-store" : "public, max-age=3600");
-    return new Response(request.method === "HEAD" ? null : response.body, { status: response.status, headers });
+    return new Response(request.method === "HEAD" ? null : body, { status: response.status, headers });
   }
   headers.set("X-Avatar-Upstream-Status", failures.join(","));
   return new Response("Avatar storage unavailable. Try again.", { status: 502, headers });

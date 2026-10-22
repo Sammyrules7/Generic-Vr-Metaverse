@@ -104,7 +104,9 @@ same catalog snapshot before publishing clients that use the asset proxy.
 
 The panel's outer edges use the same scaled 32 px horizontal / 24 px vertical
 margins as the lobby. The category title/count replace the redundant header;
-Done occupies the footer and hair/cloth motion remains enabled by preference.
+Done shares the bottom action baseline in the sidebar, with the existing primary
+button treatment and a check icon. Hair/cloth motion remains enabled by preference.
 Clicked thumbnails preempt background thumbnail HTTP and appear in the preview
-while the model downloads. A small progress bar shows HTTP byte progress where
-the response length is available, or indeterminate progress otherwise.
+while the model downloads. The proxy reads the GLB length header and uses a fixed-length stream, allowing
+the progress bar to show downloaded MB / total MB without buffering the model.
+Indeterminate progress remains a fallback when Godot cannot expose a byte total.

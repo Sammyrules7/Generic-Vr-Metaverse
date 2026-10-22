@@ -247,13 +247,18 @@ test("Arweave avatars use raw bytes without sandbox redirects", async () => {
     calls++;
     assert.equal(String(url), "https://arweave.net/raw/2EQ5wsstsJaFOG9LXq_gVFKKgM8bnfPa3axYJ-VS1ug");
     assert.match(options.headers.get("user-agent"), /GenericVRPlatform/);
-    return new Response(new Uint8Array([0x67, 0x6c, 0x54, 0x46]), { headers: { "Content-Type": "application/octet-stream", "Content-Length": "4" } });
+    const bytes = new Uint8Array(20);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(0, 0x46546c67, true);
+    view.setUint32(4, 2, true);
+    view.setUint32(8, 20, true);
+    return new Response(bytes, { headers: { "Content-Type": "application/octet-stream" } });
   };
   try {
     const response = await worker.fetch(new Request("https://app.vr.maio-tech.com/avatar-assets/osa-ae4512a8e259ca3a47c05e9b612ccf039671333b/model?v=8a473f2c98c8171d"), env);
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get("content-length"), "4");
-    assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [0x67, 0x6c, 0x54, 0x46]);
+    assert.equal(response.headers.get("content-length"), "20");
+    assert.equal((await response.arrayBuffer()).byteLength, 20);
     assert.equal(calls, 1);
   } finally { globalThis.fetch = original; }
 });

@@ -83,28 +83,29 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 12
 
-[node name="GalleryHeading" type="HBoxContainer" parent="Content/Body/Gallery/GalleryContent"]
+[node name="GalleryHeading" type="Control" parent="Content/Body/Gallery/GalleryContent"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 42)
-theme_override_constants/separation = 12
 
 [node name="ResultCount" type="Label" parent="Content/Body/Gallery/GalleryContent/GalleryHeading"]
 unique_name_in_owner = true
-layout_mode = 2
+layout_mode = 0
 text = ""
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 horizontal_alignment = 0
 vertical_alignment = 1
+anchor_bottom = 1.0
 
 [node name="GalleryTitle" type="Label" parent="Content/Body/Gallery/GalleryContent/GalleryHeading"]
 unique_name_in_owner = true
-layout_mode = 2
+layout_mode = 0
 text = "All avatars"
 theme_override_font_sizes/font_size = 21
-size_flags_horizontal = 3
-horizontal_alignment = 0
+horizontal_alignment = 1
 vertical_alignment = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
 
 [node name="SearchRow" type="HBoxContainer" parent="Content/Body/Gallery/GalleryContent"]
 layout_mode = 2
@@ -148,9 +149,6 @@ autowrap_mode = 2
 [node name="GalleryActions" type="VBoxContainer" parent="Content/Body/Gallery"]
 layout_mode = 2
 theme_override_constants/separation = 12
-
-[node name="ActionDivider" type="HSeparator" parent="Content/Body/Gallery/GalleryActions"]
-layout_mode = 2
 
 [node name="Pagination" type="HBoxContainer" parent="Content/Body/Gallery/GalleryActions"]
 layout_mode = 2
@@ -300,9 +298,6 @@ theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="ActionDivider" type="HSeparator" parent="Content/Body/PreviewPane/PreviewActions"]
-layout_mode = 2
-
 [node name="Apply" type="Button" parent="Content/Body/PreviewPane/PreviewActions"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -310,11 +305,7 @@ text = "Wearing"
 custom_minimum_size = Vector2(0, 42)
 disabled = true
 
-[node name="Footer" type="HBoxContainer" parent="Content"]
-layout_mode = 2
-theme_override_constants/separation = 16
-
-[node name="CloseAvatarSettings" type="Button" parent="Content/Footer"]
+[node name="CloseAvatarSettings" type="Button" parent="Content/Body/Sidebar"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Done"
