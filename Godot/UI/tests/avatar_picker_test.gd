@@ -84,6 +84,7 @@ func _run() -> void:
 			filter.select(index)
 	card._filter_changed()
 	check(card._filtered.size() == 100, "Collection filter did not include all R3 avatars")
+	check(card.get_node("%AvatarSearch").placeholder_text == "Search in 100Avatars R3" and card.get_node("%ResultCount").text == "100", "Search scope and count must track collection changes")
 	filter.select(0)
 	card._filter_changed()
 
@@ -133,7 +134,8 @@ func _run() -> void:
 	check(card._filtered.size() == entries.size(), "All avatars did not restore the library")
 	check(card.get_node_or_null("%RotateLeft") == null and card.get_node_or_null("%SpringEnabled") == null and card.get_node_or_null("Content/Header") == null, "Removed layout controls must not remain")
 	check(card.get_node("%CloseAvatarSettings").get_parent() == card.get_node("Content/Body/Sidebar"), "Done must share the bottom action row in the sidebar")
-	check(card.get_node("%GalleryTitle").horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER and card.get_node("%ResultCount").get_index() < card.get_node("%GalleryTitle").get_index(), "Avatar count must stay left while the category title is centered")
+	check(card.get_node_or_null("%GalleryTitle") == null and card.get_node("%ResultCount").get_parent() == card.get_node("%AvatarSearch"), "Search and result count must replace the separate header")
+	check(card.get_node("%AvatarSearch").placeholder_text == "Search in All avatars" and card.get_node("%ResultCount").horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "Unified search field must identify the collection and right-align results")
 	check(card.get_node_or_null("Content/Body/Sidebar/LibraryLabel") == null, "Redundant Library label must be removed")
 	check(is_equal_approx(card.get_node("%Apply").get_global_rect().end.y, card.get_node("%NextPage").get_global_rect().end.y), "Gallery and preview actions must share a stable bottom baseline")
 	check(is_equal_approx(card.get_node("%Apply").get_global_rect().end.y, card.get_node("%CloseAvatarSettings").get_global_rect().end.y), "All action buttons must sit at the panel bottom")

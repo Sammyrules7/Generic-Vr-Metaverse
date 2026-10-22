@@ -145,7 +145,9 @@ func _filter_changed() -> void:
 	_filtered = AvatarCatalog.search(%AvatarSearch.text, collection)
 	if _favorites_only:
 		_filtered = _filtered.filter(func(entry: Dictionary): return str(entry.id) in PlayerProfile.avatar_favorites)
-	%GalleryTitle.text = "Favorites" if _favorites_only else collection if not collection.is_empty() else "All avatars"
+	var scope := "Favorites" if _favorites_only else collection if not collection.is_empty() else "All avatars"
+	%AvatarSearch.placeholder_text = "Search in %s" % scope
+	%AvatarSearch.tooltip_text = "Search in %s" % scope
 	%ResultCount.text = str(_filtered.size())
 	%BrowseAll.set_pressed_no_signal(not _favorites_only and collection.is_empty())
 	%BrowseFavorites.set_pressed_no_signal(_favorites_only)
@@ -615,6 +617,13 @@ func _set_card_thumbnail(button: Button, texture: Texture2D) -> void:
 
 
 func _style_browser() -> void:
+	# Reserve room inside the field for its result count. The built-in clear
+	# button is laid out before this margin, so neither text nor controls overlap.
+	for state in ["normal", "focus"]:
+		var style := %AvatarSearch.get_theme_stylebox(state).duplicate() as StyleBoxFlat
+		if style != null:
+			style.content_margin_right = 80
+			%AvatarSearch.add_theme_stylebox_override(state, style)
 	# Inherit the shared room-selector theme, including panel margins/colors.
 	for button: BaseButton in find_children("*", "BaseButton", true, false):
 		_decorate_button(button, button == _apply or button == %CloseAvatarSettings)
