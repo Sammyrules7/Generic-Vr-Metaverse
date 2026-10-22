@@ -46,6 +46,7 @@ func check(condition: bool, message: String) -> void:
 
 func run() -> void:
 	await _test_synthetic_fixture()
+	_test_desktop_animation()
 	await _test_bundled_vrm()
 	print("AVATAR_RIG_TEST failures=", failures)
 	quit(1 if failures else 0)
@@ -342,4 +343,37 @@ func _test_bundled_vrm() -> void:
 		check(headless.layers == AvatarView.FIRST_PERSON, "VR body must use the first-person layer")
 	if third_person != null:
 		check(third_person.layers == AvatarView.FULL_BODY, "Mirror must retain the complete avatar")
+	container.free()
+
+
+func _test_desktop_animation() -> void:
+	var rig := build_rig(build_fixture_model(), false, false)
+	var driver = rig.driver
+	var container: Node3D = rig.container
+	var skeleton: Skeleton3D = driver.skeleton
+	driver.set_process(false)
+	driver._process(1.0 / 60.0)
+	var spine := skeleton.find_bone("Spine")
+	check(not skeleton.get_bone_pose_rotation(spine).is_equal_approx(Quaternion.IDENTITY), "Desktop idle must animate the torso")
+	var leg := skeleton.find_bone("LeftUpperLeg")
+	var maximum_leg_angle := 0.0
+	var maximum_hand_swing := 0.0
+	for frame in 60:
+		container.position.z -= 3.0 / 60.0
+		driver._process(1.0 / 60.0)
+		maximum_leg_angle = maxf(maximum_leg_angle, skeleton.get_bone_pose_rotation(leg).get_angle())
+		maximum_hand_swing = maxf(maximum_hand_swing, driver.hand_target.left.position.distance_to(driver._desktop_target.left.origin))
+	check(maximum_leg_angle > 0.2, "Moving desktop avatars must step their legs")
+	check(maximum_hand_swing > 0.05, "Desktop walking must swing the hands")
+	for frame in 120:
+		driver._process(1.0 / 60.0)
+	check(skeleton.get_bone_pose_rotation(leg).get_angle() < 0.01, "Stopping must blend the legs back to idle")
+	container.position.x += 100.0
+	driver._process(1.0 / 60.0)
+	check(driver._motion_velocity.is_zero_approx(), "Teleporting must reset locomotion velocity")
+	driver.set_control_mode(true)
+	container.position.z += 0.1
+	driver._process(1.0 / 60.0)
+	check(skeleton.get_bone_pose_rotation(spine).is_equal_approx(Quaternion.IDENTITY) and skeleton.get_bone_pose_rotation(leg).is_equal_approx(Quaternion.IDENTITY), "VR must clear desktop bone animation")
+	check(driver.hand_target.left.global_position.is_equal_approx(rig.left.global_position), "VR must keep tracked hand targets after desktop animation")
 	container.free()

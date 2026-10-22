@@ -113,6 +113,16 @@ while the model downloads. The proxy reads the GLB length header and uses a fixe
 the progress bar to show downloaded MB / total MB without buffering the model.
 Indeterminate progress remains a fallback when Godot cannot expose a byte total.
 
-The full-library search placeholder is "Search all". Artist credit appears beside
-the avatar name, with the full attribution available in a tooltip. License
-shorthand is left-aligned inside a holder at the preview's bottom-right corner.
+The full-library search placeholder is "Search all". Artist credit appears on
+avatar cards. License shorthand is right-aligned at the preview's bottom-right
+corner. Progress and status overlay the clipped preview without resizing it;
+Wear becomes Retry preview after a failure.
+
+Desktop humanoids use procedural idle breathing, directional stepping, knee/foot
+motion, torso counter-rotation and arm swing. The rig derives horizontal velocity
+from the avatar container's world movement, so remote avatars and the local
+mirror body animate without additional RPCs or downloaded animation assets.
+Speed blends into idle on stopping; teleports reset the motion estimate. Available
+humanoid bones are animated independently, so incomplete rigs skip missing bones.
+Switching to VR restores the original bone poses and uses tracked hand targets.
+The eye position remains attached to the camera while the torso animates.

@@ -54,6 +54,7 @@ var _space: Node3D
 var _head_bone := -1
 var _neck_bone := -1
 var _head_rest_model := Vector3.ZERO
+var _eye_offset := Vector3.ZERO
 var _head_rest_basis_model := Basis.IDENTITY
 var _forward_model := Vector3.BACK
 var _model_to_space := Basis.IDENTITY
@@ -62,6 +63,12 @@ var _original_layers := {}
 var _original_model: Node3D
 var _configured := false
 var _last_yaw := 0.0
+var _animation_bones := {}
+var _motion_position := Vector3.ZERO
+var _motion_initialized := false
+var _motion_velocity := Vector3.ZERO
+var _stride_phase := 0.0
+var _idle_time := 0.0
 
 
 func _ready() -> void:
@@ -101,6 +108,7 @@ func configure(model: Node3D, head: Node3D, left: Node3D, right: Node3D, local: 
 		_capture_mesh_layers()
 		_original_model = avatar_model
 	_read_rest_geometry()
+	_capture_animation_pose()
 	_build_arm_ik()
 	_apply_mesh_layers()
 	_configured = true
@@ -109,6 +117,9 @@ func configure(model: Node3D, head: Node3D, left: Node3D, right: Node3D, local: 
 
 ## Switch between tracked hand targets and the natural desktop rest pose.
 func set_control_mode(use_vr: bool) -> void:
+	_reset_animation_pose()
+	_motion_initialized = false
+	_motion_velocity = Vector3.ZERO
 	vr_mode = use_vr
 	_apply_mesh_layers()
 	_apply_desktop_targets()
@@ -121,9 +132,10 @@ func restore_original_layers() -> void:
 			mesh.layers = _original_layers[mesh]
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _configured:
 		return
+	_animate_desktop(delta)
 	_update_body_pose()
 	_update_hand_targets()
 
@@ -204,6 +216,7 @@ func _read_rest_geometry() -> void:
 		_neck_bone = skeleton.get_bone_parent(_head_bone)
 	var skeleton_local := avatar_model.global_transform.affine_inverse() * skeleton.global_transform
 	var eye_offset := _eye_offset_model()
+	_eye_offset = eye_offset
 	if _head_bone >= 0:
 		# The camera has to line up with the eyes, not with the bone origin.
 		var head_rest := skeleton_local * skeleton.get_bone_global_rest(_head_bone)
@@ -372,6 +385,81 @@ static func _rotation_from_to(from: Vector3, to: Vector3) -> Quaternion:
 	return Quaternion(axis.normalized(), a.angle_to(b))
 
 
+# Desktop locomotion is derived from replicated body movement, so observers and
+# mirrors animate without new RPCs. Tracked VR poses never receive this motion.
+func _capture_animation_pose() -> void:
+	_animation_bones.clear()
+	_motion_initialized = false
+	_motion_velocity = Vector3.ZERO
+	_stride_phase = 0.0
+	_idle_time = 0.0
+	for bone_name in ["Spine", "Chest", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot"]:
+		var index := skeleton.find_bone(bone_name)
+		if index >= 0:
+			_animation_bones[bone_name] = skeleton.get_bone_pose_rotation(index)
+
+
+func _reset_animation_pose() -> void:
+	if not is_instance_valid(skeleton):
+		return
+	for bone_name in _animation_bones:
+		skeleton.set_bone_pose_rotation(skeleton.find_bone(bone_name), _animation_bones[bone_name])
+
+
+func _animate_bone(bone_name: String, axis: Vector3, angle: float) -> void:
+	if not _animation_bones.has(bone_name):
+		return
+	var index := skeleton.find_bone(bone_name)
+	var local_axis := skeleton.get_bone_global_rest(index).basis.inverse() * axis
+	skeleton.set_bone_pose_rotation(index, _animation_bones[bone_name] * Quaternion(local_axis.normalized(), angle))
+
+
+func _animate_desktop(delta: float) -> void:
+	if vr_mode or delta <= 0.0 or _space == null:
+		return
+	var position_now := _space.global_position
+	var movement := position_now - _motion_position if _motion_initialized else Vector3.ZERO
+	_motion_position = position_now
+	_motion_initialized = true
+	# A teleport or paused frame must not turn into a high-speed walk cycle.
+	if movement.length() > 0.75 or delta > 0.2:
+		_motion_velocity = Vector3.ZERO
+		_stride_phase = 0.0
+		movement = Vector3.ZERO
+	var velocity := movement / delta
+	velocity.y = 0.0
+	_motion_velocity = _motion_velocity.lerp(velocity, 1.0 - exp(-10.0 * delta))
+	var speed := minf(_motion_velocity.length(), 7.0)
+	var weight := clampf(speed / 2.5, 0.0, 1.0)
+	_idle_time += delta
+	_stride_phase = fmod(_stride_phase + speed * delta * TAU / 2.0, TAU)
+	var up := _body_up_skeleton()
+	var left := _body_left_skeleton()
+	var forward := left.cross(up).normalized()
+	var skeleton_world := skeleton.global_basis.orthonormalized()
+	var direction := skeleton_world.inverse() * _motion_velocity.normalized() if speed > 0.01 else forward
+	var forward_weight := direction.dot(forward)
+	var side_weight := direction.dot(left)
+	var breath := sin(_idle_time * 2.2) * 0.012 * (1.0 - weight)
+	_animate_bone("Spine", left, breath)
+	_animate_bone("Chest", up, sin(_stride_phase) * weight * 0.035)
+	for side in ["left", "right"]:
+		var cycle := sin(_stride_phase + (0.0 if side == "left" else PI))
+		var prefix := "Left" if side == "left" else "Right"
+		var upper_name := prefix + "UpperLeg"
+		_animate_bone(upper_name, left, -cycle * weight * 0.5 * forward_weight)
+		if _animation_bones.has(upper_name):
+			var upper := skeleton.find_bone(upper_name)
+			var local_forward := skeleton.get_bone_global_rest(upper).basis.inverse() * forward
+			skeleton.set_bone_pose_rotation(upper, skeleton.get_bone_pose_rotation(upper) * Quaternion(local_forward.normalized(), cycle * weight * side_weight * 0.3))
+		_animate_bone(prefix + "LowerLeg", left, maxf(0.0, cycle) * weight * 0.65)
+		_animate_bone(prefix + "Foot", left, -maxf(0.0, cycle) * weight * 0.15)
+		if _desktop_target.has(side):
+			var target: Transform3D = _desktop_target[side]
+			target.origin += forward * (-cycle * weight * 0.16) + up * (absf(cycle) * weight * 0.025 + breath * 0.2)
+			hand_target[side].transform = target
+
+
 # Body placement
 
 
@@ -390,6 +478,10 @@ func _update_body_pose() -> void:
 	var origin := anchor.origin - basis * _head_rest_model
 	avatar_model.transform = Transform3D(basis, origin)
 	_apply_head_rotation(anchor)
+	# Keep the eyes pinned to the camera even as the torso breathes or turns.
+	if _head_bone >= 0:
+		var eyes := skeleton.transform * (skeleton.get_bone_global_pose(_head_bone) * _eye_offset)
+		avatar_model.position = anchor.origin - basis * eyes
 
 
 func _apply_head_rotation(anchor: Transform3D) -> void:
