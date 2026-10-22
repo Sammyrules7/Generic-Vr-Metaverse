@@ -163,17 +163,6 @@ size_flags_horizontal = 3
 clip_text = true
 vertical_alignment = 1
 
-[node name="ArtistName" type="Label" parent="Content/Body/PreviewPane/PreviewContent/SelectedHeading"]
-unique_name_in_owner = true
-layout_mode = 2
-visible = false
-size_flags_horizontal = 3
-horizontal_alignment = 1
-vertical_alignment = 1
-mouse_filter = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
-
 [node name="FavoriteAvatar" type="Button" parent="Content/Body/PreviewPane/PreviewContent/SelectedHeading"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -269,6 +258,7 @@ offset_left = -142.0
 offset_top = -30.0
 offset_right = -12.0
 offset_bottom = -12.0
+horizontal_alignment = 2
 mouse_filter = 1
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)

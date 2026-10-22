@@ -64,6 +64,7 @@ func _run() -> void:
 	var entries := AvatarCatalog.entries()
 	check(card.get_node("%AvatarList").get_child_count() == mini(entries.size(), card.BATCH_SIZE), "Avatar browser must initially create only one batch")
 	var default_button: Button = card.get_node("%AvatarList/AvatarExplorer")
+	check(default_button.get_node("Card").get_child(0).get_node("Thumbnail").material is ShaderMaterial, "Card thumbnails must round their image corners")
 	check(default_button.button_pressed and card._applied_id == "default", "Current avatar is not highlighted in the list")
 	check(card.get_node("%Attribution").text.contains("Bundled"), "Attribution for the default avatar is missing")
 	check(card.get_node("%Apply").disabled, "Apply is enabled without a pending change")
@@ -143,8 +144,8 @@ func _run() -> void:
 	check(card.get_node("%AvatarSearch").placeholder_text == "Search all" and card.get_node("%ResultCount").horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "Unified search field must identify the collection and right-align results")
 	check(card.get_node_or_null("Content/Body/Sidebar/LibraryLabel") == null, "Redundant Library label must be removed")
 	check(card.get_node("%Attribution").get_parent() == card.get_node("%PreviewFrame"), "License must sit directly inside the preview")
-	check(card.get_node("%Attribution").anchor_right == 1.0 and card.get_node("%Attribution").anchor_bottom == 1.0 and card.get_node("%Attribution").horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT, "License must anchor at the lower right with left-aligned text")
-	check(card.get_node_or_null("%SelectedCollection") == null and card.get_node_or_null("%LicenseHolder") == null, "Viewer must omit artist, collection, and license panel")
+	check(card.get_node("%Attribution").anchor_right == 1.0 and card.get_node("%Attribution").anchor_bottom == 1.0 and card.get_node("%Attribution").horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "License must anchor at the lower right with right-aligned text")
+	check(card.get_node_or_null("%ArtistName") == null and card.get_node_or_null("%SelectedCollection") == null and card.get_node_or_null("%LicenseHolder") == null, "Viewer must omit artist, collection, and license panel")
 	var gallery_style: StyleBoxFlat = card.get_node("%ListFrame").get_theme_stylebox("panel")
 	var button_style: StyleBoxFlat = card.get_node("%BrowseAll").get_theme_stylebox("normal")
 	check(gallery_style.corner_radius_top_left == button_style.corner_radius_top_left, "Gallery corners must match button corners")
@@ -155,7 +156,7 @@ func _run() -> void:
 	check(card.get_node("%AvatarList").columns >= 3, "Wardrobe must use horizontal space for a multi-column gallery")
 	check(is_equal_approx(card.get_node("%BrowseAll").get_global_rect().position.y, card.get_node("%AvatarSearch").get_global_rect().position.y), "Search and All avatars must align")
 	check(is_equal_approx(card.get_node("%BrowseFavorites").get_global_rect().position.y, card.get_node("%ListFrame").get_global_rect().position.y), "Favorites and gallery must align")
-	check(card.get_node("%ArtistName").horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "Optional preview artist must be centered")
+
 	check(card.get_node("%AvatarListScroll").get_v_scroll_bar().get_theme_stylebox("grabber").corner_radius_top_left == 4, "Scrollbar must use a rounded thumb")
 	# Exercise responsive breakpoints without changing the enclosing menu size.
 	var scroll: ScrollContainer = card.get_node("%AvatarListScroll")
@@ -164,19 +165,6 @@ func _run() -> void:
 	card._layout_browser()
 	check(card.get_node("%AvatarList").columns == 4, "Wide galleries must fit four cards")
 	scroll.size = original_scroll_size
-	var heading: HBoxContainer = card.get_node("%SelectedTitle").get_parent()
-	var original_heading_size := heading.size
-	var artist: Label = card.get_node("%ArtistName")
-	var original_artist := artist.text
-	artist.text = "Artist"
-	heading.size.x = 800
-	card._layout_browser()
-	check(artist.visible, "Preview artist must appear when there is enough room")
-	heading.size.x = 180
-	card._layout_browser()
-	check(not artist.visible, "Preview artist must hide before crowding the title and star")
-	artist.text = original_artist
-	heading.size = original_heading_size
 	card._layout_browser()
 	await get_tree().process_frame
 	await get_tree().process_frame

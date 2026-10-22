@@ -238,7 +238,6 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 		return
 	_update_apply()
 	%SelectedTitle.text = str(entry.get("title", id))
-	%ArtistName.text = str(entry.get("creator", "SirRichard94 / Lyuma" if id == "godette" else ""))
 	_layout_browser()
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
@@ -583,6 +582,9 @@ func _make_avatar_card(entry: Dictionary) -> Button:
 	art.add_child(fallback)
 	var image := TextureRect.new()
 	image.name = "Thumbnail"
+	var rounded := ShaderMaterial.new()
+	rounded.shader = preload("res://UI/rounded_thumbnail.gdshader")
+	image.material = rounded
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -648,15 +650,6 @@ func _layout_browser() -> void:
 	%SelectedTitle.get_parent().custom_minimum_size.y = header_height
 	var available := _scroll.size.x - _scroll.get_v_scroll_bar().size.x
 	_list.columns = clampi(int((available + 12.0) / 150.0), 2, 4)
-	var title: Label = %SelectedTitle
-	var artist: Label = %ArtistName
-	var title_width := title.get_theme_font("font").get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, title.get_theme_font_size("font_size")).x
-	var artist_width := artist.get_theme_font("font").get_string_size(artist.text, HORIZONTAL_ALIGNMENT_LEFT, -1, artist.get_theme_font_size("font_size")).x
-	var heading: HBoxContainer = title.get_parent()
-	var fits: bool = not artist.text.is_empty() and title_width + artist_width + %FavoriteAvatar.size.x + 2 * heading.get_theme_constant("separation") + 16 <= heading.size.x
-	artist.visible = fits
-	title.custom_minimum_size.x = title_width if fits else 0.0
-	artist.custom_minimum_size.x = artist_width if fits else 0.0
 
 
 func _style_scrollbar(scroll: ScrollContainer) -> void:
