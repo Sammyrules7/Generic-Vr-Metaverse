@@ -4,6 +4,7 @@ extends RefCounted
 
 signal completed
 
+var bytes_only := false
 var finished := false
 var scene: PackedScene
 var error := ""

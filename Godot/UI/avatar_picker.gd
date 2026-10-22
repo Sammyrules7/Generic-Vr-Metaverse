@@ -36,6 +36,9 @@ var _favorites_only := false
 var _collection_buttons: Array[Button] = []
 var _thumbnails: AvatarThumbnails
 var _preview_ready := true
+var _prefetch: AvatarLoadRequest
+var _hover_id := ""
+var _hover_generation := 0
 var _fallback_preview: Node3D
 
 @onready var _list: GridContainer = %AvatarList
@@ -46,7 +49,6 @@ var _fallback_preview: Node3D
 
 func _ready() -> void:
 	_apply.pressed.connect(_apply_pressed)
-	%ResetAvatar.pressed.connect(_default_pressed)
 	%SpringEnabled.toggled.connect(_spring_toggled)
 	%CloseAvatarSettings.pressed.connect(close)
 	%AvatarSearch.text_changed.connect(func(_text: String): _filter_changed())
@@ -59,7 +61,6 @@ func _ready() -> void:
 	_build_collection_navigation()
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
-	%ClearFilters.pressed.connect(_clear_filters)
 	%FavoriteAvatar.pressed.connect(_toggle_favorite)
 	%RetryPreview.pressed.connect(func(): _show_preview(_pending_id))
 	%RotateLeft.pressed.connect(_rotate_preview.bind(-1.0))
@@ -67,7 +68,10 @@ func _ready() -> void:
 	_thumbnails = AvatarThumbnails.new()
 	add_child(_thumbnails)
 	_thumbnails.loaded.connect(_thumbnail_loaded)
-	_style_browser()
+	%FavoriteAvatar.icon = preload("res://UI/icons/avatar/favorite.svg")
+	%RotateLeft.icon = preload("res://UI/icons/avatar/rotate_left.svg")
+	%RotateRight.icon = preload("res://UI/icons/avatar/rotate_right.svg")
+	_style_browser.call_deferred()
 	_layout_preview_stage()
 	AvatarService.selection_changed.connect(_selection_changed)
 	AvatarService.springs_changed.connect(_springs_changed)
@@ -79,7 +83,7 @@ func _layout_preview_stage() -> void:
 	# lights; hand-written rotation matrices in the scene file are easy to get
 	# wrong, so the small fixed stage is composed here instead.
 	var frame := StyleBoxFlat.new()
-	frame.bg_color = Color("#152c36")
+	frame.bg_color = Color("#21344b")
 	frame.set_corner_radius_all(14)
 	%PreviewFrame.add_theme_stylebox_override("panel", frame)
 	var key := %KeyLight as DirectionalLight3D
@@ -104,6 +108,7 @@ func set_open(open: bool) -> void:
 		_release_request()
 		_clear_model()
 		_thumbnails.cancel_pending()
+		_cancel_prefetch()
 
 
 func close() -> void:
@@ -122,7 +127,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		# A hidden SubViewport stops rendering; the orbit must not unwind either.
 		return
-	if %AutoRotate.button_pressed and (_model != null or (_fallback_preview != null and _fallback_preview.visible)):
+	if _model != null or (_fallback_preview != null and _fallback_preview.visible):
 		_stage.rotation.y = fmod(_stage.rotation.y + delta * 0.35, TAU)
 
 
@@ -144,7 +149,7 @@ func _filter_changed() -> void:
 	if _favorites_only:
 		_filtered = _filtered.filter(func(entry: Dictionary): return str(entry.id) in PlayerProfile.avatar_favorites)
 	%GalleryTitle.text = "Favorites" if _favorites_only else collection if not collection.is_empty() else "All avatars"
-	%ResultCount.text = "%s looks" % _filtered.size()
+	%ResultCount.text = "%s avatars" % _filtered.size()
 	%BrowseAll.set_pressed_no_signal(not _favorites_only and collection.is_empty())
 	%BrowseFavorites.set_pressed_no_signal(_favorites_only)
 	for index in _collection_buttons.size():
@@ -159,6 +164,7 @@ func _change_page(delta: int) -> void:
 
 
 func _refresh_list() -> void:
+	_cancel_prefetch()
 	_thumbnails.cancel_pending()
 	_scroll.scroll_vertical = 0
 	for child in _list.get_children():
@@ -171,7 +177,7 @@ func _refresh_list() -> void:
 		var button := _make_avatar_card(entry)
 		_list.add_child(button)
 		_buttons[id] = button
-		var url := str(entry.get("thumbnail_url", ""))
+		var url := AvatarAssets.url(id, "thumbnail")
 		var texture := _thumbnails.request(url)
 		if texture != null:
 			_set_card_thumbnail(button, texture)
@@ -208,8 +214,7 @@ func _selection_changed(id: String) -> void:
 
 func _update_apply() -> void:
 	_apply.disabled = _pending_id == _applied_id or not _preview_ready
-	_apply.text = "Wearing" if _pending_id == _applied_id else "Wear avatar" if _preview_ready else "Loading…"
-	%WearingLabel.text = "Wearing %s" % _title_for(_applied_id)
+	_apply.text = "Wearing" if _pending_id == _applied_id else "Wear avatar" if _preview_ready else "Loading..."
 
 
 func _sync_selection(id: String, with_preview: bool) -> void:
@@ -226,15 +231,10 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 	%SelectedTitle.text = str(entry.get("title", id))
 	%SelectedCollection.text = str(entry.get("collection", "Bundled"))
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
-	%FavoriteAvatar.text = "★" if id in PlayerProfile.avatar_favorites else "☆"
+	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
+	var creator := str(entry.get("creator", "SirRichard94 / Lyuma" if id == "godette" else ""))
 	var license := str(entry.get("license", ""))
-	var attribution := str(entry.get("attribution", ""))
-	if license.is_empty():
-		%Attribution.text = str(entry.get("title", id))
-	elif attribution.is_empty():
-		%Attribution.text = "%s · %s" % [entry.get("title", id), license]
-	else:
-		%Attribution.text = "%s · %s\n%s" % [entry.get("title", id), license, attribution]
+	%Attribution.text = "%s · %s" % [creator, license] if not creator.is_empty() else license
 	if with_preview:
 		_show_preview(id)
 
@@ -261,11 +261,12 @@ func _show_preview(id: String) -> void:
 		return
 	var request := AvatarService.acquire(id)
 	_request = request
+	_cancel_prefetch()
 	if request.finished:
 		# The lease can complete instantly (cached or bundled): no await needed.
 		_process_result(request, id, generation)
 		return
-	_set_status("Loading %s…" % _title_for(id))
+	_set_status("Loading %s..." % _title_for(id))
 	await request.completed
 	if generation != _generation:
 		return
@@ -289,7 +290,7 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 		_show_default_preview()
 		_preview_ready = true
 		_update_apply()
-		_set_status("A simple, lightweight Explorer.", false, true)
+		_set_status("")
 		return
 	if not _place_model(scene):
 		_set_status("This avatar could not be shown in the preview.", true)
@@ -433,11 +434,6 @@ func _apply_pressed() -> void:
 	AvatarService.select_avatar(_pending_id)
 
 
-func _default_pressed() -> void:
-	# Reset applies immediately; "default" is always in the catalog.
-	AvatarService.select_avatar(DEFAULT_ID)
-
-
 func _set_status(message: String, is_error := false, is_hint := false) -> void:
 	var status: Label = %PreviewStatus
 	status.visible = not message.is_empty()
@@ -472,6 +468,7 @@ func _clear_model() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
+		_cancel_prefetch()
 		# The picker may be freed mid-flight; never leave the service's lease.
 		_generation += 1
 		_release_request()
@@ -515,10 +512,6 @@ func _browse_favorites() -> void:
 	_filter_changed()
 
 
-func _clear_filters() -> void:
-	_browse_all()
-
-
 func _toggle_favorite() -> void:
 	if _pending_id in PlayerProfile.avatar_favorites:
 		PlayerProfile.avatar_favorites.erase(_pending_id)
@@ -526,13 +519,12 @@ func _toggle_favorite() -> void:
 		PlayerProfile.avatar_favorites.append(_pending_id)
 	PlayerProfile.save()
 	%FavoriteAvatar.set_pressed_no_signal(_pending_id in PlayerProfile.avatar_favorites)
-	%FavoriteAvatar.text = "★" if _pending_id in PlayerProfile.avatar_favorites else "☆"
+	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if _pending_id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 	if _favorites_only:
 		_filter_changed()
 
 
 func _rotate_preview(direction: float) -> void:
-	%AutoRotate.set_pressed_no_signal(false)
 	_stage.rotation.y += direction * PI / 6.0
 
 
@@ -540,23 +532,27 @@ func _make_avatar_card(entry: Dictionary) -> Button:
 	var id := str(entry.id)
 	var button := Button.new()
 	button.name = ("Avatar" + str(entry.get("title", id)).replace(" ", "")).validate_node_name()
-	button.custom_minimum_size = Vector2(138, 170)
+	button.custom_minimum_size = Vector2(138, 178)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.toggle_mode = true
 	button.button_group = _selection_group
 	button.set_pressed_no_signal(id == _pending_id)
 	button.tooltip_text = "%s\n%s · %s" % [entry.get("title", id), entry.get("collection", "Bundled"), entry.get("license", "")]
 	button.pressed.connect(sync_pending.bind(id))
-	button.set_meta("thumbnail_url", str(entry.get("thumbnail_url", "")))
+	button.mouse_entered.connect(_hover_avatar.bind(id))
+	button.focus_entered.connect(_hover_avatar.bind(id))
+	button.mouse_exited.connect(_leave_avatar.bind(id))
+	button.focus_exited.connect(_leave_avatar.bind(id))
+	button.set_meta("thumbnail_url", AvatarAssets.url(id, "thumbnail"))
 	_decorate_button(button)
 	var content := VBoxContainer.new()
 	content.name = "Card"
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	content.offset_left = 10
-	content.offset_right = -10
-	content.offset_top = 10
-	content.offset_bottom = -10
+	content.offset_left = 16
+	content.offset_right = -16
+	content.offset_top = 12
+	content.offset_bottom = -12
 	content.add_theme_constant_override("separation", 4)
 	button.add_child(content)
 	var art := Control.new()
@@ -566,9 +562,9 @@ func _make_avatar_card(entry: Dictionary) -> Button:
 	content.add_child(art)
 	var fallback := Label.new()
 	fallback.name = "Fallback"
-	fallback.text = "◉" if id == "default" else str(entry.get("title", "?")).left(2).to_upper()
+	fallback.text = "EX" if id == "default" else str(entry.get("title", "?")).left(2).to_upper()
 	fallback.add_theme_font_size_override("font_size", 32)
-	fallback.add_theme_color_override("font_color", Color("#668d98"))
+	fallback.add_theme_color_override("font_color", Color("#74869a"))
 	fallback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	fallback.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	fallback.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -594,7 +590,7 @@ func _make_avatar_card(entry: Dictionary) -> Button:
 	badge.clip_text = true
 	badge.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	badge.add_theme_font_size_override("font_size", 11)
-	badge.add_theme_color_override("font_color", Color("#7ed5c9") if id == _applied_id else Color("#8299ad"))
+	badge.add_theme_color_override("font_color", Color("#a0bdd4") if id == _applied_id else Color("#74869a"))
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(badge)
 	return button
@@ -614,60 +610,22 @@ func _set_card_thumbnail(button: Button, texture: Texture2D) -> void:
 
 
 func _style_browser() -> void:
-	var panel := _box(Color("#101d2d"), Color("#2a4054"), 18)
-	panel.content_margin_left = 24
-	panel.content_margin_right = 24
-	panel.content_margin_top = 20
-	panel.content_margin_bottom = 20
-	panel.shadow_color = Color(0, 0, 0, 0.35)
-	panel.shadow_size = 24
-	add_theme_stylebox_override("panel", panel)
-	add_theme_color_override("font_color", Color("#e5edf4"))
+	# Inherit the shared room-selector theme, including panel margins/colors.
 	for button: BaseButton in find_children("*", "BaseButton", true, false):
 		_decorate_button(button, button == _apply)
-	var search := %AvatarSearch as LineEdit
-	search.add_theme_stylebox_override("normal", _box(Color("#17283a"), Color("#30445a")))
-	search.add_theme_stylebox_override("focus", _box(Color("#17283a"), Color("#79d3c9")))
-	search.add_theme_font_size_override("font_size", 15)
+	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if _pending_id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
+	%RotateLeft.icon = preload("res://UI/icons/avatar/rotate_left.svg")
+	%RotateRight.icon = preload("res://UI/icons/avatar/rotate_right.svg")
 
 
 func _decorate_button(button: BaseButton, primary := false) -> void:
-	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var color := Color("#192c3e")
-		var border := Color("#2a4054")
-		if state in ["hover", "pressed", "hover_pressed"]:
-			color = Color("#24414d")
-			border = Color("#7ed5c9") if state != "hover" else Color("#4e7984")
-		if primary and state != "disabled":
-			color = Color("#80d8ca") if state == "normal" else Color("#a1ebdd")
-			border = color
-		if state == "disabled":
-			color = Color("#152635")
-		if state == "focus":
-			color = Color.TRANSPARENT
-			border = Color("#a1ebdd")
-		var style := _box(color, border)
-		if state == "focus":
-			style.set_border_width_all(2)
-		button.add_theme_stylebox_override(state, style)
-	button.add_theme_color_override("font_color", Color("#112e32") if primary else Color("#e2edf4"))
-	button.add_theme_color_override("font_hover_color", Color("#112e32") if primary else Color.WHITE)
-	button.add_theme_color_override("font_pressed_color", Color("#112e32") if primary else Color.WHITE)
-	button.add_theme_color_override("font_disabled_color", Color("#8ba8b7"))
-	button.add_theme_font_size_override("font_size", 15)
-
-
-func _box(color: Color, border: Color, radius := 10) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_color = border
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(radius)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	return style
+	# Copy the shared primary treatment; ordinary controls inherit their styles.
+	if primary:
+		var style := get_theme_stylebox("normal", "Button").duplicate() as StyleBoxFlat
+		if style != null:
+			style.bg_color = Color("#a0bdd4")
+			button.add_theme_stylebox_override("normal", style)
+		button.add_theme_color_override("font_color", Color("#162838"))
 
 
 func _show_default_preview() -> void:
@@ -675,7 +633,7 @@ func _show_default_preview() -> void:
 		_fallback_preview = Node3D.new()
 		_stage.add_child(_fallback_preview)
 		var material := StandardMaterial3D.new()
-		material.albedo_color = Color("#80c6c4")
+		material.albedo_color = Color("#a0bdd4")
 		material.roughness = 0.65
 		var torso := CapsuleMesh.new()
 		torso.radius = 0.22
@@ -692,3 +650,26 @@ func _show_default_preview() -> void:
 	_fallback_preview.show()
 	_model_bounds = AABB(Vector3(-0.25, 0, -0.25), Vector3(0.5, 1.75, 0.5))
 	_frame_camera()
+
+
+func _hover_avatar(id: String) -> void:
+	_cancel_prefetch()
+	_hover_id = id
+	var generation := _hover_generation
+	await get_tree().create_timer(0.4).timeout
+	if not is_inside_tree() or not visible or generation != _hover_generation or id == _pending_id:
+		return
+	_prefetch = AvatarService.acquire(id, true)
+
+
+func _leave_avatar(id: String) -> void:
+	if id == _hover_id:
+		_cancel_prefetch()
+
+
+func _cancel_prefetch() -> void:
+	_hover_generation += 1
+	_hover_id = ""
+	if _prefetch != null:
+		_prefetch.release()
+		_prefetch = null

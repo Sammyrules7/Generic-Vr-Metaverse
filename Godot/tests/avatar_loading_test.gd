@@ -33,6 +33,16 @@ func run() -> void:
 	var fallback: AvatarLoadRequest = service.acquire("default")
 	check(fallback.finished and fallback.scene == null and fallback.error.is_empty(), "Fallback must work offline")
 
+	var warm: AvatarLoadRequest = service.acquire("godette", true)
+	var warm_deadline := Time.get_ticks_msec() + 15000
+	while not warm.finished and Time.get_ticks_msec() < warm_deadline:
+		await process_frame
+	check(warm.finished and warm.scene == null and warm.error.is_empty(), "Byte-only prefetch must complete without generating a scene")
+	check(not service._cache.has("godette"), "Hover prefetch must not parse/upload a scene")
+	warm.release()
+	check(AvatarAssets.url("godette", "model").begins_with("https://app.vr.maio-tech.com/avatar-assets/godette/model?v="), "Models must use the catalog proxy")
+	check(AvatarAssets.url("unknown", "thumbnail").is_empty(), "Proxy requests must only resolve known catalog assets")
+
 	# One consumer cancelling must not interrupt another consumer's shared load.
 	var cancelled: AvatarLoadRequest = service.acquire("godette")
 	var survivor: AvatarLoadRequest = service.acquire("godette")

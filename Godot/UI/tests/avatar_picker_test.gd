@@ -65,7 +65,7 @@ func _run() -> void:
 	check(card.get_node("%AvatarList").get_child_count() == mini(entries.size(), card.PAGE_SIZE), "Avatar browser must page the full catalog")
 	var default_button: Button = card.get_node("%AvatarList/AvatarExplorer")
 	check(default_button.button_pressed and card._applied_id == "default", "Current avatar is not highlighted in the list")
-	check(card.get_node("%Attribution").text.contains("Bundled") and card.get_node("%Attribution").text.contains("Explorer"), "Attribution for the default avatar is missing")
+	check(card.get_node("%Attribution").text.contains("Bundled"), "Attribution for the default avatar is missing")
 	check(card.get_node("%Apply").disabled, "Apply is enabled without a pending change")
 	check(ui.get_viewport().gui_get_focus_owner() == card.get_node("%AvatarList/AvatarExplorer"), "Opening the submenu did not focus the list")
 
@@ -87,6 +87,11 @@ func _run() -> void:
 	filter.select(0)
 	card._filter_changed()
 
+	check(card.get_node_or_null("%ResetAvatar") == null and card.get_node_or_null("%AutoRotate") == null, "Redundant Explorer/turntable buttons must be removed")
+	check(card.get_node("%FavoriteAvatar").icon != null and card.get_node("%RotateLeft").icon != null, "Icons must use bundled SVGs rather than system-font glyphs")
+	var panel_style := card.get_theme_stylebox("panel", "PanelContainer") as StyleBoxFlat
+	check(panel_style.bg_color == Color("#142237") and panel_style.content_margin_left == 16 and panel_style.content_margin_top == 12, "Wardrobe must inherit the shared theme colors and margins")
+
 	# Selecting the bundled Godette loads it without any network use.
 	card.get_node("%AvatarList/AvatarGodette").pressed.emit()
 	var model_placed := func(): return card._model != null and is_instance_valid(card._model)
@@ -98,7 +103,7 @@ func _run() -> void:
 		var relative: Transform3D = card.get_node("%Camera").get_transform().inverse() * card._model.global_transform
 		var projection := relative * AABB(Vector3.ZERO, Vector3.ONE)
 		check(absf(projection.position.z) > 0.05, "Preview camera was not pulled away from the avatar")
-	check(card.get_node("%Attribution").text.contains("CC-BY-3.0") and card.get_node("%Attribution").text.contains("Godette by SirRichard94"), "Godette attribution and license are missing")
+	check(card.get_node("%Attribution").text.contains("CC-BY-3.0") and card.get_node("%Attribution").text.contains("SirRichard94"), "Godette attribution and license are missing")
 	check(not card.get_node("%Apply").disabled, "Selecting a different avatar did not enable Apply")
 	card.get_node("%Apply").pressed.emit()
 	check(PlayerProfile.avatar_id == "godette", "Apply did not change the profile avatar")
@@ -119,7 +124,7 @@ func _run() -> void:
 	check(card._filtered.size() == entries.size(), "All avatars did not restore the library")
 	var yaw: float = card.get_node("%Stage").rotation.y
 	card.get_node("%RotateRight").pressed.emit()
-	check(not card.get_node("%AutoRotate").button_pressed and not is_equal_approx(card.get_node("%Stage").rotation.y, yaw), "Manual rotation must pause the turntable")
+	check(not is_equal_approx(card.get_node("%Stage").rotation.y, yaw), "Manual rotation must turn the preview")
 	check(card.size.x > card.size.y and card.get_node("%AvatarList").columns == 3, "Wardrobe must use horizontal space for a multi-column gallery")
 	var frame_rect: Rect2 = card.get_node("%PreviewFrame").get_global_rect()
 	check(frame_rect.end.x <= card.get_global_rect().end.x, "Preview extends beyond the wardrobe")
@@ -127,10 +132,22 @@ func _run() -> void:
 	check(card.get_node("Content/Body/Gallery").get_global_rect().end.x < frame_rect.position.x, "Gallery and preview overlap")
 
 	# Reset returns to the bundled placeholder immediately.
-	card.get_node("%ResetAvatar").pressed.emit()
+	for index in card.get_node("%CollectionFilter").item_count:
+		if card.get_node("%CollectionFilter").get_item_text(index) == "Bundled":
+			card._choose_collection(index)
+	card.get_node("%AvatarList/AvatarExplorer").pressed.emit()
+	card.get_node("%Apply").pressed.emit()
 	check(PlayerProfile.avatar_id == "default" and card.get_node("%Apply").disabled, "Default reset did not apply the bundled avatar")
-	check(card.get_node("%PreviewStatus").visible and card.get_node("%PreviewStatus").text.contains("Explorer"), "Default avatar lacks its placeholder hint")
+	check(not card.get_node("%PreviewStatus").visible and card._fallback_preview.visible, "Explorer should show a preview without extra hint text")
 	check(await _wait_until(func(): return card._model == null), "Default avatar preview kept the loaded model")
+
+	# Dwell prefetch is shared/cancellable and does not replace the preview.
+	card._hover_avatar("godette")
+	await get_tree().create_timer(0.45).timeout
+	check(card._prefetch != null and card._prefetch.finished and card._prefetch.scene == null, "Hover should warm bytes without creating another preview scene")
+	check(card._pending_id == "default", "Hover must not change the selected avatar")
+	card._leave_avatar("godette")
+	check(card._prefetch == null, "Leaving a card must release its speculative request")
 
 	# Closing restores the menu and the focus that opened the submenu.
 	card.get_node("%CloseAvatarSettings").pressed.emit()

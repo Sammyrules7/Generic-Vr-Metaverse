@@ -177,3 +177,64 @@ test("API passthrough supports POST and cannot replace the upstream hostname", a
     assert.equal(denied.status, 405);
   } finally { globalThis.fetch = original; }
 });
+
+test("avatar proxy adds CORS/isolation headers and retries rejected IPFS gateways", async () => {
+  const { default: catalog } = await import("../../Godot/avatar/catalog.json", { with: { type: "json" } });
+  const entry = catalog.find(e => e.thumbnail_url?.includes("QmbWYPAuKNsRUopszrvuNbL1Kkpzg5LaWW4jDVfrHc3oeB"));
+  assert.ok(entry, "reported failing thumbnail must be in the catalog");
+  const original = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (target, options) => {
+    calls.push(String(target));
+    assert.equal(options.headers.get("cookie"), null);
+    assert.equal(options.headers.get("authorization"), null);
+    assert.equal(options.redirect, "follow");
+    if (String(target).startsWith("https://dweb.link/")) return new Response("denied", { status: 403 });
+    assert.equal(new URL(target).pathname, new URL(entry.thumbnail_url).pathname);
+    return new Response("image", { headers: { "Content-Type": "image/png", ETag: '"avatar"' } });
+  };
+  try {
+    const response = await worker.fetch(new Request(`https://app.vr.maio-tech.com/avatar-assets/${entry.id}/thumbnail`, {
+      headers: { Cookie: "private", Authorization: "private" },
+    }), env);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "image");
+    assert.equal(calls.length, 2);
+    assert.equal(new URL(calls[1]).hostname, "ipfs.filebase.io");
+    assert.equal(response.headers.get("access-control-allow-origin"), "*");
+    assert.equal(response.headers.get("cross-origin-resource-policy"), "cross-origin");
+    assert.equal(response.headers.get("cross-origin-embedder-policy"), "require-corp");
+    assert.equal(response.headers.get("etag"), '"avatar"');
+  } finally { globalThis.fetch = original; }
+});
+
+test("avatar proxy validates IDs, handles OPTIONS/HEAD/ranges, and does not cache failures", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (_target, options) => {
+    calls++;
+    if (options.headers.has("range")) return new Response("part", { status: 206, headers: { "Content-Range": "bytes 0-3/8" } });
+    return new Response(null, { headers: { "Content-Length": "8" } });
+  };
+  const request = (suffix, options) => worker.fetch(new Request(`https://app.vr.maio-tech.com/avatar-assets/${suffix}`, options), env);
+  try {
+    assert.equal((await request("unknown/model?url=https://private.invalid")).status, 404);
+    assert.equal((await request("godette/invalid")).status, 404);
+    assert.equal(calls, 0);
+    const preflight = await request("godette/model", { method: "OPTIONS" });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get("access-control-allow-origin"), "*");
+    assert.equal((await request("godette/model", { method: "POST" })).status, 405);
+    const head = await request("godette/model", { method: "HEAD" });
+    assert.equal(head.headers.get("content-length"), "8");
+    assert.equal(await head.text(), "");
+    const range = await request("godette/model", { headers: { Range: "bytes=0-3" } });
+    assert.equal(range.status, 206);
+    assert.equal(range.headers.get("content-range"), "bytes 0-3/8");
+    globalThis.fetch = async () => new Response("unavailable", { status: 503 });
+    const failed = await request("godette/model");
+    assert.equal(failed.status, 502);
+    assert.equal(failed.headers.get("cache-control"), "no-store");
+    assert.equal(failed.headers.get("access-control-allow-origin"), "*");
+  } finally { globalThis.fetch = original; }
+});

@@ -1,3 +1,6 @@
+import avatarCatalog from "../../Godot/avatar/catalog.json" with { type: "json" };
+const avatarById = new Map(avatarCatalog.map(entry => [entry.id, entry]));
+
 const API_HOST = "api.vr.maio-tech.com";
 const LEGACY_PREVIEW_PREFIX = "/previews/";
 
@@ -13,6 +16,7 @@ export default {
         upstream.search = url.search;
         return await fetch(new Request(upstream, request));
       }
+      if (url.pathname.startsWith("/avatar-assets/")) return await avatarAsset(request, url);
       if (request.method !== "GET" && request.method !== "HEAD") {
         return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
       }
@@ -198,4 +202,58 @@ function isSlug(value) {
 
 function isCommit(value) {
   return /^[0-9a-f]{40}$/.test(value ?? "");
+}
+
+// Catalog IDs prevent this route becoming an arbitrary URL/credential proxy.
+async function avatarAsset(request, url) {
+  const headers = new Headers({
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers": "Range, If-Range, If-None-Match, If-Modified-Since",
+    "Access-Control-Expose-Headers": "Content-Length, Content-Range, ETag, Last-Modified",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "no-store",
+  });
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+  if (!["GET", "HEAD"].includes(request.method)) return new Response("Method not allowed", { status: 405, headers });
+  const parts = url.pathname.split("/");
+  const entry = parts.length === 4 ? avatarById.get(parts[2]) : null;
+  const source = entry && (parts[3] === "model" ? entry.url : parts[3] === "thumbnail" ? entry.thumbnail_url : null);
+  if (!source) return new Response("Avatar asset not found", { status: 404, headers });
+  const upstream = new URL(source);
+  const candidates = [upstream.toString()];
+  // A gateway can reject a valid CID with 403/429 or go offline. Keep the
+  // exact content path when trying another public IPFS gateway.
+  if (upstream.pathname.startsWith("/ipfs/")) {
+    for (const host of ["ipfs.filebase.io", "ipfs.io", "gateway.pinata.cloud"]) {
+      const alternate = new URL(upstream);
+      alternate.hostname = host;
+      if (!candidates.includes(alternate.toString())) candidates.push(alternate.toString());
+    }
+  }
+  for (const target of candidates) {
+    let response;
+    try {
+      response = await fetch(target, {
+        method: request.method,
+        headers: copyOriginHeaders(request.headers),
+        redirect: "follow",
+        signal: AbortSignal.timeout(parts[3] === "thumbnail" ? 5000 : 15000),
+        cf: { cacheEverything: true, cacheTtlByStatus: { "200": 86400, "201-599": -1 } },
+      });
+    } catch { continue; }
+    if (![200, 206, 304, 416].includes(response.status)) {
+      await response.body?.cancel();
+      continue;
+    }
+    for (const name of ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified", "Content-Encoding"]) {
+      if (response.headers.has(name)) headers.set(name, response.headers.get(name));
+    }
+    headers.set("Cache-Control", response.status === 416 ? "no-store" : "public, max-age=3600");
+    return new Response(request.method === "HEAD" ? null : response.body, { status: response.status, headers });
+  }
+  return new Response("Avatar storage unavailable. Try again.", { status: 502, headers });
 }

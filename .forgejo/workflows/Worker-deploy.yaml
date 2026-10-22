@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - cloudflare/**
+      - Godot/avatar/catalog.json
       - wrangler.jsonc
       - .forgejo/workflows/Worker-deploy.yaml
   workflow_dispatch:

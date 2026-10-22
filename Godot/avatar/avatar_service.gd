@@ -53,8 +53,9 @@ func set_springs_enabled(enabled: bool) -> void:
 	springs_changed.emit(enabled)
 
 
-func acquire(id: String) -> AvatarLoadRequest:
+func acquire(id: String, bytes_only := false) -> AvatarLoadRequest:
 	var request := AvatarLoadRequest.new()
+	request.bytes_only = bytes_only
 	if not AvatarCatalog.has_avatar(id):
 		request.finish(null, "Unknown avatar")
 		return request
@@ -63,7 +64,7 @@ func acquire(id: String) -> AvatarLoadRequest:
 		return request
 	if _cache.has(id):
 		_touch(id)
-		request.finish(_cache[id])
+		request.finish(null if bytes_only else _cache[id])
 		return request
 	_next_token += 1
 	var token := _next_token
@@ -114,6 +115,18 @@ func _process(_delta: float) -> void:
 				else:
 					_complete(id, null, job.error)
 				continue
+			if not job.from_cache:
+				_prune_disk_cache()
+			# Hover requests warm the verified disk cache without importing scenes.
+			for token in load.requests.keys():
+				var consumer: AvatarLoadRequest = load.requests[token]
+				if consumer.bytes_only:
+					load.requests.erase(token)
+					consumer._on_release = Callable()
+					consumer.finish(null)
+			if load.requests.is_empty():
+				_loads.erase(id)
+				continue
 			var packed := import_bytes(job.bytes)
 			_complete(id, packed, "Could not import avatar" if packed == null else "")
 			# One main-thread import per frame; shaders/GPU work must not run in pool.
@@ -153,7 +166,7 @@ func _start(id: String) -> void:
 			return
 		_verify(id, bytes, path, false)
 	)
-	var error := http.request(str(definition.url))
+	var error := http.request(AvatarAssets.url(id, "model"))
 	if error != OK:
 		_active_downloads -= 1
 		http.queue_free()

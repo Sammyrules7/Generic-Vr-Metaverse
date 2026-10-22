@@ -35,7 +35,7 @@ func _process(_delta: float) -> void:
 
 func _start(url: String) -> void:
 	var http := HTTPRequest.new()
-	http.timeout = 12.0
+	http.timeout = 25.0
 	http.body_size_limit = 4 * 1024 * 1024
 	if AvatarService.tls_options != null:
 		http.set_tls_options(AvatarService.tls_options)

@@ -18,8 +18,9 @@ Registry source/revision is recorded in `catalog_source.json`. Refresh with
 `python3 scripts/sync_avatar_catalog.py <upstream-commit>`. A build uses the same
 snapshot on every peer, so avatar replication still sends IDs rather than URLs.
 The registry metadata is CC0; each model retains its collection license and the
-picker shows creator/collection attribution. Downloads use the published HTTPS
-URLs directly. SHA-256 and exact sizes are checked where pinned; the upstream
+picker shows creator/collection attribution. Downloads use the Worker `/avatar-assets/<id>/<kind>` route. The Worker resolves
+only catalog IDs, adds CORS/CORP headers, caches successful responses, and tries
+alternate IPFS gateways when the original gateway rejects a request. SHA-256 and exact sizes are checked where pinned; the upstream
 registry does not publish these for most models, which receive GLB structure and
 64 MiB size checks instead. Disk cache keys for those models hash the source URL.
 
@@ -66,10 +67,13 @@ SubViewport, and reflected camera transform; this change adds no world mirror.
 The Avatar submenu is available from the home and in-game menus. It uses the
 horizontal panel space for collection navigation, a three-column gallery, and a
 preview/equip pane. Favorites persist in the profile. The preview supports manual
-rotation, optional turntable motion, retry on failure, and disables equipping
+rotation with automatic turntable motion, retry on failure, and disables equipping
 until a preview succeeds. Thumbnails download separately from models, with two
 concurrent requests, worker-pool image decoding, and a 64-texture memory cache.
-GIF thumbnails use their first frame; PNG/JPEG/WebP are also supported. Closing
+A 400 ms card hover/focus warms at most one verified model download without
+parsing a scene or uploading textures; leaving, paging, or closing releases it.
+Selecting a hovered avatar shares the existing download. The scene is imported
+only after selection. GIF thumbnails use their first frame; PNG/JPEG/WebP are also supported. Closing
 or changing pages cancels pending thumbnail HTTP requests. Unavailable images
 keep a text placeholder without blocking selection. Spring bones
 are a local viewing preference, enabled by default, rather than network state.
@@ -91,3 +95,9 @@ Device acceptance still needs an exported browser and headset: material and
 first-person appearance, arm reach/rotation, wrist seams, tracking loss, menu
 contact, import stalls, and spring frame cost with several avatars. The native
 spring solver is cosmetic local simulation; its result is not replicated.
+
+The wardrobe inherits the room selector's theme, including the 16 px horizontal /
+12 px vertical panel and button margins. Icons are bundled SVGs, not Unicode
+symbols that rely on desktop font fallbacks. Explorer is an ordinary Bundled
+entry; there is no separate reset/turntable control. Deploy the Worker from the
+same catalog snapshot before publishing clients that use the asset proxy.
