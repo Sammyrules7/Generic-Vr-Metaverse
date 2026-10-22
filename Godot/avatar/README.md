@@ -10,7 +10,8 @@ The catalog snapshots all 4,274 public, non-draft HTTPS VRM entries from the nin
 Open Source Avatars collections, plus a bundled Godette sample and the built-in
 Explorer. It is metadata only: remote models download on selection. Browse the wide wardrobe by
 collection, with a thumbnail grid, favorites, and a persistent 3D preview. Search
-by name/creator narrows the current collection; pages contain 18 cards. Models are not
+by name/creator narrows the current collection. The rounded gallery starts with
+18 cards and appends batches near the scroll boundary, without page controls. Models are not
 pre-approved for compatibility: failures appear in the preview and the previous
 player model stays equipped if a replacement fails to load.
 
@@ -71,10 +72,11 @@ rotation, retry on failure, and disables equipping
 until a preview succeeds. Thumbnails download separately from models, with two
 concurrent requests, worker-pool image decoding, and a 64-texture memory cache.
 A 400 ms card hover/focus warms at most one verified model download without
-parsing a scene or uploading textures; leaving, paging, or closing releases it.
+parsing a scene or uploading textures; leaving, changing filters, or closing releases it.
 Selecting a hovered avatar shares the existing download. The scene is imported
 only after selection. GIF thumbnails use their first frame; PNG/JPEG/WebP are also supported. Closing
-or changing pages cancels pending thumbnail HTTP requests. Unavailable images
+or changing filters cancels pending thumbnail HTTP requests. Appending cards
+preserves existing requests and scroll position. Unavailable images
 keep a text placeholder without blocking selection. Spring bones
 are a local viewing preference, enabled by default, rather than network state.
 VRM bone colliders follow their bones. Node-based colliders currently use the
@@ -110,3 +112,7 @@ Clicked thumbnails preempt background thumbnail HTTP and appear in the preview
 while the model downloads. The proxy reads the GLB length header and uses a fixed-length stream, allowing
 the progress bar to show downloaded MB / total MB without buffering the model.
 Indeterminate progress remains a fallback when Godot cannot expose a byte total.
+
+The full-library search placeholder is "Search all". Artist credit appears beside
+the avatar name, with the full attribution available in a tooltip. License
+shorthand is left-aligned inside a holder at the preview's bottom-right corner.

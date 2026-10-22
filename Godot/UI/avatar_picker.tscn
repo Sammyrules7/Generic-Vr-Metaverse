@@ -106,7 +106,14 @@ theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="AvatarListScroll" type="ScrollContainer" parent="Content/Body/Gallery/GalleryContent"]
+[node name="ListFrame" type="PanelContainer" parent="Content/Body/Gallery/GalleryContent"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 330)
+clip_children = 2
+
+[node name="AvatarListScroll" type="ScrollContainer" parent="Content/Body/Gallery/GalleryContent/ListFrame"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
@@ -114,7 +121,7 @@ custom_minimum_size = Vector2(0, 330)
 follow_focus = true
 horizontal_scroll_mode = 0
 
-[node name="AvatarList" type="GridContainer" parent="Content/Body/Gallery/GalleryContent/AvatarListScroll"]
+[node name="AvatarList" type="GridContainer" parent="Content/Body/Gallery/GalleryContent/ListFrame/AvatarListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -133,34 +140,6 @@ size_flags_vertical = 3
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
-
-[node name="GalleryActions" type="VBoxContainer" parent="Content/Body/Gallery"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Pagination" type="HBoxContainer" parent="Content/Body/Gallery/GalleryActions"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="PreviousPage" type="Button" parent="Content/Body/Gallery/GalleryActions/Pagination"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Previous"
-custom_minimum_size = Vector2(0, 42)
-
-[node name="PageInfo" type="Label" parent="Content/Body/Gallery/GalleryActions/Pagination"]
-unique_name_in_owner = true
-layout_mode = 2
-text = ""
-theme_override_font_sizes/font_size = 14
-size_flags_horizontal = 3
-horizontal_alignment = 1
-
-[node name="NextPage" type="Button" parent="Content/Body/Gallery/GalleryActions/Pagination"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Next"
-custom_minimum_size = Vector2(0, 42)
 
 [node name="PreviewPane" type="VBoxContainer" parent="Content/Body"]
 layout_mode = 2
@@ -182,6 +161,18 @@ text = "Explorer"
 theme_override_font_sizes/font_size = 21
 size_flags_horizontal = 3
 clip_text = true
+vertical_alignment = 1
+
+[node name="ArtistName" type="Label" parent="Content/Body/PreviewPane/PreviewContent/SelectedHeading"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(100, 0)
+mouse_filter = 1
+clip_text = true
+horizontal_alignment = 2
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 
 [node name="FavoriteAvatar" type="Button" parent="Content/Body/PreviewPane/PreviewContent/SelectedHeading"]
 unique_name_in_owner = true
@@ -274,12 +265,24 @@ text = "Retry preview"
 custom_minimum_size = Vector2(0, 42)
 visible = false
 
-[node name="Attribution" type="Label" parent="Content/Body/PreviewPane/PreviewContent"]
+[node name="LicenseHolder" type="PanelContainer" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -142.0
+offset_top = -52.0
+offset_right = -12.0
+offset_bottom = -12.0
+mouse_filter = 1
+
+[node name="Attribution" type="Label" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame/LicenseHolder"]
 unique_name_in_owner = true
 layout_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 12
-autowrap_mode = 2
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 
 [node name="PreviewActions" type="VBoxContainer" parent="Content/Body/PreviewPane"]

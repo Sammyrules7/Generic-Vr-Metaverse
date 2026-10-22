@@ -62,20 +62,25 @@ func _run() -> void:
 	ui.get_node("%OpenAvatarPicker").pressed.emit()
 	check(card.visible and not ui.get_node("%VoiceSettings").visible and not ui.get_node("VBoxContainer").visible, "Avatar submenu did not replace the voice/main cards")
 	var entries := AvatarCatalog.entries()
-	check(card.get_node("%AvatarList").get_child_count() == mini(entries.size(), card.PAGE_SIZE), "Avatar browser must page the full catalog")
+	check(card.get_node("%AvatarList").get_child_count() == mini(entries.size(), card.BATCH_SIZE), "Avatar browser must initially create only one batch")
 	var default_button: Button = card.get_node("%AvatarList/AvatarExplorer")
 	check(default_button.button_pressed and card._applied_id == "default", "Current avatar is not highlighted in the list")
 	check(card.get_node("%Attribution").text.contains("Bundled"), "Attribution for the default avatar is missing")
 	check(card.get_node("%Apply").disabled, "Apply is enabled without a pending change")
 	check(ui.get_viewport().gui_get_focus_owner() == card.get_node("%AvatarList/AvatarExplorer"), "Opening the submenu did not focus the list")
 
-	# Filtering/paging must not download models or discard the current preview.
-	check(not card.get_node("%NextPage").disabled, "Full registry must expose more pages")
-	card.get_node("%NextPage").pressed.emit()
-	check(card._page == 1 and card.get_node("%AvatarList").get_child_count() == card.PAGE_SIZE, "Next page did not advance")
+	# Scroll near the end to append a batch without pagination or model loads.
+	check(card.get_node_or_null("%NextPage") == null, "Pagination buttons must be removed")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var initial_count: int = card._loaded_count
+	var scrollbar: VScrollBar = card.get_node("%AvatarListScroll").get_v_scroll_bar()
+	scrollbar.value = scrollbar.max_value
+	check(await _wait_until(func(): return card._loaded_count > initial_count), "Scrolling must append more avatars")
+	check(card._loaded_count < entries.size(), "Lazy scrolling must not build the whole catalog")
 	card.get_node("%AvatarSearch").text = "Godette"
 	card._filter_changed()
-	check(card._page == 0 and card.get_node("%AvatarList").get_child_count() == 1, "Search must reset paging and filter results")
+	check(card._loaded_count == 1 and card.get_node("%AvatarList").get_child_count() == 1, "Search must reset lazy results and filter the catalog")
 	check(card._request == null, "Filtering must not download avatars")
 	card.get_node("%AvatarSearch").text = ""
 	var filter: OptionButton = card.get_node("%CollectionFilter")
@@ -113,7 +118,7 @@ func _run() -> void:
 		var relative: Transform3D = card.get_node("%Camera").get_transform().inverse() * card._model.global_transform
 		var projection := relative * AABB(Vector3.ZERO, Vector3.ONE)
 		check(absf(projection.position.z) > 0.05, "Preview camera was not pulled away from the avatar")
-	check(card.get_node("%Attribution").text.contains("CC-BY-3.0") and card.get_node("%Attribution").text.contains("SirRichard94"), "Godette attribution and license are missing")
+	check(card.get_node("%Attribution").text == "CC-BY-3.0" and card.get_node("%ArtistName").text.contains("SirRichard94"), "Godette attribution and license are missing")
 	check(not card.get_node("%Apply").disabled, "Selecting a different avatar did not enable Apply")
 	card.get_node("%Apply").pressed.emit()
 	check(PlayerProfile.avatar_id == "godette", "Apply did not change the profile avatar")
@@ -135,9 +140,12 @@ func _run() -> void:
 	check(card.get_node_or_null("%RotateLeft") == null and card.get_node_or_null("%SpringEnabled") == null and card.get_node_or_null("Content/Header") == null, "Removed layout controls must not remain")
 	check(card.get_node("%CloseAvatarSettings").get_parent() == card.get_node("Content/Body/Sidebar"), "Done must share the bottom action row in the sidebar")
 	check(card.get_node_or_null("%GalleryTitle") == null and card.get_node("%ResultCount").get_parent() == card.get_node("%AvatarSearch"), "Search and result count must replace the separate header")
-	check(card.get_node("%AvatarSearch").placeholder_text == "Search in All avatars" and card.get_node("%ResultCount").horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "Unified search field must identify the collection and right-align results")
+	check(card.get_node("%AvatarSearch").placeholder_text == "Search all" and card.get_node("%ResultCount").horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "Unified search field must identify the collection and right-align results")
 	check(card.get_node_or_null("Content/Body/Sidebar/LibraryLabel") == null, "Redundant Library label must be removed")
-	check(is_equal_approx(card.get_node("%Apply").get_global_rect().end.y, card.get_node("%NextPage").get_global_rect().end.y), "Gallery and preview actions must share a stable bottom baseline")
+	check(card.get_node("%Attribution").get_parent() == card.get_node("%LicenseHolder") and card.get_node("%LicenseHolder").get_parent() == card.get_node("%PreviewFrame"), "License shorthand must be inside the preview")
+	check(card.get_node("%LicenseHolder").anchor_right == 1.0 and card.get_node("%Attribution").horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT, "License holder must align right while its text aligns left")
+	check(card.get_node("%ArtistName").horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "Artist must align right alongside the avatar name")
+	check(card.get_node("%ListFrame").clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "Gallery must clip scrolled cards to its rounded frame")
 	check(is_equal_approx(card.get_node("%Apply").get_global_rect().end.y, card.get_node("%CloseAvatarSettings").get_global_rect().end.y), "All action buttons must sit at the panel bottom")
 	check(card.get_node("%CloseAvatarSettings").icon != null, "Done must have a distinct completion icon")
 	check(card.get_node_or_null("Content/Footer") == null and card.find_children("*", "HSeparator", true, false).is_empty(), "Extra bottom space and divider lines must be removed")

@@ -29,8 +29,9 @@ var _model_bounds := AABB()
 var _simulators: Array = []
 var _selection_group := ButtonGroup.new()
 var _buttons: Dictionary = {}
-const PAGE_SIZE := 18
-var _page := 0
+const BATCH_SIZE := 18
+var _loaded_count := 0
+var _next_append_frame := 0
 var _filtered: Array[Dictionary] = []
 var _favorites_only := false
 var _collection_buttons: Array[Button] = []
@@ -56,8 +57,6 @@ func _ready() -> void:
 	for collection in AvatarCatalog.collections():
 		%CollectionFilter.add_item(collection)
 	%CollectionFilter.item_selected.connect(func(_index: int): _filter_changed())
-	%PreviousPage.pressed.connect(_change_page.bind(-1))
-	%NextPage.pressed.connect(_change_page.bind(1))
 	_build_collection_navigation()
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
@@ -125,6 +124,7 @@ func _process(delta: float) -> void:
 		return
 	if _model != null or (_fallback_preview != null and _fallback_preview.visible):
 		_stage.rotation.y = fmod(_stage.rotation.y + delta * 0.35, TAU)
+	_maybe_append_batch()
 	if _request != null and not _request.finished:
 		_update_download_progress()
 
@@ -134,7 +134,6 @@ func _rebuild() -> void:
 	_pending_id = _applied_id
 	%AvatarSearch.text = ""
 	%CollectionFilter.select(0)
-	_page = 0
 	_favorites_only = false
 	_filter_changed()
 	_sync_selection(_pending_id, true)
@@ -146,19 +145,13 @@ func _filter_changed() -> void:
 	if _favorites_only:
 		_filtered = _filtered.filter(func(entry: Dictionary): return str(entry.id) in PlayerProfile.avatar_favorites)
 	var scope := "Favorites" if _favorites_only else collection if not collection.is_empty() else "All avatars"
-	%AvatarSearch.placeholder_text = "Search in %s" % scope
-	%AvatarSearch.tooltip_text = "Search in %s" % scope
+	%AvatarSearch.placeholder_text = "Search all" if scope == "All avatars" else "Search in %s" % scope
+	%AvatarSearch.tooltip_text = %AvatarSearch.placeholder_text
 	%ResultCount.text = str(_filtered.size())
 	%BrowseAll.set_pressed_no_signal(not _favorites_only and collection.is_empty())
 	%BrowseFavorites.set_pressed_no_signal(_favorites_only)
 	for index in _collection_buttons.size():
 		_collection_buttons[index].set_pressed_no_signal(not _favorites_only and %CollectionFilter.selected == index + 1)
-	_page = 0
-	_refresh_list()
-
-
-func _change_page(delta: int) -> void:
-	_page = clampi(_page + delta, 0, maxi(0, ceili(float(_filtered.size()) / PAGE_SIZE) - 1))
 	_refresh_list()
 
 
@@ -169,28 +162,39 @@ func _refresh_list() -> void:
 	for child in _list.get_children():
 		child.free()
 	_buttons.clear()
-	for entry: Dictionary in _filtered.slice(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE):
+	_loaded_count = 0
+	%EmptyResults.visible = _filtered.is_empty()
+	%EmptyResults.text = "Your favorites will appear here.\nChoose a look and select the star to save it." if _favorites_only else "No matching avatars.\nTry another collection or clear your search."
+	%ListFrame.visible = not _filtered.is_empty()
+	_append_batch()
+
+
+func _maybe_append_batch() -> void:
+	if _loaded_count >= _filtered.size() or not _scroll.is_visible_in_tree() or Engine.get_process_frames() < _next_append_frame:
+		return
+	var bar := _scroll.get_v_scroll_bar()
+	if bar.value + bar.page >= bar.max_value - 240.0:
+		_append_batch()
+
+
+func _append_batch() -> void:
+	var owner_ui := get_parent()
+	var end := mini(_loaded_count + BATCH_SIZE, _filtered.size())
+	for entry: Dictionary in _filtered.slice(_loaded_count, end):
 		var id := str(entry.get("id", ""))
 		if id.is_empty():
 			continue
 		var button := _make_avatar_card(entry)
 		_list.add_child(button)
+		if owner_ui != null and owner_ui.has_method("_configure_buttons"):
+			owner_ui.call("_configure_buttons", button)
 		_buttons[id] = button
-		var url := AvatarAssets.url(id, "thumbnail")
-		var texture := _thumbnails.request(url)
+		var texture := _thumbnails.request(AvatarAssets.url(id, "thumbnail"))
 		if texture != null:
 			_set_card_thumbnail(button, texture)
-	var pages := maxi(1, ceili(float(_filtered.size()) / PAGE_SIZE))
-	%PageInfo.text = "%d / %d" % [_page + 1, pages]
-	%EmptyResults.visible = _filtered.is_empty()
-	%EmptyResults.text = "Your favorites will appear here.\nChoose a look and select the star to save it." if _favorites_only else "No matching avatars.\nTry another collection or clear your search."
-	_scroll.visible = not _filtered.is_empty()
-	%PreviousPage.disabled = _page == 0
-	%NextPage.disabled = _page + 1 >= pages
-	# Late-built list buttons follow the same VR press/debounce rules as the rest.
-	var owner_ui := get_parent()
-	if owner_ui != null and owner_ui.has_method("_configure_buttons"):
-		owner_ui.call("_configure_buttons", _list)
+	_loaded_count = end
+	# Wait for the grid/scroll range to settle before checking the threshold.
+	_next_append_frame = Engine.get_process_frames() + 2
 
 
 func sync_pending(id: String) -> void:
@@ -237,7 +241,10 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 	var creator := str(entry.get("creator", "SirRichard94 / Lyuma" if id == "godette" else ""))
 	var license := str(entry.get("license", ""))
-	%Attribution.text = "%s · %s" % [creator, license] if not creator.is_empty() else license
+	%ArtistName.text = creator
+	%ArtistName.tooltip_text = str(entry.get("attribution", creator))
+	%Attribution.text = license
+	%LicenseHolder.tooltip_text = str(entry.get("attribution", license))
 	if with_preview:
 		_show_preview(id)
 
@@ -617,6 +624,10 @@ func _set_card_thumbnail(button: Button, texture: Texture2D) -> void:
 
 
 func _style_browser() -> void:
+	var list_style := StyleBoxFlat.new()
+	list_style.bg_color = Color("#142237")
+	list_style.set_corner_radius_all(14)
+	%ListFrame.add_theme_stylebox_override("panel", list_style)
 	# Reserve room inside the field for its result count. The built-in clear
 	# button is laid out before this margin, so neither text nor controls overlap.
 	for state in ["normal", "focus"]:
