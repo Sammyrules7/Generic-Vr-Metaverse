@@ -2,8 +2,11 @@
 
 [ext_resource type="Texture2D" uid="uid://g6uhs04cbvq" path="res://worlds/floating_island/Textures/Leaves_NormalTree_C.png" id="1_ilpm4"]
 [ext_resource type="Texture2D" uid="uid://c53mjds2m5rks" path="res://worlds/floating_island/Textures/Leaves_NormalTree.png" id="2_7xfla"]
+[ext_resource type="Material" uid="uid://c5mmqab12rpst" path="res://worlds/floating_island/mirror.tres" id="3_mirror"]
 [ext_resource type="LightmapGIData" uid="uid://b4ubxm0yxdfr8" path="res://worlds/floating_island/floating_island.lmbake" id="6_tubb4"]
 [ext_resource type="Script" uid="uid://bknqt5giwfo88" path="res://worlds/floating_island/bounds.gd" id="7_al0re"]
+[ext_resource type="Script" uid="uid://bmag71srmhyu4" path="res://worlds/floating_island/mirror.gd" id="7_e80yu"]
+[ext_resource type="Script" uid="uid://bw1akuiniilhh" path="res://avatar/avatar_mirror_camera.gd" id="10_mirror"]
 [ext_resource type="ArrayMesh" uid="uid://6jdu5lnbxcsp" path="res://worlds/floating_island/Objects/Grass-short.res" id="8_qj3uf"]
 [ext_resource type="Texture2D" uid="uid://8g0un1tkudsp" path="res://worlds/floating_island/Textures/Grass.png" id="9_7gh3e"]
 [ext_resource type="ArrayMesh" uid="uid://2dv5ohngje4q" path="res://worlds/floating_island/Objects/Grass-tall.res" id="9_40aks"]
@@ -462,6 +465,9 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_fde1x")
 
+[sub_resource type="PlaneMesh" id="PlaneMesh_y70hp"]
+material = ExtResource("3_mirror")
+
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_qj3uf"]
 sky_top_color = Color(0.28158128, 0.43238488, 0.76572776, 1)
 sky_horizon_color = Color(0.4235, 0.53322506, 0.77, 1)
@@ -603,6 +609,21 @@ mesh = SubResource("ArrayMesh_al0re")
 transform = Transform3D(0.47518736, 0, -0.44350526, 0, 0.65, 0, 0.44350526, 0, 0.47518736, -2.9604092, 0.03136275, -4.349342)
 cast_shadow = 0
 mesh = ExtResource("9_40aks")
+
+[node name="Mirror" type="Node3D" parent="World" unique_id=981675769]
+transform = Transform3D(0.6690618, 0, 0.39667478, 0, 1.666, 0, -4.5975466, 0, 0.057726424, -6, 1.6311579, 2)
+script = ExtResource("7_e80yu")
+
+[node name="MirrorGlass" type="MeshInstance3D" parent="World/Mirror" unique_id=487729949]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
+gi_mode = 0
+mesh = SubResource("PlaneMesh_y70hp")
+
+[node name="SubViewport" type="SubViewport" parent="World/Mirror/MirrorGlass" unique_id=1675338797]
+render_target_update_mode = 4
+
+[node name="ReflectCamera" type="Camera3D" parent="World/Mirror/MirrorGlass/SubViewport" unique_id=457877175]
+script = ExtResource("10_mirror")
 
 [node name="LightmapGI" type="LightmapGI" parent="." unique_id=523080799]
 quality = 2

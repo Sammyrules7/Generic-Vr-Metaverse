@@ -1,0 +1,97 @@
+extends SceneTree
+## Headless coverage for the floating island's planar mirror.
+##
+## The reflection math is checked independently of rendering; the scene checks
+## cover the wiring that previously left the mirror sampling an empty world.
+
+const MIRROR_SCRIPT := preload("res://worlds/floating_island/mirror.gd")
+const MIRROR_MATERIAL := preload("res://worlds/floating_island/mirror.tres")
+const MIRROR_CAMERA_SCRIPT := preload("res://avatar/avatar_mirror_camera.gd")
+
+var failures := 0
+
+
+func _initialize() -> void:
+	run.call_deferred()
+
+
+func check(condition: bool, message: String) -> void:
+	if not condition:
+		failures += 1
+		push_error(message)
+
+
+func run() -> void:
+	_test_reflection()
+	await _test_scene()
+	print("MIRROR_TEST failures=", failures)
+	quit(1 if failures else 0)
+
+
+func _test_reflection() -> void:
+	var plane_origin := Vector3(1, 2, 3)
+	var plane_normal := Vector3(0, 0, 1)
+	var source := Transform3D(Basis(), Vector3(1, 2, 7))
+	var reflected: Transform3D = MIRROR_SCRIPT.reflected_transform(source, plane_origin, plane_normal)
+	check(reflected.origin.is_equal_approx(Vector3(1, 2, -1)), "Reflection must cross the mirror plane")
+	check(is_equal_approx((reflected.origin - plane_origin).dot(plane_normal), -(source.origin - plane_origin).dot(plane_normal)), "Reflection must preserve distance to the plane")
+	check(reflected.basis.z.is_equal_approx(Vector3(0, 0, -1)), "Reflected camera must look back through the mirror")
+	check(reflected.basis.determinant() < 0.0, "Reflected camera pose must be mirrored, not rotated")
+	var on_plane := MIRROR_SCRIPT.reflected_transform(Transform3D(Basis(), plane_origin), plane_origin, plane_normal)
+	check(on_plane.origin.is_equal_approx(plane_origin), "Points on the mirror plane must not move")
+
+	var slanted := Vector3(1, 1, 0).normalized()
+	var slanted_reflection: Transform3D = MIRROR_SCRIPT.reflected_transform(source, plane_origin, slanted)
+	var source_distance := (source.origin - plane_origin).dot(slanted)
+	var reflected_distance := (slanted_reflection.origin - plane_origin).dot(slanted)
+	check(is_equal_approx(reflected_distance, -source_distance), "Slanted mirrors must reflect in their own normal")
+	var projected_source := source.origin - slanted * source_distance
+	var projected_reflected := slanted_reflection.origin - slanted * reflected_distance
+	check(projected_source.is_equal_approx(projected_reflected), "Reflection must preserve the point projected on the plane")
+
+
+func _test_scene() -> void:
+	var mirror := Node3D.new()
+	mirror.name = "Mirror"
+	mirror.set_script(MIRROR_SCRIPT)
+	var glass := MeshInstance3D.new()
+	glass.name = "MirrorGlass"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(4, 3)
+	plane.material = MIRROR_MATERIAL
+	glass.mesh = plane
+	glass.rotation_degrees.x = 90.0
+	mirror.add_child(glass)
+	var viewport := SubViewport.new()
+	viewport.name = "SubViewport"
+	glass.add_child(viewport)
+	var reflected_camera := Camera3D.new()
+	reflected_camera.name = "ReflectCamera"
+	reflected_camera.set_script(MIRROR_CAMERA_SCRIPT)
+	viewport.add_child(reflected_camera)
+	root.add_child(mirror)
+
+	var camera := Camera3D.new()
+	camera.position = Vector3(0, 0, 4)
+	camera.current = true
+	root.add_child(camera)
+	await process_frame
+	await process_frame
+
+	check(viewport.world_3d != null and viewport.world_3d == root.world_3d, "Mirror viewport must share the main 3D world")
+	check(reflected_camera.global_position.is_equal_approx(Vector3(0, 0, -4)), "Reflect camera must follow the active player camera")
+	check(reflected_camera.cull_mask & AvatarView.FULL_BODY != 0, "Mirror must draw the full local avatar")
+	check(reflected_camera.cull_mask & AvatarView.FIRST_PERSON == 0, "Mirror must not draw the first-person body")
+	var material := glass.material_override as ShaderMaterial
+	check(material != null and material != MIRROR_MATERIAL, "Each mirror must own its material instance")
+	check(material != null and material.get_shader_parameter("viewport_texture") == viewport.get_texture(), "Mirror material must sample its own viewport")
+	check(viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "Visible mirror must keep its reflection current")
+
+	# The back of the glass is opaque, so the extra 3D pass can stop.
+	camera.position = Vector3(0, 0, -4)
+	await process_frame
+	await process_frame
+	check(viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED, "Back-facing mirror must stop rendering")
+
+	mirror.free()
+	camera.free()

@@ -1,0 +1,7 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://c5mmqab12rpst"]
+
+[ext_resource type="Shader" uid="uid://bv2ry4uklgnuc" path="res://worlds/floating_island/mirror.gdshader" id="1_wgl67"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_wgl67")
