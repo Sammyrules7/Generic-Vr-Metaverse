@@ -196,6 +196,17 @@ func _fit_ui() -> void:
 		card.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		card.size = card_size
 		card.position = (available - card.size * card.scale) * 0.5
+		if card == %AvatarSettings:
+			# Use the lobby's authored outer margins rather than centering a
+			# smaller panel with different blank space on each axis.
+			var margins := $VBoxContainer as MarginContainer
+			var top_left := Vector2(margins.get_theme_constant("margin_left"), margins.get_theme_constant("margin_top")) * factor
+			var bottom_right := Vector2(margins.get_theme_constant("margin_right"), margins.get_theme_constant("margin_bottom")) * factor
+			var space := (available - top_left - bottom_right).max(Vector2.ONE)
+			var avatar_scale := minf(1.0, minf(space.x / card_size.x, space.y / card_size.y))
+			card.scale = Vector2.ONE * avatar_scale
+			card.size = space / avatar_scale
+			card.position = top_left
 
 
 func _select_world(id: String) -> void:

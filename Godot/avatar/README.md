@@ -66,8 +66,8 @@ SubViewport, and reflected camera transform; this change adds no world mirror.
 
 The Avatar submenu is available from the home and in-game menus. It uses the
 horizontal panel space for collection navigation, a three-column gallery, and a
-preview/equip pane. Favorites persist in the profile. The preview supports manual
-rotation with automatic turntable motion, retry on failure, and disables equipping
+preview/equip pane. Favorites persist in the profile. The preview supports automatic
+rotation, retry on failure, and disables equipping
 until a preview succeeds. Thumbnails download separately from models, with two
 concurrent requests, worker-pool image decoding, and a 64-texture memory cache.
 A 400 ms card hover/focus warms at most one verified model download without
@@ -101,3 +101,10 @@ The wardrobe inherits the room selector's theme, including the 16 px horizontal 
 symbols that rely on desktop font fallbacks. Explorer is an ordinary Bundled
 entry; there is no separate reset/turntable control. Deploy the Worker from the
 same catalog snapshot before publishing clients that use the asset proxy.
+
+The panel's outer edges use the same scaled 32 px horizontal / 24 px vertical
+margins as the lobby. The category title/count replace the redundant header;
+Done occupies the footer and hair/cloth motion remains enabled by preference.
+Clicked thumbnails preempt background thumbnail HTTP and appear in the preview
+while the model downloads. A small progress bar shows HTTP byte progress where
+the response length is available, or indeterminate progress otherwise.

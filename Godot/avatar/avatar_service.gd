@@ -267,3 +267,12 @@ func _exit_tree() -> void:
 	for extension in _extensions:
 		GLTFDocument.unregister_gltf_document_extension(extension)
 	_extensions.clear()
+
+
+func download_progress(id: String) -> Dictionary:
+	if not _loads.has(id):
+		return {}
+	var entry: Dictionary = _loads[id]
+	if is_instance_valid(entry.http):
+		return {"downloaded": entry.http.get_downloaded_bytes(), "total": entry.http.get_body_size()}
+	return {"preparing": entry.started}

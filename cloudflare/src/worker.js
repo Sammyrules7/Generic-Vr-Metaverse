@@ -225,6 +225,13 @@ async function avatarAsset(request, url) {
   if (!source) return new Response("Avatar asset not found", { status: 404, headers });
   const upstream = new URL(source);
   const candidates = [upstream.toString()];
+  if (upstream.hostname === "arweave.net" && /^\/[A-Za-z0-9_-]{43}$/.test(upstream.pathname)) {
+    // The raw endpoint serves the same bytes without a sandbox-subdomain
+    // redirect that can reject requests from Workers (including CoolTiger).
+    const raw = new URL(upstream);
+    raw.pathname = `/raw${upstream.pathname}`;
+    candidates.unshift(raw.toString());
+  }
   // A gateway can reject a valid CID with 403/429 or go offline. Keep the
   // exact content path when trying another public IPFS gateway.
   if (upstream.pathname.startsWith("/ipfs/")) {
@@ -234,18 +241,23 @@ async function avatarAsset(request, url) {
       if (!candidates.includes(alternate.toString())) candidates.push(alternate.toString());
     }
   }
+  const failures = [];
   for (const target of candidates) {
     let response;
+    const originHeaders = copyOriginHeaders(request.headers);
+    // Some public storage gateways reject the default Workers user agent.
+    originHeaders.set("User-Agent", "Mozilla/5.0 (compatible; GenericVRPlatform/1.0)");
     try {
       response = await fetch(target, {
         method: request.method,
-        headers: copyOriginHeaders(request.headers),
+        headers: originHeaders,
         redirect: "follow",
         signal: AbortSignal.timeout(parts[3] === "thumbnail" ? 5000 : 15000),
         cf: { cacheEverything: true, cacheTtlByStatus: { "200": 86400, "201-599": -1 } },
       });
-    } catch { continue; }
+    } catch { failures.push("timeout"); continue; }
     if (![200, 206, 304, 416].includes(response.status)) {
+      failures.push(String(response.status));
       await response.body?.cancel();
       continue;
     }
@@ -255,5 +267,6 @@ async function avatarAsset(request, url) {
     headers.set("Cache-Control", response.status === 416 ? "no-store" : "public, max-age=3600");
     return new Response(request.method === "HEAD" ? null : response.body, { status: response.status, headers });
   }
+  headers.set("X-Avatar-Upstream-Status", failures.join(","));
   return new Response("Avatar storage unavailable. Try again.", { status: 502, headers });
 }

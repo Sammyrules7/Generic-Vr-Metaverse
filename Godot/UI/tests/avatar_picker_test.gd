@@ -88,9 +88,18 @@ func _run() -> void:
 	card._filter_changed()
 
 	check(card.get_node_or_null("%ResetAvatar") == null and card.get_node_or_null("%AutoRotate") == null, "Redundant Explorer/turntable buttons must be removed")
-	check(card.get_node("%FavoriteAvatar").icon != null and card.get_node("%RotateLeft").icon != null, "Icons must use bundled SVGs rather than system-font glyphs")
+	check(card.get_node("%FavoriteAvatar").icon != null, "Icons must use bundled SVGs rather than system-font glyphs")
 	var panel_style := card.get_theme_stylebox("panel", "PanelContainer") as StyleBoxFlat
 	check(panel_style.bg_color == Color("#142237") and panel_style.content_margin_left == 16 and panel_style.content_margin_top == 12, "Wardrobe must inherit the shared theme colors and margins")
+
+	var queued := AvatarThumbnails.new()
+	queued._jobs["one"] = AvatarThumbnailJob.new()
+	queued._jobs["two"] = AvatarThumbnailJob.new()
+	queued.request("https://example.invalid/first.png")
+	queued.request("https://example.invalid/clicked.png")
+	queued.prioritize("https://example.invalid/clicked.png")
+	check(queued._queue.front() == "https://example.invalid/clicked.png", "A clicked thumbnail must jump ahead of gallery preloads")
+	queued.free()
 
 	# Selecting the bundled Godette loads it without any network use.
 	card.get_node("%AvatarList/AvatarGodette").pressed.emit()
@@ -122,10 +131,13 @@ func _run() -> void:
 	check(card._filtered.is_empty() and card.get_node("%EmptyResults").visible, "Empty favorites needs a clear empty state")
 	card.get_node("%BrowseAll").pressed.emit()
 	check(card._filtered.size() == entries.size(), "All avatars did not restore the library")
-	var yaw: float = card.get_node("%Stage").rotation.y
-	card.get_node("%RotateRight").pressed.emit()
-	check(not is_equal_approx(card.get_node("%Stage").rotation.y, yaw), "Manual rotation must turn the preview")
-	check(card.size.x > card.size.y and card.get_node("%AvatarList").columns == 3, "Wardrobe must use horizontal space for a multi-column gallery")
+	check(card.get_node_or_null("%RotateLeft") == null and card.get_node_or_null("%SpringEnabled") == null and card.get_node_or_null("Content/Header") == null, "Removed layout controls must not remain")
+	check(card.get_node("%CloseAvatarSettings").get_parent() == card.get_node("Content/Footer"), "Done must replace the footer toggle")
+	check(card.get_node("%GalleryTitle").horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER and card.get_node("%ResultCount").horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "Collection title and count must be centered together")
+	check(card.get_node("%AvatarList").columns == 3, "Wardrobe must use horizontal space for a multi-column gallery")
+	var outer_margins: Vector2 = Vector2(32, 24) * ui.get_node("VBoxContainer").scale
+	check(card.get_global_rect().position.is_equal_approx(outer_margins), "Wardrobe outer margins must match the lobby")
+	check((ui.get_viewport_rect().size - card.get_global_rect().end).is_equal_approx(outer_margins), "Opposite outer margins must match")
 	var frame_rect: Rect2 = card.get_node("%PreviewFrame").get_global_rect()
 	check(frame_rect.end.x <= card.get_global_rect().end.x, "Preview extends beyond the wardrobe")
 	check(card.get_node("Content/Body/Sidebar").get_global_rect().end.x < card.get_node("Content/Body/Gallery").get_global_rect().position.x, "Sidebar and gallery overlap")
@@ -166,13 +178,9 @@ func _run() -> void:
 	ui.get_node("%OpenAvatarPicker").pressed.emit()
 	check(await _wait_until(func(): return card.get_node("%AvatarList/AvatarGodette").is_visible_in_tree() and card._model == null), "Reopening the card did not restart the preview for the default avatar")
 
-	# Spring toggle persists a local preference without touching the avatar.
-	card.get_node("%SpringEnabled").button_pressed = true
-	check(PlayerProfile.spring_bones_enabled, "Spring toggle did not stick")
-	card.get_node("%SpringEnabled").button_pressed = false
-	check(not PlayerProfile.spring_bones_enabled, "Spring toggle did not save the disabled preference")
+	# Springs remain a viewing preference without a redundant menu toggle.
 	AvatarService.set_springs_enabled(true)
-	check(card.get_node("%SpringEnabled").button_pressed, "External spring changes did not update the toggle")
+	check(PlayerProfile.spring_bones_enabled, "Spring preference must remain available to the service")
 
 	# In-room sessions reach the same submenu from the Session menu.
 	var state: RoomNetworking = Networking.room_networking

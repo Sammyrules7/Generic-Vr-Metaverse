@@ -189,6 +189,7 @@ test("avatar proxy adds CORS/isolation headers and retries rejected IPFS gateway
     assert.equal(options.headers.get("cookie"), null);
     assert.equal(options.headers.get("authorization"), null);
     assert.equal(options.redirect, "follow");
+    assert.match(options.headers.get("user-agent"), /GenericVRPlatform/);
     if (String(target).startsWith("https://dweb.link/")) return new Response("denied", { status: 403 });
     assert.equal(new URL(target).pathname, new URL(entry.thumbnail_url).pathname);
     return new Response("image", { headers: { "Content-Type": "image/png", ETag: '"avatar"' } });
@@ -236,5 +237,23 @@ test("avatar proxy validates IDs, handles OPTIONS/HEAD/ranges, and does not cach
     assert.equal(failed.status, 502);
     assert.equal(failed.headers.get("cache-control"), "no-store");
     assert.equal(failed.headers.get("access-control-allow-origin"), "*");
+  } finally { globalThis.fetch = original; }
+});
+
+test("Arweave avatars use raw bytes without sandbox redirects", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (url, options) => {
+    calls++;
+    assert.equal(String(url), "https://arweave.net/raw/2EQ5wsstsJaFOG9LXq_gVFKKgM8bnfPa3axYJ-VS1ug");
+    assert.match(options.headers.get("user-agent"), /GenericVRPlatform/);
+    return new Response(new Uint8Array([0x67, 0x6c, 0x54, 0x46]), { headers: { "Content-Type": "application/octet-stream", "Content-Length": "4" } });
+  };
+  try {
+    const response = await worker.fetch(new Request("https://app.vr.maio-tech.com/avatar-assets/osa-ae4512a8e259ca3a47c05e9b612ccf039671333b/model?v=8a473f2c98c8171d"), env);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-length"), "4");
+    assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [0x67, 0x6c, 0x54, 0x46]);
+    assert.equal(calls, 1);
   } finally { globalThis.fetch = original; }
 });

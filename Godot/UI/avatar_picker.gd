@@ -49,7 +49,6 @@ var _fallback_preview: Node3D
 
 func _ready() -> void:
 	_apply.pressed.connect(_apply_pressed)
-	%SpringEnabled.toggled.connect(_spring_toggled)
 	%CloseAvatarSettings.pressed.connect(close)
 	%AvatarSearch.text_changed.connect(func(_text: String): _filter_changed())
 	%CollectionFilter.add_item("All collections")
@@ -63,14 +62,10 @@ func _ready() -> void:
 	%BrowseFavorites.pressed.connect(_browse_favorites)
 	%FavoriteAvatar.pressed.connect(_toggle_favorite)
 	%RetryPreview.pressed.connect(func(): _show_preview(_pending_id))
-	%RotateLeft.pressed.connect(_rotate_preview.bind(-1.0))
-	%RotateRight.pressed.connect(_rotate_preview.bind(1.0))
 	_thumbnails = AvatarThumbnails.new()
 	add_child(_thumbnails)
 	_thumbnails.loaded.connect(_thumbnail_loaded)
 	%FavoriteAvatar.icon = preload("res://UI/icons/avatar/favorite.svg")
-	%RotateLeft.icon = preload("res://UI/icons/avatar/rotate_left.svg")
-	%RotateRight.icon = preload("res://UI/icons/avatar/rotate_right.svg")
 	_style_browser.call_deferred()
 	_layout_preview_stage()
 	AvatarService.selection_changed.connect(_selection_changed)
@@ -129,12 +124,13 @@ func _process(delta: float) -> void:
 		return
 	if _model != null or (_fallback_preview != null and _fallback_preview.visible):
 		_stage.rotation.y = fmod(_stage.rotation.y + delta * 0.35, TAU)
+	if _request != null and not _request.finished:
+		_update_download_progress()
 
 
 func _rebuild() -> void:
 	_applied_id = _safe_id(PlayerProfile.avatar_id)
 	_pending_id = _applied_id
-	%SpringEnabled.set_pressed_no_signal(PlayerProfile.spring_bones_enabled)
 	%AvatarSearch.text = ""
 	%CollectionFilter.select(0)
 	_page = 0
@@ -198,6 +194,10 @@ func sync_pending(id: String) -> void:
 	if id == _pending_id or not AvatarCatalog.has_avatar(id):
 		return
 	_pending_id = id
+	var thumbnail_url := AvatarAssets.url(id, "thumbnail")
+	var thumbnail := _thumbnails.prioritize(thumbnail_url)
+	if thumbnail != null and _buttons.has(id):
+		_set_card_thumbnail(_buttons[id], thumbnail)
 	_sync_selection(id, true)
 
 
@@ -254,11 +254,16 @@ func _show_preview(id: String) -> void:
 	_release_request()
 	_clear_model()
 	_preview_ready = false
+	%DownloadProgress.show()
+	%DownloadProgress.indeterminate = true
 	%RetryPreview.hide()
 	_update_apply()
 	if AvatarCatalog.definition(id).is_empty():
 		_set_status("This avatar is no longer in the catalog.", true)
 		return
+	var thumbnail := _thumbnails.request(AvatarAssets.url(id, "thumbnail"))
+	%PreviewThumbnail.texture = thumbnail
+	%PreviewThumbnail.visible = thumbnail != null
 	var request := AvatarService.acquire(id)
 	_request = request
 	_cancel_prefetch()
@@ -277,6 +282,7 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 	if generation != _generation or request.released:
 		# A stale or released lease must not touch the current preview.
 		return
+	%DownloadProgress.hide()
 	var error := request.error
 	var scene := request.scene
 	_release_request()
@@ -285,6 +291,7 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 		%RetryPreview.show()
 		_apply.text = "Preview unavailable"
 		return
+	%PreviewThumbnail.hide()
 	if scene == null:
 		# The bundled default has no model: rooms render a simple fallback body.
 		_show_default_preview()
@@ -380,12 +387,7 @@ func _configure_model_simulation() -> void:
 
 
 func _springs_changed(enabled: bool) -> void:
-	%SpringEnabled.set_pressed_no_signal(enabled)
 	_update_simulators()
-
-
-func _spring_toggled(_enabled: bool) -> void:
-	AvatarService.set_springs_enabled(%SpringEnabled.button_pressed)
 
 
 func _update_simulators() -> void:
@@ -456,6 +458,9 @@ func _release_request() -> void:
 
 
 func _clear_model() -> void:
+	%PreviewThumbnail.hide()
+	%PreviewThumbnail.texture = null
+	%DownloadProgress.hide()
 	if _fallback_preview != null:
 		_fallback_preview.hide()
 	if is_instance_valid(_model):
@@ -522,10 +527,6 @@ func _toggle_favorite() -> void:
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if _pending_id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 	if _favorites_only:
 		_filter_changed()
-
-
-func _rotate_preview(direction: float) -> void:
-	_stage.rotation.y += direction * PI / 6.0
 
 
 func _make_avatar_card(entry: Dictionary) -> Button:
@@ -599,6 +600,9 @@ func _make_avatar_card(entry: Dictionary) -> Button:
 func _thumbnail_loaded(url: String, texture: Texture2D) -> void:
 	if not visible or texture == null:
 		return
+	if url == AvatarAssets.url(_pending_id, "thumbnail") and not _preview_ready:
+		%PreviewThumbnail.texture = texture
+		%PreviewThumbnail.show()
 	for button: Button in _buttons.values():
 		if button.get_meta("thumbnail_url", "") == url:
 			_set_card_thumbnail(button, texture)
@@ -614,8 +618,6 @@ func _style_browser() -> void:
 	for button: BaseButton in find_children("*", "BaseButton", true, false):
 		_decorate_button(button, button == _apply)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if _pending_id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
-	%RotateLeft.icon = preload("res://UI/icons/avatar/rotate_left.svg")
-	%RotateRight.icon = preload("res://UI/icons/avatar/rotate_right.svg")
 
 
 func _decorate_button(button: BaseButton, primary := false) -> void:
@@ -673,3 +675,22 @@ func _cancel_prefetch() -> void:
 	if _prefetch != null:
 		_prefetch.release()
 		_prefetch = null
+
+
+func _update_download_progress() -> void:
+	var progress: Dictionary = AvatarService.download_progress(_pending_id)
+	%DownloadProgress.show()
+	var total := int(progress.get("total", -1))
+	var downloaded := int(progress.get("downloaded", 0))
+	%DownloadProgress.indeterminate = total <= 0
+	if progress.get("preparing", false):
+		%DownloadProgress.indeterminate = true
+		_set_status("Preparing...")
+	elif total > 0:
+		var percent := clampf(100.0 * downloaded / total, 0, 100)
+		%DownloadProgress.value = percent
+		_set_status("Downloading %d%%" % roundi(percent))
+	elif downloaded > 0:
+		_set_status("Downloading %.1f MB" % (downloaded / 1048576.0))
+	else:
+		_set_status("Connecting...")

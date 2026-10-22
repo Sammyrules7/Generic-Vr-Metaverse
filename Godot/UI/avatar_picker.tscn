@@ -22,26 +22,6 @@ script = ExtResource("1")
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="Header" type="HBoxContainer" parent="Content"]
-layout_mode = 2
-theme_override_constants/separation = 16
-
-[node name="Heading" type="VBoxContainer" parent="Content/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
-[node name="Title" type="Label" parent="Content/Header/Heading"]
-layout_mode = 2
-text = "Avatars"
-theme_override_font_sizes/font_size = 28
-
-[node name="CloseAvatarSettings" type="Button" parent="Content/Header"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Done"
-custom_minimum_size = Vector2(0, 42)
-
 [node name="Body" type="HBoxContainer" parent="Content"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -104,7 +84,7 @@ size_flags_horizontal = 3
 custom_minimum_size = Vector2(444, 0)
 theme_override_constants/separation = 12
 
-[node name="GalleryHeading" type="HBoxContainer" parent="Content/Body/Gallery"]
+[node name="GalleryHeading" type="VBoxContainer" parent="Content/Body/Gallery"]
 layout_mode = 2
 
 [node name="GalleryTitle" type="Label" parent="Content/Body/Gallery/GalleryHeading"]
@@ -113,6 +93,7 @@ layout_mode = 2
 text = "All avatars"
 theme_override_font_sizes/font_size = 21
 size_flags_horizontal = 3
+horizontal_alignment = 1
 
 [node name="ResultCount" type="Label" parent="Content/Body/Gallery/GalleryHeading"]
 unique_name_in_owner = true
@@ -120,6 +101,7 @@ layout_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
+horizontal_alignment = 1
 
 [node name="SearchRow" type="HBoxContainer" parent="Content/Body/Gallery"]
 layout_mode = 2
@@ -231,6 +213,18 @@ grow_vertical = 2
 mouse_filter = 2
 stretch = true
 
+[node name="PreviewThumbnail" type="TextureRect" parent="Content/Body/PreviewPane/PreviewFrame"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
 [node name="PreviewViewport" type="SubViewport" parent="Content/Body/PreviewPane/PreviewFrame/Preview"]
 gui_disable_input = true
 own_world_3d = true
@@ -257,23 +251,12 @@ unique_name_in_owner = true
 light_energy = 0.6
 light_color = Color(0.6, 0.83, 0.84, 1)
 
-[node name="Rotation" type="HBoxContainer" parent="Content/Body/PreviewPane"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="RotateLeft" type="Button" parent="Content/Body/PreviewPane/Rotation"]
+[node name="DownloadProgress" type="ProgressBar" parent="Content/Body/PreviewPane"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
-text = ""
-custom_minimum_size = Vector2(0, 42)
-tooltip_text = "Turn left"
-
-[node name="RotateRight" type="Button" parent="Content/Body/PreviewPane/Rotation"]
-unique_name_in_owner = true
-layout_mode = 2
-text = ""
-custom_minimum_size = Vector2(0, 42)
-tooltip_text = "Turn right"
+custom_minimum_size = Vector2(0, 6)
+show_percentage = false
 
 [node name="PreviewStatus" type="Label" parent="Content/Body/PreviewPane"]
 unique_name_in_owner = true
@@ -309,8 +292,8 @@ disabled = true
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="SpringEnabled" type="CheckButton" parent="Content/Footer"]
+[node name="CloseAvatarSettings" type="Button" parent="Content/Footer"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Hair & cloth motion"
+text = "Done"
 custom_minimum_size = Vector2(0, 42)

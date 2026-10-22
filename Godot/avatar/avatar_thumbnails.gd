@@ -80,3 +80,27 @@ func _remember(url: String, texture: Texture2D) -> void:
 	_lru.append(url)
 	while _lru.size() > 64:
 		_cache.erase(_lru.pop_front())
+
+
+func prioritize(url: String) -> Texture2D:
+	# A clicked card jumps ahead of speculative gallery thumbnails, including
+	# retrying a prior failure. Keep one slot for the selected card immediately.
+	if _cache.has(url) and _cache[url] == null:
+		_cache.erase(url)
+		_lru.erase(url)
+	var texture := request(url)
+	if texture != null or not enabled or url.is_empty() or _http.has(url) or _jobs.has(url):
+		return texture
+	_queue.erase(url)
+	_queue.push_front(url)
+	if _http.size() >= 2:
+		var old_url: String = _http.keys().back()
+		var old: HTTPRequest = _http[old_url]
+		old.cancel_request()
+		old.queue_free()
+		_http.erase(old_url)
+		_queue.append(old_url)
+	if _http.size() + _jobs.size() < 2:
+		_queue.erase(url)
+		_start(url)
+	return null
