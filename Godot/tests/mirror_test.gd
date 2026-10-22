@@ -1,11 +1,12 @@
 extends SceneTree
-## Headless coverage for the floating island's planar mirror.
+## Headless coverage for the reusable planar mirror component.
 ##
 ## The reflection math is checked independently of rendering; the scene checks
 ## cover the wiring that previously left the mirror sampling an empty world.
 
-const MIRROR_SCRIPT := preload("res://worlds/floating_island/mirror.gd")
-const MIRROR_MATERIAL := preload("res://worlds/floating_island/mirror.tres")
+const MIRROR_SCRIPT := preload("res://components/planar_mirror/planar_mirror.gd")
+const MIRROR_MATERIAL := preload("res://components/planar_mirror/planar_mirror.tres")
+const MIRROR_SCENE := preload("res://components/planar_mirror/planar_mirror.tscn")
 const MIRROR_CAMERA_SCRIPT := preload("res://avatar/avatar_mirror_camera.gd")
 
 var failures := 0
@@ -51,25 +52,11 @@ func _test_reflection() -> void:
 
 
 func _test_scene() -> void:
-	var mirror := Node3D.new()
-	mirror.name = "Mirror"
-	mirror.set_script(MIRROR_SCRIPT)
-	var glass := MeshInstance3D.new()
-	glass.name = "MirrorGlass"
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(4, 3)
-	plane.material = MIRROR_MATERIAL
-	glass.mesh = plane
-	glass.rotation_degrees.x = 90.0
-	mirror.add_child(glass)
-	var viewport := SubViewport.new()
-	viewport.name = "SubViewport"
-	glass.add_child(viewport)
-	var reflected_camera := Camera3D.new()
-	reflected_camera.name = "ReflectCamera"
-	reflected_camera.set_script(MIRROR_CAMERA_SCRIPT)
-	viewport.add_child(reflected_camera)
+	var mirror := MIRROR_SCENE.instantiate()
 	root.add_child(mirror)
+	var glass := mirror.get_node("MirrorGlass") as MeshInstance3D
+	var viewport := mirror.get_node("MirrorGlass/SubViewport") as SubViewport
+	var reflected_camera := mirror.get_node("MirrorGlass/SubViewport/ReflectCamera") as Camera3D
 
 	var camera := Camera3D.new()
 	camera.position = Vector3(0, 0, 4)
@@ -78,6 +65,7 @@ func _test_scene() -> void:
 	await process_frame
 	await process_frame
 
+	check(reflected_camera.get_script() == MIRROR_CAMERA_SCRIPT, "Reflect camera must use the avatar mirror camera setup")
 	check(viewport.world_3d != null and viewport.world_3d == root.world_3d, "Mirror viewport must share the main 3D world")
 	check(reflected_camera.global_position.is_equal_approx(Vector3(0, 0, -4)), "Reflect camera must follow the active player camera")
 	check(reflected_camera.cull_mask & AvatarView.FULL_BODY != 0, "Mirror must draw the full local avatar")
@@ -86,6 +74,14 @@ func _test_scene() -> void:
 	check(material != null and material != MIRROR_MATERIAL, "Each mirror must own its material instance")
 	check(material != null and material.get_shader_parameter("viewport_texture") == viewport.get_texture(), "Mirror material must sample its own viewport")
 	check(viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "Visible mirror must keep its reflection current")
+
+	# Up close the glass can cover the screen while its center and corners are
+	# all outside the tiny frustum. The reflection must keep updating.
+	camera.position = Vector3(0, 0, 0.1)
+	camera.look_at(Vector3(0.9, 0, 0), Vector3.UP)
+	await process_frame
+	await process_frame
+	check(viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "Close-up mirror must not freeze")
 
 	# The back of the glass is opaque, so the extra 3D pass can stop.
 	camera.position = Vector3(0, 0, -4)

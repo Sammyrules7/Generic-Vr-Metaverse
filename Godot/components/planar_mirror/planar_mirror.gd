@@ -1,6 +1,7 @@
 @tool
+class_name PlanarMirror
 extends Node3D
-## Planar mirror for the floating island.
+## Drop-in planar mirror: instance this scene and place it in the world.
 ##
 ## MirrorGlass renders the view from the player camera reflected across the
 ## glass plane into its SubViewport. The glass samples that view in screen space
@@ -52,8 +53,8 @@ func _exit_tree() -> void:
 
 
 func _setup_runtime(source_material: ShaderMaterial) -> void:
-	# Each mirror owns its viewport texture; sharing mirror.tres between two
-	# loaded worlds would make them fight over the same reflection.
+	# Each mirror owns its viewport texture; sharing planar_mirror.tres between
+	# two loaded worlds would make them fight over the same reflection.
 	var material := source_material.duplicate() as ShaderMaterial
 	mirror_glass.material_override = material
 	material.set_shader_parameter("viewport_texture", sub_viewport.get_texture())
@@ -130,14 +131,29 @@ static func _is_front_side(position: Vector3, plane_origin: Vector3, plane_norma
 
 
 func _is_in_view(source: Camera3D, glass: Transform3D) -> bool:
-	# A large mirror can cover the screen with every corner outside the frustum.
-	if source.is_position_in_frustum(glass.origin):
-		return true
+	# Test the glass as an oriented box against the camera frustum. Sampling the
+	# center and corners breaks down when the player puts their face up against
+	# the glass: the mirror covers the screen while all nine sample points sit
+	# outside the tiny close-up frustum, which used to freeze the last frame.
 	var bounds := mirror_glass.get_aabb()
-	for index in 8:
-		if source.is_position_in_frustum(glass * bounds.get_endpoint(index)):
-			return true
-	return false
+	var center := glass * bounds.get_center()
+	var axis_x := glass.basis.x.normalized()
+	var axis_y := glass.basis.y.normalized()
+	var axis_z := glass.basis.z.normalized()
+	var extent_x := bounds.size.x * glass.basis.x.length() * 0.5
+	var extent_y := bounds.size.y * glass.basis.y.length() * 0.5
+	var extent_z := bounds.size.z * glass.basis.z.length() * 0.5
+	var planes := source.get_frustum()
+	if planes.is_empty():
+		return true
+	for plane in planes:
+		var radius := absf(plane.normal.dot(axis_x)) * extent_x
+		radius += absf(plane.normal.dot(axis_y)) * extent_y
+		radius += absf(plane.normal.dot(axis_z)) * extent_z
+		# Camera frustum planes point out of the visible volume.
+		if plane.distance_to(center) - radius > 0.0:
+			return false
+	return true
 
 
 func _view_viewport() -> Viewport:
