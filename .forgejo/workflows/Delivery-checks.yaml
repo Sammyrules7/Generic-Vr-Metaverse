@@ -63,19 +63,17 @@ jobs:
           git fetch -q --no-tags --depth=1 origin "$FETCH_REF"
           git checkout -qf --detach FETCH_HEAD
           git lfs pull
-      # Basic import cache: restore the previous run's .godot/imported snapshot,
-      # keyed to the engine (via flake.lock), saving the refreshed snapshot at
-      # job end. Commit-specific keys with a compatibility fallback follow
-      # docs/ci-review.md. The runner must provide the Forgejo cache service;
-      # if it is not configured this step fails with the documented GHES error.
+      # Keep the filesystem/importer metadata alongside imported resources.
+      # v2 avoids restoring incomplete imported-only snapshots.
       - name: Restore Godot import cache
-        uses: https://code.forgejo.org/actions/cache@v4
+        id: godot-cache
+        uses: https://code.forgejo.org/actions/cache/restore@v4
         with:
-          path: Godot/.godot/imported
-          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          path: Godot/.godot
+          key: godot-import-v2-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
           restore-keys: |
-            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
-      - name: Check native libraries, world allowlist, LFS and generated protocol
+            godot-import-v2-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+      - name: Import Godot project
         env:
           # Nix verifies that $HOME is owned by the current uid; the plugin
           # leaves /tmp root-owned and the image has no passwd entry, so give
@@ -85,9 +83,23 @@ jobs:
           HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
           export HOME
           nix develop --command bash -euo pipefail -c '
+            godot --headless --xr-mode off --editor --import --path Godot
+          '
+
+      - name: Save Godot import cache
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        uses: https://code.forgejo.org/actions/cache/save@v4
+        with:
+          path: Godot/.godot
+          key: ${{ steps.godot-cache.outputs.cache-primary-key }}
+
+      - name: Check delivery, generated protocol and runtime
+        run: |
+          HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
+          export HOME
+          nix develop --command bash -euo pipefail -c '
             python3 scripts/check_delivery.py
             python3 -m unittest discover -s scripts/tests -v
-            godot --headless --xr-mode off --editor --import --path Godot
             bash Protocol/generate.sh
             git diff --exit-code -- Server/protocol/packets.pb.go Godot/Networking/Generated/Packets.gd
             bash scripts/check_runtime.sh

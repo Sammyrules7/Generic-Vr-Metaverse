@@ -84,15 +84,23 @@ jobs:
       # Share compatible native imports with Delivery checks, keeping the
       # current commit immutable and falling back to the latest snapshot.
       - name: Restore Godot import cache
-        uses: https://code.forgejo.org/actions/cache@v4
+        id: godot-cache
+        uses: https://code.forgejo.org/actions/cache/restore@v4
         with:
-          path: Godot/.godot/imported
-          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          path: Godot/.godot
+          key: godot-import-v2-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
           restore-keys: |
-            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+            godot-import-v2-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
 
       - name: Run Headless Import
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
+
+      - name: Save Godot import cache
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        uses: https://code.forgejo.org/actions/cache/save@v4
+        with:
+          path: Godot/.godot
+          key: ${{ steps.godot-cache.outputs.cache-primary-key }}
 
       - name: Test native voice codec and audiences
         run: |
@@ -214,15 +222,23 @@ jobs:
       # Share compatible native imports with Delivery checks, keeping the
       # current commit immutable and falling back to the latest snapshot.
       - name: Restore Godot import cache
-        uses: https://code.forgejo.org/actions/cache@v4
+        id: godot-cache
+        uses: https://code.forgejo.org/actions/cache/restore@v4
         with:
-          path: Godot/.godot/imported
-          key: godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
+          path: Godot/.godot
+          key: godot-import-v2-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ github.sha }}
           restore-keys: |
-            godot-import-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+            godot-import-v2-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
 
       - name: Run Headless Import
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
+
+      - name: Save Godot import cache
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        uses: https://code.forgejo.org/actions/cache/save@v4
+        with:
+          path: Godot/.godot
+          key: ${{ steps.godot-cache.outputs.cache-primary-key }}
 
       - name: Test native voice codec and audiences
         run: |

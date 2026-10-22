@@ -112,12 +112,13 @@ jobs:
       # --editor --import and both branches commit changed assets regularly.
       # Distinct key prefix so a web snapshot never reuses a desktop snapshot.
       - name: Restore Godot import cache
-        uses: https://code.forgejo.org/actions/cache@v4
+        id: godot-cache
+        uses: https://code.forgejo.org/actions/cache/restore@v4
         with:
-          path: Godot/.godot/imported
-          key: godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ steps.describe.outputs.commit }}
+          path: Godot/.godot
+          key: godot-import-v2-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-${{ steps.describe.outputs.commit }}
           restore-keys: |
-            godot-import-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
+            godot-import-v2-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
 
       - name: Read engine version
         id: engine
@@ -125,6 +126,13 @@ jobs:
 
       - name: Import project
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
+
+      - name: Save Godot import cache
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        uses: https://code.forgejo.org/actions/cache/save@v4
+        with:
+          path: Godot/.godot
+          key: ${{ steps.godot-cache.outputs.cache-primary-key }}
 
       - name: Test native voice codec and audiences
         run: |
