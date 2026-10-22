@@ -37,6 +37,7 @@ var _favorites_only := false
 var _collection_buttons: Array[Button] = []
 var _thumbnails: AvatarThumbnails
 var _preview_ready := true
+var _preview_failed := false
 var _prefetch: AvatarLoadRequest
 var _hover_id := ""
 var _hover_generation := 0
@@ -61,7 +62,6 @@ func _ready() -> void:
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
 	%FavoriteAvatar.pressed.connect(_toggle_favorite)
-	%RetryPreview.pressed.connect(func(): _show_preview(_pending_id))
 	_thumbnails = AvatarThumbnails.new()
 	add_child(_thumbnails)
 	_thumbnails.loaded.connect(_thumbnail_loaded)
@@ -222,8 +222,8 @@ func _selection_changed(id: String) -> void:
 
 
 func _update_apply() -> void:
-	_apply.disabled = _pending_id == _applied_id or not _preview_ready
-	_apply.text = "Wearing" if _pending_id == _applied_id else "Wear avatar" if _preview_ready else "Loading..."
+	_apply.disabled = not _preview_failed and (_pending_id == _applied_id or not _preview_ready)
+	_apply.text = "Retry preview" if _preview_failed else "Loading..." if not _preview_ready else "Wearing" if _pending_id == _applied_id else "Wear avatar"
 
 
 func _sync_selection(id: String, with_preview: bool) -> void:
@@ -263,9 +263,10 @@ func _show_preview(id: String) -> void:
 	_release_request()
 	_clear_model()
 	_preview_ready = false
+	_preview_failed = false
+	_set_status("")
 	%DownloadProgress.show()
 	%DownloadProgress.indeterminate = true
-	%RetryPreview.hide()
 	_update_apply()
 	if AvatarCatalog.definition(id).is_empty():
 		_set_status("This avatar is no longer in the catalog.", true)
@@ -297,8 +298,6 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 	_release_request()
 	if not error.is_empty():
 		_set_status(error, true)
-		%RetryPreview.show()
-		_apply.text = "Preview unavailable"
 		return
 	%PreviewThumbnail.hide()
 	if scene == null:
@@ -310,8 +309,6 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 		return
 	if not _place_model(scene):
 		_set_status("This avatar could not be shown in the preview.", true)
-		%RetryPreview.show()
-		_apply.text = "Preview unavailable"
 		return
 	_preview_ready = true
 	_update_apply()
@@ -442,6 +439,9 @@ func _simulation_nodes(model: Node3D) -> Array:
 func _apply_pressed() -> void:
 	if _apply.disabled or _pending_id.is_empty() or not AvatarCatalog.has_avatar(_pending_id):
 		return
+	if _preview_failed:
+		_show_preview(_pending_id)
+		return
 	AvatarService.select_avatar(_pending_id)
 
 
@@ -452,6 +452,9 @@ func _set_status(message: String, is_error := false, is_hint := false) -> void:
 	if message.is_empty():
 		return
 	if is_error:
+		%DownloadProgress.hide()
+		_preview_failed = true
+		_update_apply()
 		status.add_theme_color_override("font_color", ERROR_COLOR)
 	elif is_hint:
 		status.add_theme_color_override("font_color", HINT_COLOR)
@@ -675,10 +678,19 @@ func _style_scrollbar(scroll: ScrollContainer) -> void:
 
 
 func _style_browser() -> void:
+	var progress_background := StyleBoxFlat.new()
+	progress_background.bg_color = Color("#142237")
+	%DownloadProgress.add_theme_stylebox_override("background", progress_background)
+	var progress_fill := StyleBoxFlat.new()
+	progress_fill.bg_color = Color("#a0bdd4")
+	%DownloadProgress.add_theme_stylebox_override("fill", progress_fill)
 	_style_scrollbar(_scroll)
 	_style_scrollbar($Content/Body/Sidebar/CollectionScroll)
 	var list_style := StyleBoxFlat.new()
 	list_style.bg_color = Color("#142237")
+	list_style.content_margin_right = 10
+	list_style.content_margin_top = 8
+	list_style.content_margin_bottom = 8
 	var button_style := %BrowseAll.get_theme_stylebox("normal") as StyleBoxFlat
 	if button_style != null:
 		list_style.corner_radius_top_left = button_style.corner_radius_top_left
@@ -707,6 +719,9 @@ func _decorate_button(button: BaseButton, primary := false) -> void:
 			style.bg_color = Color("#a0bdd4")
 			button.add_theme_stylebox_override("normal", style)
 		button.add_theme_color_override("font_color", Color("#162838"))
+		for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+			var font_key := "font_color" if state == "normal" else "font_%s_color" % state
+			button.add_theme_color_override("icon_%s_color" % state, button.get_theme_color(font_key))
 
 
 func _show_default_preview() -> void:

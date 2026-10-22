@@ -186,6 +186,25 @@ func _run() -> void:
 	check(not card.get_node("%PreviewStatus").visible and card._fallback_preview.visible, "Explorer should show a preview without extra hint text")
 	check(await _wait_until(func(): return card._model == null), "Default avatar preview kept the loaded model")
 
+	# Loading overlays must not resize the viewer, and retry shares the Wear action.
+	var stable_preview_rect: Rect2 = card.get_node("%PreviewFrame").get_global_rect()
+	card.get_node("%DownloadProgress").show()
+	card._set_status("Downloading 1.0 / 2.0 MB (50%)")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(card.get_node("%PreviewFrame").get_global_rect().is_equal_approx(stable_preview_rect), "Loading feedback must not move or resize the viewer")
+	check(card.get_node("%DownloadProgress").get_parent() == card.get_node("%PreviewFrame") and card.get_node("%PreviewStatus").get_parent() == card.get_node("%PreviewFrame"), "Loading feedback must overlay the preview")
+	check(card.get_node("%PreviewFrame").clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "Preview must clip progress and images at its rounded corners")
+	check(card.get_node_or_null("%RetryPreview") == null, "Retry must not have its own button")
+	card._preview_ready = false
+	card._set_status("Preview download failed", true)
+	check(card.get_node("%Apply").text == "Retry preview" and not card.get_node("%Apply").disabled, "Failed previews must turn Wear into an enabled retry action")
+	card.get_node("%Apply").pressed.emit()
+	check(card._preview_ready and not card._preview_failed and card.get_node("%Apply").text == "Wearing", "Retry must reload the selected preview and restore Wear state")
+	var done: Button = card.get_node("%CloseAvatarSettings")
+	check(done.get_theme_color("icon_normal_color") == done.get_theme_color("font_color") and done.get_theme_color("icon_hover_color") == done.get_theme_color("font_hover_color"), "Done icon colors must follow its text colors")
+	check(card.get_node("%ListFrame").get_theme_stylebox("panel").content_margin_right >= 10, "Scrollbar must sit inside the gallery's rounded right edge")
+
 	# Dwell prefetch is shared/cancellable and does not replace the preview.
 	card._hover_avatar("godette")
 	await get_tree().create_timer(0.45).timeout

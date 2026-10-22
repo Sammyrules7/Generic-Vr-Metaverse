@@ -177,6 +177,7 @@ layout_mode = 2
 size_flags_vertical = 3
 custom_minimum_size = Vector2(290, 270)
 clip_contents = true
+clip_children = 2
 
 [node name="Preview" type="SubViewportContainer" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 anchors_preset = 15
@@ -225,27 +226,32 @@ unique_name_in_owner = true
 light_energy = 0.6
 light_color = Color(0.6, 0.83, 0.84, 1)
 
-[node name="DownloadProgress" type="ProgressBar" parent="Content/Body/PreviewPane/PreviewContent"]
+[node name="DownloadProgress" type="ProgressBar" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 unique_name_in_owner = true
 visible = false
-layout_mode = 2
-custom_minimum_size = Vector2(0, 6)
+layout_mode = 0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -6.0
+mouse_filter = 2
 show_percentage = false
 
-[node name="PreviewStatus" type="Label" parent="Content/Body/PreviewPane/PreviewContent"]
+[node name="PreviewStatus" type="Label" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 unique_name_in_owner = true
-layout_mode = 2
-text = ""
+visible = false
+layout_mode = 0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -74.0
+offset_right = -12.0
+offset_bottom = -36.0
+mouse_filter = 2
 theme_override_font_sizes/font_size = 14
-visible = false
+vertical_alignment = 2
 autowrap_mode = 2
-
-[node name="RetryPreview" type="Button" parent="Content/Body/PreviewPane/PreviewContent"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Retry preview"
-custom_minimum_size = Vector2(0, 42)
-visible = false
 
 [node name="Attribution" type="Label" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 unique_name_in_owner = true
