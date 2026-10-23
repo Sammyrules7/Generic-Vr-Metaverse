@@ -10,6 +10,7 @@ const MAX_MEMORY_SCENES := 4
 const MAX_DISK_BYTES := 128 * 1024 * 1024
 const MAX_AVATAR_BYTES := 64 * 1024 * 1024
 const EXTENSIONS := [
+	preload("res://avatar/avatar_image_extension.gd"),
 	preload("res://addons/vrm/vrm_extension.gd"),
 	preload("res://addons/vrm/1.0/VRMC_vrm.gd"),
 	preload("res://addons/vrm/1.0/VRMC_springBone.gd"),
@@ -24,6 +25,12 @@ var _cache: Dictionary = {}
 var _lru: Array[String] = []
 var _next_token := 0
 var _active_downloads := 0
+var _importing := false
+var _image_job: AvatarImageJob
+var _hand_jobs: Array[AvatarHandMeshJob] = []
+var _import_model: Node3D
+var _next_import := 0
+var _exiting := false
 # Optional injected trust store for isolated test environments; verification stays on.
 var tls_options: TLSOptions
 
@@ -33,7 +40,7 @@ func _ready() -> void:
 	for script in EXTENSIONS:
 		var extension: GLTFDocumentExtension = script.new()
 		_extensions.append(extension)
-		GLTFDocument.register_gltf_document_extension(extension, script == EXTENSIONS[0])
+		GLTFDocument.register_gltf_document_extension(extension, script == preload("res://addons/vrm/vrm_extension.gd"))
 	_prune_disk_cache()
 
 
@@ -127,12 +134,79 @@ func _process(_delta: float) -> void:
 			if load.requests.is_empty():
 				_loads.erase(id)
 				continue
-			var packed := import_bytes(job.bytes)
-			_complete(id, packed, "Could not import avatar" if packed == null else "")
-			# One main-thread import per frame; shaders/GPU work must not run in pool.
+			load.bytes = job.bytes
+		if load.has("bytes") and not load.get("importing", false) and not _importing:
+			load.importing = true
+			_import_and_complete(id, load.bytes)
 			return
 		if not load.started and _active_downloads < MAX_DOWNLOADS:
 			_start(id)
+
+
+func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
+	_importing = true
+	_next_import += 1
+	var generation := _next_import
+	_loads[id].import_generation = generation
+	_image_job = AvatarImageJob.new()
+	_image_job.bytes = bytes
+	if OS.has_feature("web") and not OS.has_feature("threads"):
+		_image_job.run()
+	else:
+		_image_job.task_id = WorkerThreadPool.add_task(_image_job.run, false, "Decode avatar textures")
+		while not WorkerThreadPool.is_task_completed(_image_job.task_id):
+			await get_tree().process_frame
+		WorkerThreadPool.wait_for_task_completion(_image_job.task_id)
+	var images := _image_job.images
+	_image_job = null
+	if not _import_is_current(id, generation):
+		_importing = false
+		return
+	var document := GLTFDocument.new()
+	var state := _import_state()
+	state.set_additional_data(&"avatar/decoded_images", images)
+	state.set_additional_data(&"avatar/decoded_image_hits", 0)
+	var result := document.append_from_buffer(bytes, "", state, 8)
+	# Keep indivisible engine import calls on main, but don't stack parsing,
+	# generation, geometry baking and consumer instantiation into one frame.
+	await get_tree().process_frame
+	var model: Node3D
+	var extensions: Dictionary = state.json.get("extensions", {})
+	if _import_is_current(id, generation) and result == OK and (extensions.has("VRM") or extensions.has("VRMC_vrm")):
+		model = document.generate_scene(state) as Node3D
+		_import_model = model
+		if is_instance_valid(model):
+			model.set_meta("avatar_decoded_textures", state.get_additional_data(&"avatar/decoded_image_hits"))
+	await get_tree().process_frame
+	if is_instance_valid(model) and _import_is_current(id, generation):
+		AvatarScale.normalize(model)
+		await get_tree().process_frame
+		await AvatarFirstPerson.prepare_async(model, get_tree(), _hand_jobs)
+		await get_tree().process_frame
+	var packed: PackedScene
+	if is_instance_valid(model):
+		if _import_is_current(id, generation):
+			packed = PackedScene.new()
+			if packed.pack(model) != OK:
+				packed = null
+		model.free()
+	_import_model = null
+	_importing = false
+	if _import_is_current(id, generation):
+		_complete(id, packed, "Could not import avatar" if packed == null else "")
+
+
+func _import_is_current(id: String, generation: int) -> bool:
+	return not _exiting and _loads.has(id) and _loads[id].get("import_generation", -1) == generation
+
+
+func _import_state() -> GLTFState:
+	var state := GLTFState.new()
+	state.handle_binary_image_mode = GLTFState.HANDLE_BINARY_IMAGE_MODE_EMBED_AS_UNCOMPRESSED
+	state.set_additional_data(&"vrm/head_hiding_method", 3)
+	state.set_additional_data(&"vrm/first_person_layers", 2)
+	state.set_additional_data(&"vrm/third_person_layers", 1)
+	return state
 
 
 func _start(id: String) -> void:
@@ -212,10 +286,7 @@ func _touch(id: String) -> void:
 
 func import_bytes(bytes: PackedByteArray) -> PackedScene:
 	var document := GLTFDocument.new()
-	var state := GLTFState.new()
-	state.set_additional_data(&"vrm/head_hiding_method", 3)
-	state.set_additional_data(&"vrm/first_person_layers", 2)
-	state.set_additional_data(&"vrm/third_person_layers", 1)
+	var state := _import_state()
 	if document.append_from_buffer(bytes, "", state, 8) != OK:
 		return null
 	var extensions: Dictionary = state.json.get("extensions", {})
@@ -225,6 +296,7 @@ func import_bytes(bytes: PackedByteArray) -> PackedScene:
 	if model == null:
 		return null
 	AvatarScale.normalize(model)
+	AvatarFirstPerson.prepare(model)
 	var packed := PackedScene.new()
 	var result := packed.pack(model)
 	model.free()
@@ -257,6 +329,16 @@ func _prune_disk_cache() -> void:
 
 
 func _exit_tree() -> void:
+	_exiting = true
+	for job in _hand_jobs:
+		if job.task_id >= 0:
+			WorkerThreadPool.wait_for_task_completion(job.task_id)
+	_hand_jobs.clear()
+	if is_instance_valid(_import_model):
+		_import_model.free()
+	_import_model = null
+	if _image_job != null and _image_job.task_id >= 0:
+		WorkerThreadPool.wait_for_task_completion(_image_job.task_id)
 	for load: Dictionary in _loads.values():
 		if is_instance_valid(load.http):
 			load.http.cancel_request()

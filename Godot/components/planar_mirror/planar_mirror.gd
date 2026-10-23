@@ -4,9 +4,8 @@ extends Node3D
 ## Drop-in planar mirror: instance this scene and place it in the world.
 ##
 ## MirrorGlass renders the view from the player camera reflected across the
-## glass plane into its SubViewport. The glass samples that view in screen space
-## so the reflection lines up with the player's actual viewpoint instead of
-## stretching a whole camera image across the mesh.
+## glass plane into an off-axis viewport fitted to the glass. XR gets one
+## reflection per eye; mesh UVs stay stable when the headset turns.
 ##
 ## The glass must stay single-sided (cull_back): the reflected camera sits
 ## behind the mirror, so the glass back face is never drawn into its own view.
@@ -15,7 +14,8 @@ extends Node3D
 ## an internal, unsaved SubViewport. The scene's own SubViewport is left alone so
 ## saving the scene never serializes an editor World3D override.
 
-## Cap the extra 3D pass; the aspect ratio stays matched to the player viewport.
+## Cap the reflection pass; the aspect ratio follows the glass. XR is capped
+## at 1024 per eye because stereo requires two scene renders.
 @export var max_viewport_size := Vector2i(1920, 1920):
 	set(value):
 		max_viewport_size = Vector2i(maxi(1, value.x), maxi(1, value.y))
@@ -26,6 +26,10 @@ extends Node3D
 @onready var sub_viewport: SubViewport = $MirrorGlass/SubViewport
 @onready var reflect_camera: Camera3D = $MirrorGlass/SubViewport/ReflectCamera
 
+var _right_viewport: SubViewport
+var _right_camera: Camera3D
+var _runtime_material: ShaderMaterial
+var _stereo := false
 var _source_camera: Camera3D
 var _viewport_size := Vector2i.ZERO
 var _preview_viewport: SubViewport
@@ -61,6 +65,7 @@ func _setup_runtime(source_material: ShaderMaterial) -> void:
 	# two loaded worlds would make them fight over the same reflection.
 	var material := source_material.duplicate() as ShaderMaterial
 	mirror_glass.material_override = material
+	_runtime_material = material
 	material.set_shader_parameter("viewport_texture", sub_viewport.get_texture())
 	# A SubViewport nested under MeshInstance3D does not inherit the world on its
 	# own, so share it explicitly or the reflection renders an empty scene.
@@ -86,33 +91,89 @@ func _process(_delta: float) -> void:
 	var target_viewport := _target_viewport()
 	if target_viewport == null:
 		return
-	if _viewport_size == Vector2i.ZERO:
+	if _viewport_size == Vector2i.ZERO or Engine.is_editor_hint():
 		_resize_viewport()
-	if target_viewport.world_3d == null:
-		target_viewport.world_3d = get_world_3d()
-	# The active camera is the desktop camera, the XR head, or the editor's 3D
-	# view, so rebinding a replacement camera also handles mode switches.
 	var source := _view_camera()
+	var interface := XRServer.primary_interface
+	var stereo := not Engine.is_editor_hint() and source is XRCamera3D and get_viewport().use_xr and interface != null and interface.is_initialized() and interface.get_view_count() >= 2
+	if stereo != _stereo:
+		_stereo = stereo
+		if stereo:
+			_ensure_right_view()
+		if _runtime_material != null:
+			_runtime_material.set_shader_parameter("stereo", stereo)
+		_resize_viewport()
 	if source == null:
-		_source_camera = null
-		target_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_set_updates(false)
 		return
-	var target_camera := _target_camera()
-	if source != _source_camera or Engine.is_editor_hint():
-		_source_camera = source
-		_copy_projection(target_camera, source)
+	_source_camera = source
 	var glass := mirror_glass.global_transform
 	var normal := glass.basis.y.normalized()
-	# The back of a mirror is opaque and off-screen from its own reflection.
-	var active := _is_front_side(source.global_position, glass.origin, normal) and _is_in_view(source, glass)
-	target_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if active else SubViewport.UPDATE_DISABLED
+	var eye := source.get_camera_transform().origin
+	var right_eye := eye
+	var active := _is_front_side(eye, glass.origin, normal)
+	if stereo:
+		# XRInterface expects the origin transform, not the already-tracked head.
+		var origin := (source.get_parent() as Node3D).global_transform
+		var left_view := interface.get_transform_for_view(0, origin)
+		var right_view := interface.get_transform_for_view(1, origin)
+		eye = left_view.origin
+		right_eye = right_view.origin
+		var left_projection := interface.get_projection_for_view(0, 1.0, source.near, source.far)
+		var right_projection := interface.get_projection_for_view(1, 1.0, source.near, source.far)
+		active = active and (_bounds_in_planes(_projection_planes(left_projection, left_view), glass) or _bounds_in_planes(_projection_planes(right_projection, right_view), glass))
+	else:
+		active = active and _is_in_view(source, glass)
+	_set_updates(active)
 	if not active:
 		return
-	target_camera.global_transform = reflected_transform(source.global_transform, glass.origin, normal)
+	if stereo:
+		_fit_reflection(_right_camera, right_eye, source.far)
+	_fit_reflection(_target_camera(), eye, source.far)
+
+
+func _ensure_right_view() -> void:
+	if _right_viewport != null:
+		return
+	_right_viewport = SubViewport.new()
+	_right_viewport.name = "RightEyeReflection"
+	_right_viewport.world_3d = get_world_3d()
+	add_child(_right_viewport, false, Node.INTERNAL_MODE_FRONT)
+	_right_camera = Camera3D.new()
+	_right_camera.current = true
+	AvatarView.configure_mirror_camera(_right_camera)
+	_right_viewport.add_child(_right_camera)
+	_runtime_material.set_shader_parameter("right_eye_texture", _right_viewport.get_texture())
+
+
+func _set_updates(active: bool) -> void:
+	_target_viewport().render_target_update_mode = SubViewport.UPDATE_ALWAYS if active else SubViewport.UPDATE_DISABLED
+	if _right_viewport != null:
+		_right_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if active and _stereo else SubViewport.UPDATE_DISABLED
+
+
+func _fit_reflection(camera: Camera3D, eye: Vector3, far_distance: float) -> void:
+	var glass := mirror_glass.global_transform
+	var bounds := mirror_glass.get_aabb()
+	var center := glass * bounds.get_center()
+	var right := glass.basis.x.normalized()
+	var up := glass.basis.z.normalized()
+	var normal := glass.basis.y.normalized()
+	var reflected_eye := _reflect_point(eye, center, normal)
+	# A proper-handed camera, fixed to the glass, avoids the negative camera
+	# determinant and head-rotation-dependent SCREEN_UV mapping of the old path.
+	camera.global_transform = Transform3D(Basis(right, up, -normal), reflected_eye)
+	var depth := maxf(0.01, (center - reflected_eye).dot(normal))
+	var offset := Vector2((center - reflected_eye).dot(right), (center - reflected_eye).dot(up))
+	var height := bounds.size.z * glass.basis.z.length()
+	camera.keep_aspect = Camera3D.KEEP_HEIGHT
+	camera.h_offset = 0.0
+	camera.v_offset = 0.0
+	camera.set_frustum(height, offset, depth, maxf(depth + 1.0, far_distance + depth))
 
 
 ## Mirror a camera pose across the plane. Reflecting the full basis keeps a
-## true planar reflection; the shader samples the result in screen space.
+## mathematical reflection. Rendering uses proper-handed off-axis cameras.
 static func reflected_transform(source: Transform3D, plane_origin: Vector3, plane_normal: Vector3) -> Transform3D:
 	var reflected_basis := Basis(
 		_reflect_direction(source.basis.x, plane_normal),
@@ -135,6 +196,17 @@ static func _is_front_side(position: Vector3, plane_origin: Vector3, plane_norma
 
 
 func _is_in_view(source: Camera3D, glass: Transform3D) -> bool:
+	return _bounds_in_planes(source.get_frustum(), glass)
+
+
+static func _projection_planes(projection: Projection, pose: Transform3D) -> Array[Plane]:
+	var planes: Array[Plane] = []
+	for index in 6:
+		planes.append(pose * projection.get_projection_plane(index))
+	return planes
+
+
+func _bounds_in_planes(planes: Array[Plane], glass: Transform3D) -> bool:
 	# Test the glass as an oriented box against the camera frustum. Sampling the
 	# center and corners breaks down when the player puts their face up against
 	# the glass: the mirror covers the screen while all nine sample points sit
@@ -147,7 +219,6 @@ func _is_in_view(source: Camera3D, glass: Transform3D) -> bool:
 	var extent_x := bounds.size.x * glass.basis.x.length() * 0.5
 	var extent_y := bounds.size.y * glass.basis.y.length() * 0.5
 	var extent_z := bounds.size.z * glass.basis.z.length() * 0.5
-	var planes := source.get_frustum()
 	if planes.is_empty():
 		return true
 	for plane in planes:
@@ -182,20 +253,6 @@ func _target_camera() -> Camera3D:
 	return _preview_camera if Engine.is_editor_hint() else reflect_camera
 
 
-func _copy_projection(target: Camera3D, source: Camera3D) -> void:
-	# Copy the projection settings rather than the matrix: Camera3D rebuilds its
-	# projection from these for the target viewport's aspect ratio.
-	target.projection = source.projection
-	target.fov = source.fov
-	target.size = source.size
-	target.near = source.near
-	target.far = source.far
-	target.keep_aspect = source.keep_aspect
-	target.frustum_offset = source.frustum_offset
-	target.h_offset = source.h_offset
-	target.v_offset = source.v_offset
-
-
 func _resize_viewport() -> void:
 	var viewport := _view_viewport()
 	if viewport == null:
@@ -203,11 +260,22 @@ func _resize_viewport() -> void:
 	var size := viewport.get_visible_rect().size
 	if size.x < 1.0 or size.y < 1.0:
 		return
-	var scale := minf(1.0, minf(max_viewport_size.x / size.x, max_viewport_size.y / size.y))
-	var target := Vector2i(maxi(1, roundi(size.x * scale)), maxi(1, roundi(size.y * scale)))
-	if target == _viewport_size:
-		return
+	# Fit the glass aspect rather than the desktop/XR framebuffer aspect.
+	var bounds := mirror_glass.get_aabb()
+	var glass := mirror_glass.global_transform
+	var aspect := maxf(0.01, bounds.size.x * glass.basis.x.length()) / maxf(0.01, bounds.size.z * glass.basis.z.length())
+	var cap := max_viewport_size
+	if _stereo:
+		cap = Vector2i(mini(cap.x, 1024), mini(cap.y, 1024))
+	var width := minf(cap.x, size.x)
+	var height := width / aspect
+	if height > minf(cap.y, size.y):
+		height = minf(cap.y, size.y)
+		width = height * aspect
+	var target := Vector2i(maxi(1, roundi(width)), maxi(1, roundi(height)))
 	_viewport_size = target
 	var target_viewport := _target_viewport()
 	if target_viewport != null:
 		target_viewport.size = target
+	if _right_viewport != null:
+		_right_viewport.size = target

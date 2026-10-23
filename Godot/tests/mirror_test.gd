@@ -75,14 +75,35 @@ func _test_scene() -> void:
 	check(material != null and material.get_shader_parameter("viewport_texture") == viewport.get_texture(), "Mirror material must sample its own viewport")
 	check(viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "Visible mirror must keep its reflection current")
 
-	var source_size := root.get_visible_rect().size
-	var expected_scale := minf(1.0, minf(1920.0 / source_size.x, 1920.0 / source_size.y))
-	check(viewport.size == Vector2i(roundi(source_size.x * expected_scale), roundi(source_size.y * expected_scale)), "Default mirror must use the available higher resolution")
-	check(viewport.size.x <= 1920 and viewport.size.y <= 1920, "Default reflection must respect its higher resolution cap")
+	check(viewport.size.x == viewport.size.y, "Square glass must have a square reflection, independent of the window aspect")
+	check(viewport.size.x <= 1920, "Default reflection must respect the quality cap")
 	mirror.max_viewport_size = Vector2i(320, 320)
-	check(viewport.size.x <= 320 and viewport.size.y <= 320, "Changing the mirror cap must resize its render target")
-	check(absf(float(viewport.size.x) / viewport.size.y - source_size.x / source_size.y) < 0.02, "Mirror quality changes must preserve aspect ratio")
+	check(viewport.size == Vector2i(320, 320), "Changing mirror quality must resize the render target")
 	mirror.max_viewport_size = Vector2i(1920, 1920)
+	mirror._process(0.016)
+	var top_right := glass.global_transform * Vector3(1, 0, 1)
+	var bottom_left := glass.global_transform * Vector3(-1, 0, -1)
+	check(reflected_camera.unproject_position(top_right).distance_to(Vector2(viewport.size.x, 0)) < 0.01, "Glass top-right must project to the reflection top-right")
+	check(reflected_camera.unproject_position(bottom_left).distance_to(Vector2(0, viewport.size.y)) < 0.01, "Glass bottom-left must project to the reflection bottom-left")
+	check(reflected_camera.global_basis.determinant() > 0.0, "Render cameras must retain proper handedness")
+	var eye_planes := MIRROR_SCRIPT._projection_planes(camera.get_camera_projection(), camera.get_camera_transform())
+	check(mirror._bounds_in_planes(eye_planes, glass.global_transform), "XR projection-plane culling must retain visible glass")
+	var behind_camera := glass.global_transform
+	behind_camera.origin = Vector3(0, 0, 8)
+	check(not mirror._bounds_in_planes(eye_planes, behind_camera), "XR projection-plane culling must reject glass behind the eye")
+	var old_reflection := reflected_camera.global_transform
+	camera.rotation.y = 0.2
+	mirror._process(0.016)
+	check(reflected_camera.global_transform.is_equal_approx(old_reflection), "Turning in place must not warp the glass projection")
+	camera.rotation.y = 0.0
+	# Exercise the two eye fits without requiring an attached headset.
+	mirror._ensure_right_view()
+	mirror._right_viewport.size = viewport.size
+	mirror._fit_reflection(reflected_camera, Vector3(-0.032, 0, 4), 100.0)
+	mirror._fit_reflection(mirror._right_camera, Vector3(0.032, 0, 4), 100.0)
+	check(not reflected_camera.global_position.is_equal_approx(mirror._right_camera.global_position), "Stereo reflections must have distinct eye positions")
+	check(reflected_camera.unproject_position(top_right).distance_to(mirror._right_camera.unproject_position(top_right)) < 0.01, "Both eye frustums must fit the same glass edges")
+	check(reflected_camera.frustum_offset.x > 0 and mirror._right_camera.frustum_offset.x < 0, "Eye frustum offsets must have opposite signs")
 
 	# Up close the glass can cover the screen while its center and corners are
 	# all outside the tiny frustum. The reflection must keep updating.

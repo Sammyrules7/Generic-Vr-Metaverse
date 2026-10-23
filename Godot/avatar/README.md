@@ -131,3 +131,13 @@ Viewpoint resolution is shared by normalization and the live rig: paired eye
 bones take priority, followed by a nonzero authored LookOffset. If neither is
 available, a neck-proportioned offset places the viewpoint above the head joint.
 This avoids aligning the camera with the base of the skull on incomplete VRMs.
+
+
+Texture decoding and first-person hand-mesh filtering run as CPU-only worker
+jobs in threaded builds. Runtime GLTF parsing, scene generation, normalization,
+mesh upload and packing stay on main but are separated by frame boundaries.
+Normalization transforms packed vertex arrays in native code. Handless geometry
+is prepared once and stored in the shared PackedScene, so wearing a previewed
+avatar reuses it. Single-threaded web exports use the same staged pipeline with
+CPU fallbacks. Godot's indivisible GLTF calls and first-use GPU/shader work can
+still cause a hitch for large avatars; this is not a fully asynchronous importer.

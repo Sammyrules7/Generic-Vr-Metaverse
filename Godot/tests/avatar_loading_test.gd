@@ -48,12 +48,17 @@ func run() -> void:
 	var survivor: AvatarLoadRequest = service.acquire("godette")
 	cancelled.release()
 	check(cancelled.finished and cancelled.released, "Cancellation must resolve pending awaits")
+	var import_frames := 0
 	var deadline := Time.get_ticks_msec() + 15000
 	while not survivor.finished and Time.get_ticks_msec() < deadline:
+		if service._importing:
+			import_frames += 1
 		await process_frame
 	check(survivor.finished and survivor.scene != null and survivor.error.is_empty(), "Bundled VRM failed: " + survivor.error)
 	if survivor.scene != null:
+		check(import_frames >= 3, "Avatar preparation must yield across frames rather than blocking one frame")
 		var first := survivor.scene.instantiate() as Node3D
+		check(int(first.get_meta("avatar_decoded_textures", 0)) > 0, "GLTF import must reuse worker-decoded textures")
 		var second := survivor.scene.instantiate() as Node3D
 		var skeleton := first.find_child("GeneralSkeleton", true, false) as Skeleton3D
 		var other := second.find_child("GeneralSkeleton", true, false) as Skeleton3D
@@ -71,7 +76,14 @@ func run() -> void:
 			var original_meshes: Array[Mesh] = []
 			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
 				original_meshes.append(mesh.mesh)
+			var handless_meshes := {}
+			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
+				if (mesh.layers & 2) != 0:
+					check(mesh.has_meta("avatar_handless_mesh"), "Cached scenes must already contain handless geometry")
+					handless_meshes[mesh] = mesh.get_meta("avatar_handless_mesh")
 			AvatarFirstPerson.use_tracked_hands(first, true)
+			for mesh in handless_meshes:
+				check(mesh.mesh == handless_meshes[mesh], "Wearing must reuse prepared meshes without rebuilding them")
 			AvatarFirstPerson.use_tracked_hands(first, false)
 			var index := 0
 			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
@@ -83,6 +95,22 @@ func run() -> void:
 		check(cached.finished and cached.scene == survivor.scene, "Repeated loads should use the parsed cache")
 		cached.release()
 	survivor.release()
+
+	# Cancel during asynchronous import, then select the same id again. The old
+	# generation must not complete or erase the replacement request.
+	service._cache.erase("godette")
+	service._lru.erase("godette")
+	var abandoned: AvatarLoadRequest = service.acquire("godette")
+	deadline = Time.get_ticks_msec() + 15000
+	while not service._importing and Time.get_ticks_msec() < deadline:
+		await process_frame
+	check(service._importing, "Cancellation test must reach the asynchronous import stage")
+	abandoned.release()
+	var replacement: AvatarLoadRequest = service.acquire("godette")
+	while not replacement.finished and Time.get_ticks_msec() < deadline:
+		await process_frame
+	check(abandoned.released and replacement.finished and replacement.scene != null and replacement.error.is_empty(), "Cancelled imports must not interfere with a replacement lease for the same avatar")
+	replacement.release()
 
 	var bytes := FileAccess.get_file_as_bytes("res://avatar/godette.vrm")
 	var definition := AvatarCatalog.definition("godette")

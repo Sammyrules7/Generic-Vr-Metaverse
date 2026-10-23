@@ -87,6 +87,6 @@ static func _scale_mesh(source: ArrayMesh, factor: float) -> ArrayMesh:
 
 
 static func _scale_vertices(vertices: PackedVector3Array, factor: float) -> PackedVector3Array:
-	for vertex in vertices.size():
-		vertices[vertex] *= factor
-	return vertices
+	# This packed-array transform runs in native code rather than a GDScript
+	# iteration for every base/blend-shape vertex in the avatar.
+	return Transform3D(Basis.from_scale(Vector3.ONE * factor), Vector3.ZERO) * vertices
