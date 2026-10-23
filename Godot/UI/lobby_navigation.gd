@@ -6,7 +6,7 @@ const SWIPE_THRESHOLD := 40.0
 const STICK_DEADZONE := 0.25
 const SCROLL_SPEED := 600.0
 
-enum Region { NONE, ROOMS, WORLDS }
+enum Region { NONE, ROOMS, WORLDS, AVATARS, COLLECTIONS }
 
 @onready var ui: Control = get_parent()
 @onready var rooms: ScrollContainer = ui.get_node("%Scroll")
@@ -29,19 +29,28 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not _active() or (_drag_pointer is XRToolsFunctionPointer and not _drag_pointer.enabled):
+	var target := _scroll_for_region(_region)
+	if not _active() or (target != null and not target.is_visible_in_tree()) or (_drag_pointer is XRToolsFunctionPointer and not _drag_pointer.enabled):
 		_cancel_drag()
 
 
 func _active() -> bool:
-	return ui.menu_open and ui.get_node("VBoxContainer").visible
+	return ui.get_node("%AvatarSettings").is_visible_in_tree() or (ui.menu_open and ui.get_node("VBoxContainer").visible)
 
 
 func _region_at(point: Vector2) -> Region:
+	var avatar := ui.get_node("%AvatarSettings")
+	if avatar.is_visible_in_tree():
+		if avatar.get_node("%AvatarListScroll").get_global_rect().has_point(point):
+			return Region.AVATARS
+		var collections: ScrollContainer = avatar.get_node("Content/Body/Sidebar/CollectionScroll")
+		if collections.get_global_rect().has_point(point) and not collections.get_v_scroll_bar().get_global_rect().has_point(point):
+			return Region.COLLECTIONS
+		return Region.NONE
 	var panel := get_viewport().get_parent()
 	# Direct finger contact activates buttons immediately. Dragging the empty
 	# list/preview and controller-ray drag buffering retain their existing path.
-	if ui.vr_mode and panel.has_method("is_hand_pointer") and panel.is_hand_pointer(panel.input_pointer) and ui.xr_button_at(point) != null:
+	if ui.vr_mode and panel != null and panel.has_method("is_hand_pointer") and panel.is_hand_pointer(panel.input_pointer) and ui.xr_button_at(point) != null:
 		return Region.NONE
 	if rooms.is_visible_in_tree() and rooms.get_global_rect().has_point(point):
 		# Keep the native scrollbar draggable as well.
@@ -95,10 +104,11 @@ func _begin_drag(region: Region, point: Vector2) -> void:
 	_dragging = true
 	_region = region
 	_start = point
-	_start_scroll = rooms.scroll_vertical
+	var scroll := _scroll_for_region(region)
+	_start_scroll = scroll.scroll_vertical if scroll != null else 0
 	_dragged = false
-	if region == Region.ROOMS:
-		rooms.grab_focus()
+	if scroll != null:
+		scroll.grab_focus()
 	else:
 		world.grab_focus()
 
@@ -106,8 +116,9 @@ func _begin_drag(region: Region, point: Vector2) -> void:
 func _drag_to(point: Vector2) -> void:
 	if point.distance_to(_start) >= DRAG_THRESHOLD:
 		_dragged = true
-	if _dragged and _region == Region.ROOMS:
-		rooms.scroll_vertical = _start_scroll + roundi(_start.y - point.y)
+	var scroll := _scroll_for_region(_region)
+	if _dragged and scroll != null:
+		scroll.scroll_vertical = _start_scroll + roundi(_start.y - point.y)
 
 
 func _end_drag(point: Vector2) -> void:
@@ -120,8 +131,16 @@ func _end_drag(point: Vector2) -> void:
 	if was_dragged:
 		if region == Region.WORLDS and absf(movement.x) >= SWIPE_THRESHOLD and absf(movement.x) > absf(movement.y):
 			ui._step_world(-1 if movement.x > 0 else 1)
-	elif region == Region.ROOMS and rooms.get_global_rect().has_point(point):
+	elif _scroll_for_region(region) != null and _scroll_for_region(region).get_global_rect().has_point(point):
 		_click.call_deferred(point, pointer)
+
+
+func _scroll_for_region(region: Region) -> ScrollContainer:
+	match region:
+		Region.ROOMS: return rooms
+		Region.AVATARS: return ui.get_node("%AvatarSettings/%AvatarListScroll")
+		Region.COLLECTIONS: return ui.get_node("%AvatarSettings/Content/Body/Sidebar/CollectionScroll")
+	return null
 
 
 func _cancel_drag() -> void:
@@ -164,18 +183,22 @@ func pointer_event(event: XRToolsPointerEvent, point: Vector2) -> bool:
 func _click(point: Vector2, pointer: Node3D = null) -> void:
 	if not _active():
 		return
-	var body := get_viewport().get_parent().get_node_or_null("StaticBody3D")
+	var panel := get_viewport().get_parent()
+	var body := panel.get_node_or_null("StaticBody3D") if panel != null else null
 	if ui.vr_mode and body != null and body.has_method("accept_button_press") and not body.accept_button_press(point):
 		return
 	if body != null and is_instance_valid(pointer):
 		body.get_parent().input_pointer = pointer
 	var button := ui.xr_button_at(point) as Button
-	if button != null and not button.disabled and rooms.is_ancestor_of(button):
+	var target := _scroll_for_region(_region_at(point))
+	if button != null and not button.disabled and target != null and target.is_ancestor_of(button):
 		button.grab_focus()
 		button.pressed.emit()
 
 
 func _key_input(event: InputEventKey) -> void:
+	if ui.get_node("%AvatarSettings").is_visible_in_tree():
+		return
 	if not event.pressed:
 		return
 	var focus := get_viewport().gui_get_focus_owner()

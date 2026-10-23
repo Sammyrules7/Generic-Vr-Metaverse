@@ -146,3 +146,8 @@ Imported secondary nodes use a passive source script in cached scenes. It keeps
 spring definitions and collider paths but skips the add-on's runtime solver
 initialization; AvatarSprings installs the native solver after the model enters
 the tree. This avoids allocating two solvers during preview/equip.
+
+The wardrobe supports native touchscreen and XR pointer dragging over avatar
+cards and collections. Gestures select on release only when movement remains
+below the drag threshold; swipes and canceled touches do not select cards.
+The separate scrollbar remains directly draggable.

@@ -91,6 +91,77 @@ func _run() -> void:
 	var previous_scroll := gallery_scroll.scroll_vertical
 	ui.get_node("Navigation").handle_stick(Vector2(0, -1), card.get_node("%PreviewFrame").get_global_rect().get_center(), 0.2)
 	check(gallery_scroll.scroll_vertical == previous_scroll, "Pointing at the preview must not scroll the gallery")
+	# Finger swipes scroll without activating cards; taps activate on release.
+	gallery_scroll.scroll_vertical = 0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var taps := [0]
+	default_button.pressed.connect(func(): taps[0] += 1)
+	var touch := InputEventScreenTouch.new()
+	touch.index = 43
+	touch.position = default_button.get_global_rect().get_center()
+	touch.pressed = true
+	ui.get_viewport().push_input(touch, true)
+	var drag := InputEventScreenDrag.new()
+	drag.index = touch.index
+	drag.position = touch.position - Vector2(0, 110)
+	ui.get_viewport().push_input(drag, true)
+	touch.position = drag.position
+	touch.pressed = false
+	ui.get_viewport().push_input(touch, true)
+	await get_tree().process_frame
+	check(gallery_scroll.scroll_vertical > 0 and taps[0] == 0 and card._pending_id == "default", "Touch swipes must scroll without selecting an avatar")
+	gallery_scroll.scroll_vertical = 0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	touch.position = default_button.get_global_rect().get_center()
+	touch.pressed = true
+	ui.get_viewport().push_input(touch, true)
+	touch.pressed = false
+	ui.get_viewport().push_input(touch, true)
+	await get_tree().process_frame
+	check(taps[0] == 1, "A stationary touch must activate its card exactly once on release")
+	touch.pressed = true
+	ui.get_viewport().push_input(touch, true)
+	touch.pressed = false
+	touch.canceled = true
+	ui.get_viewport().push_input(touch, true)
+	await get_tree().process_frame
+	check(taps[0] == 1 and not ui.get_node("Navigation")._dragging, "Canceled touches must clear the gesture without activating a card")
+	var collection_scroll: ScrollContainer = card.get_node("Content/Body/Sidebar/CollectionScroll")
+	var collection_button: Button = card.get_node("%Collections").get_child(0)
+	var collection_minimum := collection_button.custom_minimum_size
+	collection_button.custom_minimum_size.y += 500
+	await get_tree().process_frame
+	await get_tree().process_frame
+	touch.canceled = false
+	touch.pressed = true
+	touch.position = collection_scroll.get_global_rect().get_center()
+	ui.get_viewport().push_input(touch, true)
+	drag.position = touch.position - Vector2(0, 80)
+	ui.get_viewport().push_input(drag, true)
+	touch.position = drag.position
+	touch.pressed = false
+	ui.get_viewport().push_input(touch, true)
+	check(collection_scroll.scroll_vertical > 0, "Touch dragging must also scroll the collections list")
+	collection_button.custom_minimum_size = collection_minimum
+	collection_scroll.scroll_vertical = 0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# XR touch/controller drags share the swipe path without leaking a click.
+	var navigation = ui.get_node("Navigation")
+	var pointer := Node3D.new()
+	gallery_scroll.scroll_vertical = 0
+	var pointer_point := gallery_scroll.get_global_rect().get_center()
+	var pointer_event := XRToolsPointerEvent.new(XRToolsPointerEvent.Type.PRESSED, pointer, null, Vector3.ZERO, Vector3.ZERO)
+	check(navigation.pointer_event(pointer_event, pointer_point), "Avatar gallery must consume XR touch presses")
+	pointer_event.event_type = XRToolsPointerEvent.Type.MOVED
+	navigation.pointer_event(pointer_event, pointer_point - Vector2(0, 100))
+	pointer_event.event_type = XRToolsPointerEvent.Type.RELEASED
+	navigation.pointer_event(pointer_event, pointer_point - Vector2(0, 100))
+	await get_tree().process_frame
+	check(gallery_scroll.scroll_vertical > 0 and taps[0] == 1, "XR touch dragging must scroll without activating cards")
+	pointer.free()
 	var initial_count: int = card._loaded_count
 	var scrollbar: VScrollBar = card.get_node("%AvatarListScroll").get_v_scroll_bar()
 	scrollbar.value = scrollbar.max_value
