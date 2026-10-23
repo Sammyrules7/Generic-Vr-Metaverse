@@ -74,6 +74,23 @@ func _run() -> void:
 	check(card.get_node_or_null("%NextPage") == null, "Pagination buttons must be removed")
 	await get_tree().process_frame
 	await get_tree().process_frame
+	# Real wheel events must reach the scroll container through an avatar card.
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	wheel.position = card.get_node("%AvatarList").get_child(0).get_global_rect().get_center()
+	wheel.global_position = wheel.position
+	ui.get_viewport().push_input(wheel, true)
+	await get_tree().process_frame
+	check(card.get_node("%AvatarListScroll").scroll_vertical > 0, "Wheel scrolling over an avatar card must move the gallery")
+	var gallery_scroll: ScrollContainer = card.get_node("%AvatarListScroll")
+	gallery_scroll.scroll_vertical = 0
+	var gallery_point: Vector2 = gallery_scroll.get_global_rect().get_center()
+	ui.get_node("Navigation").handle_stick(Vector2(0, -1), gallery_point, 0.2)
+	check(gallery_scroll.scroll_vertical > 0, "Controller stick must scroll the open avatar gallery")
+	var previous_scroll := gallery_scroll.scroll_vertical
+	ui.get_node("Navigation").handle_stick(Vector2(0, -1), card.get_node("%PreviewFrame").get_global_rect().get_center(), 0.2)
+	check(gallery_scroll.scroll_vertical == previous_scroll, "Pointing at the preview must not scroll the gallery")
 	var initial_count: int = card._loaded_count
 	var scrollbar: VScrollBar = card.get_node("%AvatarListScroll").get_v_scroll_bar()
 	scrollbar.value = scrollbar.max_value

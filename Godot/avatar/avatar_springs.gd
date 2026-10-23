@@ -10,6 +10,19 @@ const MAX_SPRING_CHAINS := 64
 const MAX_JOINTS_PER_CHAIN := 64
 const MAX_COLLIDERS_PER_CHAIN := 64
 
+static func prepare_sources(model: Node3D) -> void:
+	# Imported definitions must survive packing, but the scripted solver must
+	# not allocate its runtime chains/colliders just before native conversion.
+	for node in _all_nodes(model):
+		if not node is VRMSecondary:
+			continue
+		var values := {}
+		for property in ["skeleton", "spring_bones", "collider_groups", "collider_library"]:
+			values[property] = node.get(property)
+		node.set_script(preload("res://avatar/avatar_secondary_source.gd"))
+		for property in values:
+			node.set(property, values[property])
+
 static func install(model: Node3D) -> Array[SpringBoneSimulator3D]:
 	var result: Array[SpringBoneSimulator3D] = []
 	if model == null or not is_instance_valid(model):

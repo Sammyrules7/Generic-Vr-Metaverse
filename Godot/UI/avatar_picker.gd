@@ -645,6 +645,20 @@ func _set_card_thumbnail(button: Button, texture: Texture2D) -> void:
 	button.get_node("Card").get_child(0).get_node("Fallback").hide()
 
 
+func handle_stick(stick: Vector2, point: Vector2, delta: float) -> void:
+	if not is_visible_in_tree() or absf(stick.y) <= LobbyNavigation.STICK_DEADZONE:
+		return
+	var target: ScrollContainer
+	if %GalleryTrack.get_global_rect().has_point(point):
+		target = _scroll
+	elif $Content/Body/Sidebar/CollectionScroll.get_global_rect().has_point(point):
+		target = $Content/Body/Sidebar/CollectionScroll
+	if target == null:
+		return
+	var amount := (absf(stick.y) - LobbyNavigation.STICK_DEADZONE) / (1.0 - LobbyNavigation.STICK_DEADZONE)
+	target.scroll_vertical += roundi(-signf(stick.y) * amount * LobbyNavigation.SCROLL_SPEED * delta)
+
+
 func _layout_browser() -> void:
 	# Keep the first sidebar row, search field and preview heading on one baseline.
 	var header_height := maxf(%BrowseAll.get_minimum_size().y, %AvatarSearch.get_minimum_size().y)

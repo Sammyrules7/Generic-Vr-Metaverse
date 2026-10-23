@@ -141,3 +141,8 @@ is prepared once and stored in the shared PackedScene, so wearing a previewed
 avatar reuses it. Single-threaded web exports use the same staged pipeline with
 CPU fallbacks. Godot's indivisible GLTF calls and first-use GPU/shader work can
 still cause a hitch for large avatars; this is not a fully asynchronous importer.
+
+Imported secondary nodes use a passive source script in cached scenes. It keeps
+spring definitions and collider paths but skips the add-on's runtime solver
+initialization; AvatarSprings installs the native solver after the model enters
+the tree. This avoids allocating two solvers during preview/equip.

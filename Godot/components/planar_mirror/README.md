@@ -28,3 +28,9 @@ material and texture resources.
 Headless tests verify reflection positions, frustum/UV alignment, eye separation,
 rotation stability, visibility and quality limits. Stereo appearance and GPU
 cost still require a real OpenXR/WebXR device test.
+
+GLES emits VIEW_INDEX as an unsigned integer despite its shader-language type.
+The shader explicitly converts it to a float in the vertex stage and passes it
+to fragment, avoiding an unsigned-versus-signed comparison rejected by WebGL.
+Shader changes require an actual GLES/WebGL render check: headless projection
+tests and export success do not validate driver shader compilation.

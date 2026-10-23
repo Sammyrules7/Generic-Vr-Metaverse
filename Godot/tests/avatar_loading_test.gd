@@ -89,6 +89,12 @@ func run() -> void:
 			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
 				check(mesh.mesh == original_meshes[index], "Desktop switch must restore avatar hand geometry")
 				index += 1
+		var passive_probe := survivor.scene.instantiate() as Node3D
+		root.add_child(passive_probe)
+		for node in passive_probe.find_children("*", "Node3D", true, false):
+			if node is VRMSecondary:
+				check(node.spring_bones_internal.is_empty() and node.internal_modifier_node == null, "Cached spring sources must skip duplicate add-on solver initialization")
+		passive_probe.free()
 		first.free()
 		second.free()
 		var cached: AvatarLoadRequest = service.acquire("godette")

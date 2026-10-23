@@ -236,6 +236,10 @@ func _scroll_by(pixels: float) -> void:
 
 
 func handle_stick(stick: Vector2, point: Vector2, delta: float) -> void:
+	if ui.get_node("%AvatarSettings").is_visible_in_tree():
+		_reset_stick()
+		ui.get_node("%AvatarSettings").handle_stick(stick, point, delta)
+		return
 	if not _active() or _dragging or ui.get_node("%Keyboard").visible:
 		_reset_stick()
 		return

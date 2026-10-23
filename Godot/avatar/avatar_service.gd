@@ -176,6 +176,7 @@ func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
 		model = document.generate_scene(state) as Node3D
 		_import_model = model
 		if is_instance_valid(model):
+			AvatarSprings.prepare_sources(model)
 			model.set_meta("avatar_decoded_textures", state.get_additional_data(&"avatar/decoded_image_hits"))
 	await get_tree().process_frame
 	if is_instance_valid(model) and _import_is_current(id, generation):
@@ -295,6 +296,7 @@ func import_bytes(bytes: PackedByteArray) -> PackedScene:
 	var model := document.generate_scene(state) as Node3D
 	if model == null:
 		return null
+	AvatarSprings.prepare_sources(model)
 	AvatarScale.normalize(model)
 	AvatarFirstPerson.prepare(model)
 	var packed := PackedScene.new()
