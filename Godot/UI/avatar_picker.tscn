@@ -106,28 +106,45 @@ theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="ListFrame" type="PanelContainer" parent="Content/Body/Gallery/GalleryContent"]
+[node name="GalleryTrack" type="HBoxContainer" parent="Content/Body/Gallery/GalleryContent"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="ListFrame" type="PanelContainer" parent="Content/Body/Gallery/GalleryContent/GalleryTrack"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 330)
 clip_children = 2
 
-[node name="AvatarListScroll" type="ScrollContainer" parent="Content/Body/Gallery/GalleryContent/ListFrame"]
+[node name="AvatarListScroll" type="ScrollContainer" parent="Content/Body/Gallery/GalleryContent/GalleryTrack/ListFrame"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 custom_minimum_size = Vector2(0, 330)
 follow_focus = true
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
 
-[node name="AvatarList" type="GridContainer" parent="Content/Body/Gallery/GalleryContent/ListFrame/AvatarListScroll"]
+[node name="AvatarList" type="GridContainer" parent="Content/Body/Gallery/GalleryContent/GalleryTrack/ListFrame/AvatarListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 columns = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
+
+[node name="ScrollbarInset" type="MarginContainer" parent="Content/Body/Gallery/GalleryContent/GalleryTrack"]
+layout_mode = 2
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="AvatarScrollbar" type="VScrollBar" parent="Content/Body/Gallery/GalleryContent/GalleryTrack/ScrollbarInset"]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="EmptyResults" type="Label" parent="Content/Body/Gallery/GalleryContent"]
 unique_name_in_owner = true

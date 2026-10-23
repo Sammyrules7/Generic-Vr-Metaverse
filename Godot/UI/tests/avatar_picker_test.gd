@@ -148,7 +148,7 @@ func _run() -> void:
 	check(card.get_node_or_null("%ArtistName") == null and card.get_node_or_null("%SelectedCollection") == null and card.get_node_or_null("%LicenseHolder") == null, "Viewer must omit artist, collection, and license panel")
 	var gallery_style: StyleBoxFlat = card.get_node("%ListFrame").get_theme_stylebox("panel")
 	var button_style: StyleBoxFlat = card.get_node("%BrowseAll").get_theme_stylebox("normal")
-	check(gallery_style.corner_radius_top_left == button_style.corner_radius_top_left, "Gallery corners must match button corners")
+	check(gallery_style.corner_radius_top_left == button_style.corner_radius_top_left and gallery_style.corner_radius_top_right == button_style.corner_radius_top_right and gallery_style.corner_radius_bottom_left == button_style.corner_radius_bottom_left and gallery_style.corner_radius_bottom_right == button_style.corner_radius_bottom_right, "All gallery corners must match button corners")
 	check(card.get_node("%ListFrame").clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "Gallery must clip scrolled cards to its rounded frame")
 	check(is_equal_approx(card.get_node("%Apply").get_global_rect().end.y, card.get_node("%CloseAvatarSettings").get_global_rect().end.y), "All action buttons must sit at the panel bottom")
 	check(card.get_node("%CloseAvatarSettings").icon != null, "Done must have a distinct completion icon")
@@ -156,8 +156,10 @@ func _run() -> void:
 	check(card.get_node("%AvatarList").columns >= 3, "Wardrobe must use horizontal space for a multi-column gallery")
 	check(is_equal_approx(card.get_node("%BrowseAll").get_global_rect().position.y, card.get_node("%AvatarSearch").get_global_rect().position.y), "Search and All avatars must align")
 	check(is_equal_approx(card.get_node("%BrowseFavorites").get_global_rect().position.y, card.get_node("%ListFrame").get_global_rect().position.y), "Favorites and gallery must align")
+	check(is_equal_approx(card.get_node("%BrowseFavorites").get_global_rect().position.y, card.get_node("%AvatarList").get_child(0).get_global_rect().position.y), "The first avatar card must align with Favorites")
+	check(is_equal_approx(card.get_node("%AvatarSearch").get_global_rect().position.x, card.get_node("%AvatarList").get_child(0).get_global_rect().position.x), "The first avatar card must align with the search field's left edge")
 
-	check(card.get_node("%AvatarListScroll").get_v_scroll_bar().get_theme_stylebox("grabber").corner_radius_top_left == 4, "Scrollbar must use a rounded thumb")
+	check(card.get_node("%AvatarScrollbar").get_theme_stylebox("grabber").corner_radius_top_left == 4, "Scrollbar must use a rounded thumb")
 	# Exercise responsive breakpoints without changing the enclosing menu size.
 	var scroll: ScrollContainer = card.get_node("%AvatarListScroll")
 	var original_scroll_size := scroll.size
@@ -187,6 +189,9 @@ func _run() -> void:
 	check(await _wait_until(func(): return card._model == null), "Default avatar preview kept the loaded model")
 
 	# Loading overlays must not resize the viewer, and retry shares the Wear action.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
 	var stable_preview_rect: Rect2 = card.get_node("%PreviewFrame").get_global_rect()
 	card.get_node("%DownloadProgress").show()
 	card._set_status("Downloading 1.0 / 2.0 MB (50%)")
@@ -203,7 +208,14 @@ func _run() -> void:
 	check(card._preview_ready and not card._preview_failed and card.get_node("%Apply").text == "Wearing", "Retry must reload the selected preview and restore Wear state")
 	var done: Button = card.get_node("%CloseAvatarSettings")
 	check(done.get_theme_color("icon_normal_color") == done.get_theme_color("font_color") and done.get_theme_color("icon_hover_color") == done.get_theme_color("font_hover_color"), "Done icon colors must follow its text colors")
-	check(card.get_node("%ListFrame").get_theme_stylebox("panel").content_margin_right >= 10, "Scrollbar must sit inside the gallery's rounded right edge")
+	check(card.get_node("%GalleryTrack").get_theme_constant("separation") == 12, "Cards must have a separate gap before the scrollbar")
+	check(card.get_node("%AvatarScrollbar").get_global_rect().position.x - card.get_node("%ListFrame").get_global_rect().end.x >= 12 * card.get_global_transform().get_scale().x - 0.01, "Scrollbar must sit outside the rounded card area")
+	var native_bar: VScrollBar = card.get_node("%AvatarListScroll").get_v_scroll_bar()
+	var outside_bar: VScrollBar = card.get_node("%AvatarScrollbar")
+	var previous_value := native_bar.value
+	outside_bar.value = outside_bar.max_value
+	check(is_equal_approx(native_bar.value, outside_bar.value), "Outside scrollbar must drive the card scroll position")
+	native_bar.value = previous_value
 
 	# Dwell prefetch is shared/cancellable and does not replace the preview.
 	card._hover_avatar("godette")

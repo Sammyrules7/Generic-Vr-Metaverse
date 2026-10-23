@@ -50,6 +50,7 @@ var _fallback_preview: Node3D
 
 
 func _ready() -> void:
+	_scroll.get_v_scroll_bar().share(%AvatarScrollbar)
 	_apply.pressed.connect(_apply_pressed)
 	%CloseAvatarSettings.pressed.connect(close)
 	%CloseAvatarSettings.icon = preload("res://UI/icons/avatar/done.svg")
@@ -167,7 +168,7 @@ func _refresh_list() -> void:
 	_loaded_count = 0
 	%EmptyResults.visible = _filtered.is_empty()
 	%EmptyResults.text = "Your favorites will appear here.\nChoose a look and select the star to save it." if _favorites_only else "No matching avatars.\nTry another collection or clear your search."
-	%ListFrame.visible = not _filtered.is_empty()
+	%GalleryTrack.visible = not _filtered.is_empty()
 	_append_batch()
 
 
@@ -651,12 +652,15 @@ func _layout_browser() -> void:
 	%BrowseFavorites.custom_minimum_size.y = header_height
 	%AvatarSearch.custom_minimum_size.y = header_height
 	%SelectedTitle.get_parent().custom_minimum_size.y = header_height
-	var available := _scroll.size.x - _scroll.get_v_scroll_bar().size.x
+	var available := _scroll.size.x
 	_list.columns = clampi(int((available + 12.0) / 150.0), 2, 4)
 
 
 func _style_scrollbar(scroll: ScrollContainer) -> void:
-	var bar := scroll.get_v_scroll_bar()
+	_style_scrollbar_control(scroll.get_v_scroll_bar())
+
+
+func _style_scrollbar_control(bar: VScrollBar) -> void:
 	var track := StyleBoxFlat.new()
 	track.bg_color = Color(0, 0, 0, 0)
 	track.content_margin_left = 4
@@ -684,13 +688,13 @@ func _style_browser() -> void:
 	var progress_fill := StyleBoxFlat.new()
 	progress_fill.bg_color = Color("#a0bdd4")
 	%DownloadProgress.add_theme_stylebox_override("fill", progress_fill)
-	_style_scrollbar(_scroll)
+	_style_scrollbar_control(%AvatarScrollbar)
 	_style_scrollbar($Content/Body/Sidebar/CollectionScroll)
 	var list_style := StyleBoxFlat.new()
 	list_style.bg_color = Color("#142237")
-	list_style.content_margin_right = 10
-	list_style.content_margin_top = 8
-	list_style.content_margin_bottom = 8
+	# Content starts flush with the sidebar row; spacing belongs between the
+	# cards and scrollbar, rather than above the first row.
+	list_style.set_content_margin_all(0)
 	var button_style := %BrowseAll.get_theme_stylebox("normal") as StyleBoxFlat
 	if button_style != null:
 		list_style.corner_radius_top_left = button_style.corner_radius_top_left
