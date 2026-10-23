@@ -126,3 +126,8 @@ Speed blends into idle on stopping; teleports reset the motion estimate. Availab
 humanoid bones are animated independently, so incomplete rigs skip missing bones.
 Switching to VR restores the original bone poses and uses tracked hand targets.
 The eye position remains attached to the camera while the torso animates.
+
+Viewpoint resolution is shared by normalization and the live rig: paired eye
+bones take priority, followed by a nonzero authored LookOffset. If neither is
+available, a neck-proportioned offset places the viewpoint above the head joint.
+This avoids aligning the camera with the base of the skull on incomplete VRMs.

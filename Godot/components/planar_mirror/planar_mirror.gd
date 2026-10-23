@@ -16,7 +16,11 @@ extends Node3D
 ## saving the scene never serializes an editor World3D override.
 
 ## Cap the extra 3D pass; the aspect ratio stays matched to the player viewport.
-const MAX_VIEWPORT_SIZE := Vector2i(1024, 1024)
+@export var max_viewport_size := Vector2i(1920, 1920):
+	set(value):
+		max_viewport_size = Vector2i(maxi(1, value.x), maxi(1, value.y))
+		if is_node_ready():
+			_resize_viewport()
 
 @onready var mirror_glass: MeshInstance3D = $MirrorGlass
 @onready var sub_viewport: SubViewport = $MirrorGlass/SubViewport
@@ -199,7 +203,7 @@ func _resize_viewport() -> void:
 	var size := viewport.get_visible_rect().size
 	if size.x < 1.0 or size.y < 1.0:
 		return
-	var scale := minf(1.0, minf(MAX_VIEWPORT_SIZE.x / size.x, MAX_VIEWPORT_SIZE.y / size.y))
+	var scale := minf(1.0, minf(max_viewport_size.x / size.x, max_viewport_size.y / size.y))
 	var target := Vector2i(maxi(1, roundi(size.x * scale)), maxi(1, roundi(size.y * scale)))
 	if target == _viewport_size:
 		return

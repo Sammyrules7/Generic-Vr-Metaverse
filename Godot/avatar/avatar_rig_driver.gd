@@ -236,20 +236,7 @@ func _read_rest_geometry() -> void:
 
 
 func _eye_offset_model() -> Vector3:
-	# VRM keeps the eye position in a LookOffset node below the head bone
-	# attachment. The offset is expressed in the head bone frame.
-	for attachment in avatar_model.find_children("*", "BoneAttachment3D", true, false):
-		if attachment.bone_name != HEAD_BONE:
-			continue
-		var look := attachment.find_child("LookOffset", true, false) as Node3D
-		if look == null:
-			for child in attachment.get_children():
-				if child is Node3D:
-					look = child
-					break
-		if look != null:
-			return look.transform.origin
-	return Vector3.ZERO
+	return AvatarEyes.offset(avatar_model, skeleton)
 
 
 func _rest_skeleton(bone_name: String) -> Vector3:

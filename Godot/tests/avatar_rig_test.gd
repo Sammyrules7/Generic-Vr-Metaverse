@@ -46,6 +46,7 @@ func check(condition: bool, message: String) -> void:
 
 func run() -> void:
 	await _test_synthetic_fixture()
+	_test_eye_alignment()
 	_test_desktop_animation()
 	await _test_bundled_vrm()
 	print("AVATAR_RIG_TEST failures=", failures)
@@ -377,3 +378,31 @@ func _test_desktop_animation() -> void:
 	check(skeleton.get_bone_pose_rotation(spine).is_equal_approx(Quaternion.IDENTITY) and skeleton.get_bone_pose_rotation(leg).is_equal_approx(Quaternion.IDENTITY), "VR must clear desktop bone animation")
 	check(driver.hand_target.left.global_position.is_equal_approx(rig.left.global_position), "VR must keep tracked hand targets after desktop animation")
 	container.free()
+
+
+func _test_eye_alignment() -> void:
+	var model := build_fixture_model()
+	var skeleton := model.get_node("GeneralSkeleton") as Skeleton3D
+	var head := skeleton.find_bone("Head")
+	model.find_child("LookOffset", true, false).position = Vector3.ZERO
+	check(AvatarEyes.offset(model, skeleton).y > 0.05, "Missing viewpoint offsets must place the camera above the head joint")
+	for side in ["Left", "Right"]:
+		skeleton.add_bone(side + "Eye")
+		var eye := skeleton.find_bone(side + "Eye")
+		skeleton.set_bone_parent(eye, head)
+		skeleton.set_bone_rest(eye, Transform3D(Basis.IDENTITY, Vector3(0.03 if side == "Left" else -0.03, 0.12, 0.1)))
+		skeleton.reset_bone_pose(eye)
+	AvatarScale.normalize(model)
+	var normalized_eyes := skeleton.get_bone_global_rest(head) * AvatarEyes.offset(model, skeleton)
+	check(absf(normalized_eyes.y - 1.7) < 0.001, "Avatar scaling must use the same eye midpoint as the rig")
+	var rig := build_rig(model, true, false)
+	var driver = rig.driver
+	driver.set_process(false)
+	driver._process(1.0 / 60.0)
+	var eye_midpoint := (skeleton.get_bone_global_pose(skeleton.find_bone("LeftEye")).origin + skeleton.get_bone_global_pose(skeleton.find_bone("RightEye")).origin) * 0.5
+	check((skeleton.global_transform * eye_midpoint).distance_to(rig.head.global_position) < 0.001, "The actual eye midpoint must align with the camera")
+	rig.head.rotation.x = 0.4
+	driver._process(1.0 / 60.0)
+	eye_midpoint = (skeleton.get_bone_global_pose(skeleton.find_bone("LeftEye")).origin + skeleton.get_bone_global_pose(skeleton.find_bone("RightEye")).origin) * 0.5
+	check((skeleton.global_transform * eye_midpoint).distance_to(rig.head.global_position) < 0.001, "Looking down must preserve eye alignment")
+	rig.container.free()

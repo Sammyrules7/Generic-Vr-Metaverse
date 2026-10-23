@@ -10,10 +10,7 @@ static func normalize(model: Node3D, eye_height := 1.7) -> void:
 	var head := skeleton.find_bone("Head")
 	if head < 0:
 		return
-	var eye := skeleton.get_bone_global_rest(head).origin
-	var look := model.find_child("LookOffset", true, false) as Node3D
-	if look != null:
-		eye += look.position
+	var eye := (skeleton.transform * skeleton.get_bone_global_rest(head)) * AvatarEyes.offset(model, skeleton)
 	if eye.y < 0.3 or eye.y > 3.0:
 		return
 	var factor := clampf(eye_height / eye.y, 0.5, 3.0)

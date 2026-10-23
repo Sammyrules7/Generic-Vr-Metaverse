@@ -75,6 +75,15 @@ func _test_scene() -> void:
 	check(material != null and material.get_shader_parameter("viewport_texture") == viewport.get_texture(), "Mirror material must sample its own viewport")
 	check(viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "Visible mirror must keep its reflection current")
 
+	var source_size := root.get_visible_rect().size
+	var expected_scale := minf(1.0, minf(1920.0 / source_size.x, 1920.0 / source_size.y))
+	check(viewport.size == Vector2i(roundi(source_size.x * expected_scale), roundi(source_size.y * expected_scale)), "Default mirror must use the available higher resolution")
+	check(viewport.size.x <= 1920 and viewport.size.y <= 1920, "Default reflection must respect its higher resolution cap")
+	mirror.max_viewport_size = Vector2i(320, 320)
+	check(viewport.size.x <= 320 and viewport.size.y <= 320, "Changing the mirror cap must resize its render target")
+	check(absf(float(viewport.size.x) / viewport.size.y - source_size.x / source_size.y) < 0.02, "Mirror quality changes must preserve aspect ratio")
+	mirror.max_viewport_size = Vector2i(1920, 1920)
+
 	# Up close the glass can cover the screen while its center and corners are
 	# all outside the tiny frustum. The reflection must keep updating.
 	camera.position = Vector3(0, 0, 0.1)
