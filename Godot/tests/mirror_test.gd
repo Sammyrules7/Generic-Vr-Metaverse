@@ -98,6 +98,11 @@ func _test_scene() -> void:
 	camera.rotation.y = 0.0
 	# Exercise the two eye fits without requiring an attached headset.
 	mirror._ensure_right_view()
+	mirror._stereo = true
+	mirror._resize_viewport()
+	check(viewport.size == Vector2i(1920, 1920) and mirror._right_viewport.size == viewport.size, "XR reflection quality must use the full cap rather than the small desktop window")
+	mirror._stereo = false
+	mirror._resize_viewport()
 	mirror._right_viewport.size = viewport.size
 	mirror._fit_reflection(reflected_camera, Vector3(-0.032, 0, 4), 100.0)
 	mirror._fit_reflection(mirror._right_camera, Vector3(0.032, 0, 4), 100.0)

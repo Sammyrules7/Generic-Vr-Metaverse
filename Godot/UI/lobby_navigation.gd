@@ -1,7 +1,9 @@
 class_name LobbyNavigation
 extends Node
 
-const DRAG_THRESHOLD := 10.0
+const DRAG_THRESHOLD := 20.0
+const TAP_RELEASE_TOLERANCE := 4.0
+const POKE_CONFIRM_DEPTH := -0.001
 const SWIPE_THRESHOLD := 40.0
 const STICK_DEADZONE := 0.25
 const SCROLL_SPEED := 600.0
@@ -19,6 +21,10 @@ var _start := Vector2.ZERO
 var _drag_pointer: Node3D
 var _start_scroll := 0
 var _dragged := false
+var _start_button: Button
+var _button_focus_style: StyleBox
+var _poke_committed := false
+var _press_feedback_active := false
 var _stick_direction := 0
 var _stick_repeat := 0.0
 var _scroll_fraction := 0.0
@@ -108,7 +114,15 @@ func _begin_drag(region: Region, point: Vector2) -> void:
 	_start_scroll = scroll.scroll_vertical if scroll != null else 0
 	_dragged = false
 	if scroll != null:
-		scroll.grab_focus()
+		_start_button = ui.xr_button_at(point) as Button
+		if _start_button != null and scroll.is_ancestor_of(_start_button):
+			_button_focus_style = _start_button.get_theme_stylebox("focus") if _start_button.has_theme_stylebox_override("focus") else null
+			_press_feedback_active = true
+			_start_button.add_theme_stylebox_override("focus", _start_button.get_theme_stylebox("pressed"))
+			_start_button.grab_focus()
+		else:
+			_start_button = null
+			scroll.grab_focus()
 	else:
 		world.grab_focus()
 
@@ -116,6 +130,7 @@ func _begin_drag(region: Region, point: Vector2) -> void:
 func _drag_to(point: Vector2) -> void:
 	if point.distance_to(_start) >= DRAG_THRESHOLD:
 		_dragged = true
+		_clear_press_feedback()
 	var scroll := _scroll_for_region(_region)
 	if _dragged and scroll != null:
 		scroll.scroll_vertical = _start_scroll + roundi(_start.y - point.y)
@@ -127,12 +142,14 @@ func _end_drag(point: Vector2) -> void:
 	var was_dragged := _dragged
 	var movement := point - _start
 	var pointer := _drag_pointer
+	var button := _start_button
+	var committed := _poke_committed
 	_cancel_drag()
 	if was_dragged:
 		if region == Region.WORLDS and absf(movement.x) >= SWIPE_THRESHOLD and absf(movement.x) > absf(movement.y):
 			ui._step_world(-1 if movement.x > 0 else 1)
-	elif _scroll_for_region(region) != null and _scroll_for_region(region).get_global_rect().has_point(point):
-		_click.call_deferred(point, pointer)
+	elif not committed and is_instance_valid(button) and button.get_global_rect().grow(TAP_RELEASE_TOLERANCE).has_point(point):
+		_click.call_deferred(point, pointer, button)
 
 
 func _scroll_for_region(region: Region) -> ScrollContainer:
@@ -143,7 +160,36 @@ func _scroll_for_region(region: Region) -> ScrollContainer:
 	return null
 
 
+func _clear_press_feedback() -> void:
+	if not _press_feedback_active:
+		return
+	_press_feedback_active = false
+	if not is_instance_valid(_start_button):
+		return
+	if _button_focus_style != null:
+		_start_button.add_theme_stylebox_override("focus", _button_focus_style)
+	else:
+		_start_button.remove_theme_stylebox_override("focus")
+	_button_focus_style = null
+
+
+func _confirm_poke(point: Vector2) -> void:
+	# Optical contact has real depth. A forward press confirms selection early;
+	# lateral movement turns into scrolling. Rays/screens keep tap-on-release.
+	if _dragged or _poke_committed or not is_instance_valid(_start_button) or not is_instance_valid(_drag_pointer):
+		return
+	if not _start_button.get_global_rect().grow(TAP_RELEASE_TOLERANCE).has_point(point):
+		return
+	if not _drag_pointer.has_meta("ui_poke_depth") or float(_drag_pointer.get_meta("ui_poke_depth")) > POKE_CONFIRM_DEPTH:
+		return
+	_poke_committed = true
+	_click.call_deferred(point, _drag_pointer, _start_button)
+
+
 func _cancel_drag() -> void:
+	_clear_press_feedback()
+	_start_button = null
+	_poke_committed = false
 	_dragging = false
 	_touch_index = -1
 	_region = Region.NONE
@@ -169,10 +215,12 @@ func pointer_event(event: XRToolsPointerEvent, point: Vector2) -> bool:
 			return false
 		_begin_drag(region, point)
 		_drag_pointer = event.pointer
+		_confirm_poke(point)
 	elif event.pointer != _drag_pointer:
 		return false
 	elif event.event_type == XRToolsPointerEvent.Type.MOVED:
 		_drag_to(point)
+		_confirm_poke(point)
 	elif event.event_type == XRToolsPointerEvent.Type.RELEASED:
 		_end_drag(point)
 	elif event.event_type == XRToolsPointerEvent.Type.EXITED:
@@ -180,17 +228,21 @@ func pointer_event(event: XRToolsPointerEvent, point: Vector2) -> bool:
 	return true
 
 
-func _click(point: Vector2, pointer: Node3D = null) -> void:
+func _click(point: Vector2, pointer: Node3D = null, original_button: Button = null) -> void:
 	if not _active():
+		return
+	if original_button != null and not is_instance_valid(original_button):
+		return
+	var button := original_button if is_instance_valid(original_button) else ui.xr_button_at(point) as Button
+	if button == null or not button.is_visible_in_tree():
 		return
 	var panel := get_viewport().get_parent()
 	var body := panel.get_node_or_null("StaticBody3D") if panel != null else null
-	if ui.vr_mode and body != null and body.has_method("accept_button_press") and not body.accept_button_press(point):
+	if ui.vr_mode and body != null and body.has_method("accept_button_press") and not body.accept_button_press(button.get_global_rect().get_center()):
 		return
 	if body != null and is_instance_valid(pointer):
 		body.get_parent().input_pointer = pointer
-	var button := ui.xr_button_at(point) as Button
-	var target := _scroll_for_region(_region_at(point))
+	var target := _scroll_for_region(_region_at(button.get_global_rect().get_center()))
 	if button != null and not button.disabled and target != null and target.is_ancestor_of(button):
 		button.grab_focus()
 		button.pressed.emit()

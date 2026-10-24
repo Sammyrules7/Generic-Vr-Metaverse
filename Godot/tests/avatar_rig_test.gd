@@ -46,6 +46,7 @@ func check(condition: bool, message: String) -> void:
 
 func run() -> void:
 	await _test_synthetic_fixture()
+	await _test_avatar_fingers()
 	_test_eye_alignment()
 	_test_desktop_animation()
 	await _test_bundled_vrm()
@@ -138,6 +139,14 @@ func watch_ik(driver, skeleton: Skeleton3D) -> void:
 				"hand": world * skeleton.get_bone_global_pose(hand),
 				"elbow": world * skeleton.get_bone_global_pose(elbow),
 			}
+		)
+
+	if driver._wrist_modifier != null:
+		driver._wrist_modifier.modification_processed.connect(func() -> void:
+			for side in driver.hand_target:
+				var hand := skeleton.find_bone("LeftHand" if side == "left" else "RightHand")
+				if _poses.has(side):
+					_poses[side].hand = skeleton.global_transform * skeleton.get_bone_global_pose(hand)
 		)
 
 
@@ -278,10 +287,36 @@ func _test_synthetic_fixture() -> void:
 	late_spring.free()
 
 	# A remote player keeps its head and loses the headless duplicate.
+	left.basis = Basis.from_euler(Vector3(0.4, -0.6, 0.7))
+	left.position = Vector3(-0.2, 1.2, -0.5)
+	await process_frame
+	await process_frame
+	var rotated_hand: Transform3D = _poses.get("left", {}).get("hand", Transform3D.IDENTITY)
+	check(rotated_hand.origin.distance_to(left.global_position) < 0.002, "Tracked wrist translation must reach the target after arm IK")
+	check(rotated_hand.basis.get_rotation_quaternion().angle_to(left.global_basis.get_rotation_quaternion()) < 0.01, "Tracked wrist rotation must be applied after arm IK")
+	head.rotation.x = -PI / 2.0
+	await process_frame
+	await process_frame
+	var chest_index: int = driver.skeleton.find_bone("Chest")
+	var chest_position: Vector3 = driver.skeleton.global_transform * driver.skeleton.get_bone_global_pose(chest_index).origin
+	check((chest_position - head.global_position).dot(Vector3.BACK) > 0.09, "Looking down must leave the chest behind the camera")
+	check(look.global_position.distance_to(head.global_position) < 0.002, "VR body offset must keep the eyes aligned to the tracked head")
+	var body_position: Vector3 = model.global_position
+	await process_frame
+	await process_frame
+	check(model.global_position.distance_to(body_position) < 0.001, "VR body/head compensation must not accumulate across frames")
+
 	var remote := build_rig(build_fixture_model(), false, false)
 	var remote_driver = remote["driver"]
 	check(mesh_by_name(remote["model"], "Body").layers == 1, "Remote third person mesh must render on layer 1")
 	check(mesh_by_name(remote["model"], "Body (Headless)").layers == 0, "Remote first person mesh must not render")
+	remote_driver.set_control_mode(true)
+	watch_ik(remote_driver, remote_driver.skeleton)
+	remote.left.transform = Transform3D(Basis.from_euler(Vector3(-0.2, 0.5, 0.3)), Vector3(0.1, 1.0, -0.4))
+	await process_frame
+	await process_frame
+	var remote_hand: Transform3D = _poses.get("left", {}).get("hand", Transform3D.IDENTITY)
+	check(remote_hand.origin.distance_to(remote.left.global_position) < 0.002 and remote_hand.basis.get_rotation_quaternion().angle_to(remote.left.global_basis.get_rotation_quaternion()) < 0.01, "Remote VR wrists must apply replicated position and rotation")
 	remote_driver.restore_original_layers()
 	check(mesh_by_name(remote["model"], "Body (Headless)").layers == 2,
 		"Original layers must be restorable for the preview")
@@ -405,4 +440,49 @@ func _test_eye_alignment() -> void:
 	driver._process(1.0 / 60.0)
 	eye_midpoint = (skeleton.get_bone_global_pose(skeleton.find_bone("LeftEye")).origin + skeleton.get_bone_global_pose(skeleton.find_bone("RightEye")).origin) * 0.5
 	check((skeleton.global_transform * eye_midpoint).distance_to(rig.head.global_position) < 0.001, "Looking down must preserve eye alignment")
+	rig.container.free()
+
+
+func _test_avatar_fingers() -> void:
+	var model := build_fixture_model()
+	var skeleton := model.get_node("GeneralSkeleton") as Skeleton3D
+	var hand := skeleton.find_bone("LeftHand")
+	skeleton.add_bone("LeftPalm")
+	skeleton.set_bone_parent(skeleton.find_bone("LeftPalm"), hand)
+	for finger in ["Thumb", "Index", "Middle", "Ring", "Little"]:
+		var parent := hand
+		var parts := ["Metacarpal", "Proximal", "Distal", "Tip"] if finger == "Thumb" else ["Metacarpal", "Proximal", "Intermediate", "Distal", "Tip"]
+		for part in parts:
+			var name: String = "Left" + finger + part
+			skeleton.add_bone(name)
+			var bone := skeleton.find_bone(name)
+			skeleton.set_bone_parent(bone, parent)
+			skeleton.set_bone_rest(bone, Transform3D(Basis.IDENTITY, Vector3(0, 0.03, 0)))
+			parent = bone
+	skeleton.reset_bone_poses()
+	var tracker := XRHandTracker.new()
+	tracker.name = "/user/hand_tracker/left"
+	tracker.hand = XRPositionalTracker.TRACKER_HAND_LEFT
+	tracker.has_tracking_data = true
+	tracker.hand_tracking_source = XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED
+	for joint in XRHandTracker.HAND_JOINT_MAX:
+		tracker.set_hand_joint_transform(joint, Transform3D.IDENTITY)
+		tracker.set_hand_joint_flags(joint, XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID | XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID)
+	tracker.set_hand_joint_transform(XRHandTracker.HAND_JOINT_INDEX_FINGER_METACARPAL + 1, Transform3D(Basis(Vector3.RIGHT, 0.4), Vector3.ZERO))
+	XRServer.add_tracker(tracker)
+	var rig := build_rig(model, true, true)
+	var driver = rig.driver
+	var modifier: XRHandModifier3D = driver._finger_modifiers.left
+	var observed := [Quaternion.IDENTITY]
+	var index := skeleton.find_bone("LeftIndexProximal")
+	modifier.modification_processed.connect(func(): observed[0] = skeleton.get_bone_pose_rotation(index))
+	await process_frame
+	await process_frame
+	check(modifier.active, "Avatar finger tracking must activate for local tracked hands")
+	check(observed[0].angle_to(Quaternion(Vector3.RIGHT, 0.4)) < 0.01, "Finger rotations must reach the avatar skeleton")
+	check(skeleton.get_bone_pose_position(index).is_equal_approx(Vector3(0, 0.03, 0)), "Finger tracking must preserve avatar bone lengths")
+	driver.set_control_mode(false)
+	await process_frame
+	check(not modifier.active, "Desktop mode must disable optical finger modifiers")
+	XRServer.remove_tracker(tracker)
 	rig.container.free()

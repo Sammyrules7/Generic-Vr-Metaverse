@@ -68,8 +68,6 @@ func set_avatar(id: String) -> void:
 	_driver.set_script(load("res://avatar/avatar_rig_driver.gd"))
 	add_child(_driver)
 	_driver.configure(model, $Head, $LeftHand, $RightHand, _local, get_parent().use_vr)
-	if _local:
-		AvatarFirstPerson.use_tracked_hands(model, get_parent().use_vr)
 	_springs = load("res://avatar/avatar_springs.gd").install(model)
 	_set_springs_enabled(PlayerProfile.spring_bones_enabled)
 	_update_fallback()
@@ -96,8 +94,6 @@ func _process(_delta: float) -> void:
 func control_mode_changed() -> void:
 	if is_instance_valid(_driver):
 		_driver.set_control_mode(get_parent().use_vr)
-	if _local and is_instance_valid(model):
-		AvatarFirstPerson.use_tracked_hands(model, get_parent().use_vr)
 	_update_fallback()
 
 
@@ -109,6 +105,9 @@ func _set_springs_enabled(enabled: bool) -> void:
 
 
 func _update_fallback() -> void:
+	var controls := get_parent().controls as PlayerControls
+	if _local and controls != null and controls.has_method("set_avatar_hands"):
+		controls.set_avatar_hands(model != null and is_instance_valid(_driver) and _driver.arm_ik.size() == 2)
 	$Body.visible = model == null
 	$Head.visible = model == null
 	$LeftHand.visible = model == null and get_parent().use_vr

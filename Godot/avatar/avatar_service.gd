@@ -27,7 +27,6 @@ var _next_token := 0
 var _active_downloads := 0
 var _importing := false
 var _image_job: AvatarImageJob
-var _hand_jobs: Array[AvatarHandMeshJob] = []
 var _import_model: Node3D
 var _next_import := 0
 var _exiting := false
@@ -182,7 +181,6 @@ func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
 	if is_instance_valid(model) and _import_is_current(id, generation):
 		AvatarScale.normalize(model)
 		await get_tree().process_frame
-		await AvatarFirstPerson.prepare_async(model, get_tree(), _hand_jobs)
 		await get_tree().process_frame
 	var packed: PackedScene
 	if is_instance_valid(model):
@@ -298,7 +296,6 @@ func import_bytes(bytes: PackedByteArray) -> PackedScene:
 		return null
 	AvatarSprings.prepare_sources(model)
 	AvatarScale.normalize(model)
-	AvatarFirstPerson.prepare(model)
 	var packed := PackedScene.new()
 	var result := packed.pack(model)
 	model.free()
@@ -332,10 +329,6 @@ func _prune_disk_cache() -> void:
 
 func _exit_tree() -> void:
 	_exiting = true
-	for job in _hand_jobs:
-		if job.task_id >= 0:
-			WorkerThreadPool.wait_for_task_completion(job.task_id)
-	_hand_jobs.clear()
 	if is_instance_valid(_import_model):
 		_import_model.free()
 	_import_model = null

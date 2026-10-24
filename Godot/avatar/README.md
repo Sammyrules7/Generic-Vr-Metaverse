@@ -45,16 +45,17 @@ Standing eye height is baked into mesh/blend-shape positions, skeleton rest
 translations, inverse skin binds, eye offsets, and collider data. Runtime
 Skeleton3D and simulator node scales remain one, as required by the native
 spring solver. Camera alignment uses the imported eye offset rather than the
-head-bone origin. Legs retain their rest pose; locomotion clips, foot planting,
-and full-body tracking are not implemented.
+head-bone origin. Desktop locomotion is procedural; foot planting and full-body
+tracking are not implemented.
 
 `PlayerReplication` reliably announces catalog IDs in spawn snapshots and on
 selection changes. Body/head/hand poses retain their existing unreliable update
 channel. The scene-owned container keeps `Head`, `LeftHand`, and `RightHand`
 anchors stable for voice and input, replaces only model visuals, and consumes
-local tracking every display frame. Local VR keeps the existing controller and
-optical hand visuals, removing overlapping hand-weighted avatar triangles from
-the first-person mesh only. The full mesh retains its hands for mirrors.
+local tracking every display frame. Local VR uses the avatar's own hand geometry. Separate controller/optical hand
+models are hidden when a humanoid avatar is present and remain a fallback for
+Explorer or incomplete rigs. Local finger rotations use native XR hand modifiers;
+replicated wrist targets drive both end position and orientation after arm IK.
 
 Player cameras reserve visual layer 19 for the local VR body and tracked hands,
 and layer 20 for the full local avatar. Desktop player cameras exclude both;
@@ -133,13 +134,11 @@ available, a neck-proportioned offset places the viewpoint above the head joint.
 This avoids aligning the camera with the base of the skull on incomplete VRMs.
 
 
-Texture decoding and first-person hand-mesh filtering run as CPU-only worker
-jobs in threaded builds. Runtime GLTF parsing, scene generation, normalization,
-mesh upload and packing stay on main but are separated by frame boundaries.
-Normalization transforms packed vertex arrays in native code. Handless geometry
-is prepared once and stored in the shared PackedScene, so wearing a previewed
-avatar reuses it. Single-threaded web exports use the same staged pipeline with
-CPU fallbacks. Godot's indivisible GLTF calls and first-use GPU/shader work can
+Texture decoding runs as a CPU-only worker job in threaded builds. Runtime GLTF
+parsing, scene generation, normalization, mesh upload and packing stay on main
+but are separated by frame boundaries. Normalization transforms packed vertex
+arrays in native code. Avatar hand geometry is retained without building extra
+handless meshes. Single-threaded web exports use CPU fallbacks. Godot's indivisible GLTF calls and first-use GPU/shader work can
 still cause a hitch for large avatars; this is not a fully asynchronous importer.
 
 Imported secondary nodes use a passive source script in cached scenes. It keeps
@@ -148,6 +147,16 @@ initialization; AvatarSprings installs the native solver after the model enters
 the tree. This avoids allocating two solvers during preview/equip.
 
 The wardrobe supports native touchscreen and XR pointer dragging over avatar
-cards and collections. Gestures select on release only when movement remains
-below the drag threshold; swipes and canceled touches do not select cards.
+cards and collections. Fingertips give hover feedback at 15 cm, with a 20 cm exit zone to prevent
+flicker. Contact immediately highlights and pins the original button. Rays and native
+touchscreens select on release with tremor tolerance; optical fingertips can
+confirm by pressing through the surface before withdrawal. Lateral movement
+becomes scrolling, and release never selects a neighboring card.
 The separate scrollbar remains directly draggable.
+
+VR applies a 10 cm torso setback while counter-shifting the head to keep its eye
+position tracked. This puts the camera in front of the chest when looking down
+without moving wrist goals. UI hand overlays are not enabled by default.
+Touch tuning follows Meta's surface-normal poke and contact-feedback guidance:
+https://developers.meta.com/vr/design/touch_specs/
+https://developers.meta.com/vr/documentation/unity/unity-isdk-poke-interaction/

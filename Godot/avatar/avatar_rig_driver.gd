@@ -31,6 +31,7 @@ const THIRD_PERSON_LAYER := 1
 const ORIGINAL_LAYERS_META := "avatar_rig_original_layers"
 ## Desktop hands hang slightly short of full stretch so the elbow keeps a bend.
 const DESKTOP_REACH := 0.95
+const VR_BODY_BACK_OFFSET := 0.10
 const ARM_BONES := {
 	"left": ["LeftUpperArm", "LeftLowerArm", "LeftHand"],
 	"right": ["RightUpperArm", "RightLowerArm", "RightHand"],
@@ -54,6 +55,7 @@ var _space: Node3D
 var _head_bone := -1
 var _neck_bone := -1
 var _head_rest_model := Vector3.ZERO
+var _head_pose_position := Vector3.ZERO
 var _eye_offset := Vector3.ZERO
 var _head_rest_basis_model := Basis.IDENTITY
 var _forward_model := Vector3.BACK
@@ -62,6 +64,8 @@ var _desktop_target := {}
 var _original_layers := {}
 var _original_model: Node3D
 var _configured := false
+var _wrist_modifier: SkeletonModifier3D
+var _finger_modifiers := {}
 var _last_yaw := 0.0
 var _animation_bones := {}
 var _motion_position := Vector3.ZERO
@@ -110,6 +114,7 @@ func configure(model: Node3D, head: Node3D, left: Node3D, right: Node3D, local: 
 	_read_rest_geometry()
 	_capture_animation_pose()
 	_build_arm_ik()
+	_build_hand_modifiers()
 	_apply_mesh_layers()
 	_configured = true
 	set_process(true)
@@ -151,6 +156,13 @@ func _find_skeleton(root: Node3D) -> Skeleton3D:
 
 
 func _clear_ik() -> void:
+	if is_instance_valid(_wrist_modifier):
+		_wrist_modifier.free()
+	_wrist_modifier = null
+	for modifier in _finger_modifiers.values():
+		if is_instance_valid(modifier):
+			modifier.free()
+	_finger_modifiers.clear()
 	for side in arm_ik:
 		var modifier: Node = arm_ik[side]
 		if is_instance_valid(modifier):
@@ -211,6 +223,8 @@ func _apply_mesh_layers() -> void:
 
 func _read_rest_geometry() -> void:
 	_head_bone = skeleton.find_bone(HEAD_BONE)
+	if _head_bone >= 0:
+		_head_pose_position = skeleton.get_bone_pose_position(_head_bone)
 	_neck_bone = skeleton.find_bone(NECK_BONE)
 	if _neck_bone < 0 and _head_bone >= 0:
 		_neck_bone = skeleton.get_bone_parent(_head_bone)
@@ -344,7 +358,35 @@ func _apply_desktop_targets() -> void:
 			node.transform = _desktop_target[side]
 
 
+func _build_hand_modifiers() -> void:
+	_wrist_modifier = SkeletonModifier3D.new()
+	_wrist_modifier.set_script(preload("res://avatar/avatar_wrist_modifier.gd"))
+	_wrist_modifier.name = "AvatarWristPose"
+	skeleton.add_child(_wrist_modifier)
+	for side in hand_target:
+		_wrist_modifier.targets[side] = hand_target[side]
+		_wrist_modifier.bones[side] = skeleton.find_bone("LeftHand" if side == "left" else "RightHand")
+	if not is_local:
+		return
+	for side in ["left", "right"]:
+		var prefix := "Left" if side == "left" else "Right"
+		if skeleton.find_bone(prefix + "IndexProximal") < 0:
+			continue
+		var modifier := XRHandModifier3D.new()
+		modifier.name = "AvatarFingers" + prefix
+		modifier.hand_tracker = StringName("/user/hand_tracker/" + side)
+		modifier.bone_update = XRHandModifier3D.BONE_UPDATE_ROTATION_ONLY
+		modifier.active = false
+		skeleton.add_child(modifier)
+		_finger_modifiers[side] = modifier
+
+
 func _update_hand_targets() -> void:
+	if _wrist_modifier != null:
+		_wrist_modifier.active = vr_mode
+	for side in _finger_modifiers:
+		var tracker := PlatformXRInput.hand_tracker(side)
+		_finger_modifiers[side].active = vr_mode and tracker != null and tracker.has_tracking_data
 	if not vr_mode:
 		return
 	for side in hand_target:
@@ -454,6 +496,8 @@ func _update_body_pose() -> void:
 	if avatar_model == null or skeleton == null or head_anchor == null or _space == null:
 		return
 	var anchor := _space.global_transform.affine_inverse() * head_anchor.global_transform
+	if _head_bone >= 0:
+		skeleton.set_bone_pose_position(_head_bone, _head_pose_position)
 	# The body follows the anchor's horizontal look direction.
 	var desired := -anchor.basis.z
 	desired.y = 0.0
@@ -469,6 +513,15 @@ func _update_body_pose() -> void:
 	if _head_bone >= 0:
 		var eyes := skeleton.transform * (skeleton.get_bone_global_pose(_head_bone) * _eye_offset)
 		avatar_model.position = anchor.origin - basis * eyes
+		if vr_mode:
+			# Keep the chest behind the eyes instead of putting the viewpoint
+			# inside the torso when looking down. Counter-shift only the head,
+			# preserving the tracked eye position and the world-space hand goals.
+			var back := Basis(Vector3.UP, _last_yaw).z * VR_BODY_BACK_OFFSET
+			avatar_model.position += back
+			var head_pose := skeleton.get_bone_global_pose(_head_bone)
+			head_pose.origin -= (avatar_model.basis * skeleton.basis).inverse() * back
+			skeleton.set_bone_global_pose(_head_bone, head_pose)
 
 
 func _apply_head_rotation(anchor: Transform3D) -> void:

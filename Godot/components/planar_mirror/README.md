@@ -14,9 +14,9 @@ flip or warp the reflection when turning.
 Desktop uses one reflection pass. OpenXR/WebXR use distinct eye positions from
 XRInterface and two ordinary SubViewports; the shader selects the matching
 texture using VIEW_INDEX. The XR origin transform is applied exactly once.
-Each eye is capped at 1024x1024. Desktop/editor quality is controlled by
-`max_viewport_size` (default 1920x1920); targets match the glass aspect ratio and
-stay within the source viewport's pixel dimensions. Each visible stereo mirror
+All views use `max_viewport_size` (default 1920x1920). XR sizes its reflections
+from the headset render target instead of the smaller browser/desktop mirror
+window. Targets match the glass aspect ratio and fit that quality limit. Each visible stereo mirror
 requires two scene passes, so profile on the target headset.
 
 Back-facing and off-screen mirrors stop rendering. Stereo visibility tests use

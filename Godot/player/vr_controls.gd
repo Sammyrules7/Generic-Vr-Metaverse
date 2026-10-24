@@ -144,3 +144,14 @@ func sync_room_scale() -> void:
 		return
 	body.move_and_collide(offset)
 	_origin.global_position -= offset
+
+
+func set_avatar_hands(enabled: bool) -> void:
+	_origin.set_meta("avatar_hands_active", enabled)
+	for path in [^"Origin/LeftHand/LeftHand", ^"Origin/RightHand/RightHand"]:
+		var model := get_node_or_null(path)
+		if model == null:
+			continue
+		model.process_mode = Node.PROCESS_MODE_DISABLED if enabled else Node.PROCESS_MODE_INHERIT
+		for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+			mesh.layers = 0 if enabled else AvatarView.FIRST_PERSON

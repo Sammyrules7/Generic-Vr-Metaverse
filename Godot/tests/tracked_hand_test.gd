@@ -153,6 +153,14 @@ func run() -> void:
 		await process_frame
 		await process_frame
 		check(driver.visible, "Optical hand must be visible with valid tracking")
+		origin.set_meta("avatar_hands_active", true)
+		driver._process(0.016)
+		check(not driver.visible and not driver.modifier.active, "Separate hand models must hide while avatar hands are active")
+		origin.set_meta("avatar_hands_active", false)
+		driver._process(0.016)
+		await process_frame
+		await process_frame
+
 		verify_pose(driver, origin, joints, snapshot, side + " open")
 		joints = fixture(side, 0.45, Basis.from_euler(Vector3(0.3, -0.7, 0.5)))
 		apply_fixture(tracker, joints)

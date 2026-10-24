@@ -76,18 +76,10 @@ func run() -> void:
 			var original_meshes: Array[Mesh] = []
 			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
 				original_meshes.append(mesh.mesh)
-			var handless_meshes := {}
-			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
-				if (mesh.layers & 2) != 0:
-					check(mesh.has_meta("avatar_handless_mesh"), "Cached scenes must already contain handless geometry")
-					handless_meshes[mesh] = mesh.get_meta("avatar_handless_mesh")
-			AvatarFirstPerson.use_tracked_hands(first, true)
-			for mesh in handless_meshes:
-				check(mesh.mesh == handless_meshes[mesh], "Wearing must reuse prepared meshes without rebuilding them")
-			AvatarFirstPerson.use_tracked_hands(first, false)
 			var index := 0
 			for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
-				check(mesh.mesh == original_meshes[index], "Desktop switch must restore avatar hand geometry")
+				check(not mesh.has_meta("avatar_handless_mesh"), "Avatar hands must remain intact without generating a second handless mesh")
+				check(mesh.mesh == original_meshes[index], "The avatar's own hand geometry must stay intact")
 				index += 1
 		var passive_probe := survivor.scene.instantiate() as Node3D
 		root.add_child(passive_probe)

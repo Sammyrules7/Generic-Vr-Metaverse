@@ -14,6 +14,7 @@ extends XRToolsViewport2DIn3D
 class HandContact:
 	var pointer: Node3D
 	var touching := false
+	var hovering := false
 	var armed := true
 	var last_touch := Vector3.ZERO
 	var previous_depth := INF
@@ -188,21 +189,36 @@ func _update_hand_touch(side: String, contact: HandContact) -> void:
 	var tip := PlatformXRInput.joint_world(origin, tracker, XRHandTracker.HAND_JOINT_INDEX_FINGER_TIP).origin
 	contact.pointer.global_position = tip
 	var point := to_local(tip)
+	contact.pointer.set_meta("ui_poke_depth", point.z)
 	var at := to_global(Vector3(point.x, point.y, 0))
 	var in_bounds := contains_ui_point(at)
 	var target := _surface_body
+	if not contact.touching:
+		var hover_distance := 0.20 if contact.hovering else 0.15
+		var near_surface := in_bounds and point.z >= -0.08 and point.z <= hover_distance
+		if near_surface:
+			if not contact.hovering:
+				XRToolsPointerEvent.entered(contact.pointer, target, at)
+				contact.hovering = true
+			XRToolsPointerEvent.moved(contact.pointer, target, at, contact.last_touch if contact.last_touch != Vector3.ZERO else at)
+			contact.last_touch = at
+		elif contact.hovering:
+			XRToolsPointerEvent.exited(contact.pointer, target, contact.last_touch)
+			contact.hovering = false
 	if contact.touching:
 		if not in_bounds or point.z > 0.012 or point.z < -0.08:
 			_release_hand(contact, not in_bounds or point.z < -0.08)
 		else:
 			XRToolsPointerEvent.moved(contact.pointer, target, at, contact.last_touch)
 			contact.last_touch = at
-	elif contact.armed and in_bounds and contact.previous_depth > 0.006 and point.z <= 0.006 and point.z >= -0.04:
+	elif contact.armed and in_bounds and is_finite(contact.previous_depth) and contact.previous_depth > 0.006 and point.z <= 0.006 and point.z >= -0.04:
 		contact.touching = true
 		contact.armed = false
 		contact.contact_frame = (origin.global_transform * XRServer.get_reference_frame()).affine_inverse() * global_transform
 		contact.last_touch = at
-		XRToolsPointerEvent.entered(contact.pointer, target, at)
+		if not contact.hovering:
+			XRToolsPointerEvent.entered(contact.pointer, target, at)
+			contact.hovering = true
 		XRToolsPointerEvent.moved(contact.pointer, target, at, at)
 		XRToolsPointerEvent.pressed(contact.pointer, target, at)
 	contact.previous_depth = point.z
@@ -227,4 +243,8 @@ func _release_hand(contact: HandContact, cancelled := true) -> void:
 			contact.last_touch = outside
 		XRToolsPointerEvent.released(contact.pointer, _surface_body, contact.last_touch)
 		XRToolsPointerEvent.exited(contact.pointer, _surface_body, contact.last_touch)
+		contact.hovering = false
+	elif contact.hovering and is_instance_valid(contact.pointer):
+		XRToolsPointerEvent.exited(contact.pointer, _surface_body, contact.last_touch)
+		contact.hovering = false
 	contact.previous_depth = INF

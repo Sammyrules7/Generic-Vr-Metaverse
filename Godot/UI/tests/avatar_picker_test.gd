@@ -161,6 +161,53 @@ func _run() -> void:
 	navigation.pointer_event(pointer_event, pointer_point - Vector2(0, 100))
 	await get_tree().process_frame
 	check(gallery_scroll.scroll_vertical > 0 and taps[0] == 1, "XR touch dragging must scroll without activating cards")
+	# Optical pokes confirm before withdrawal, with feedback at first contact.
+	gallery_scroll.scroll_vertical = 0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var poke_point := default_button.get_global_rect().get_center()
+	pointer.set_meta("ui_poke_depth", 0.005)
+	pointer_event.event_type = XRToolsPointerEvent.Type.PRESSED
+	navigation.pointer_event(pointer_event, poke_point)
+	check(default_button.has_focus(), "Touch-down must immediately highlight the original card")
+	pointer.set_meta("ui_poke_depth", -0.002)
+	pointer_event.event_type = XRToolsPointerEvent.Type.MOVED
+	navigation.pointer_event(pointer_event, poke_point + Vector2(0, 6))
+	await get_tree().process_frame
+	check(taps[0] == 2 and navigation._dragging, "A forward optical poke must select before finger withdrawal")
+	pointer_event.event_type = XRToolsPointerEvent.Type.RELEASED
+	navigation.pointer_event(pointer_event, poke_point)
+	await get_tree().process_frame
+	check(taps[0] == 2, "Poke release must not activate the card twice")
+	pointer.remove_meta("ui_poke_depth")
+	# A small tremor remains a tap rather than becoming a canceled swipe.
+	touch.canceled = false
+	touch.pressed = true
+	touch.position = poke_point
+	ui.get_viewport().push_input(touch, true)
+	drag.position = poke_point + Vector2(0, 14)
+	ui.get_viewport().push_input(drag, true)
+	touch.pressed = false
+	touch.position = drag.position
+	ui.get_viewport().push_input(touch, true)
+	await get_tree().process_frame
+	check(taps[0] == 3, "Small touch tremor must not cancel selection")
+	# Releasing across a narrow card gap must not retarget the gesture.
+	var neighbor: Button = card.get_node("%AvatarList").get_child(1)
+	var neighbor_taps := [0]
+	neighbor.pressed.connect(func(): neighbor_taps[0] += 1)
+	var press_edge := Vector2(default_button.get_global_rect().end.x - 1, default_button.get_global_rect().get_center().y)
+	var release_edge := Vector2(neighbor.get_global_rect().position.x + 1, press_edge.y)
+	touch.pressed = true
+	touch.position = press_edge
+	ui.get_viewport().push_input(touch, true)
+	drag.position = release_edge
+	ui.get_viewport().push_input(drag, true)
+	touch.pressed = false
+	touch.position = release_edge
+	ui.get_viewport().push_input(touch, true)
+	await get_tree().process_frame
+	check(neighbor_taps[0] == 0 and taps[0] == 3, "A touch must remain pinned to its original card rather than selecting its neighbor")
 	pointer.free()
 	var initial_count: int = card._loaded_count
 	var scrollbar: VScrollBar = card.get_node("%AvatarListScroll").get_v_scroll_bar()

@@ -49,7 +49,18 @@ func run() -> void:
 		await process_frame
 		for simulator in avatar._springs:
 			check(simulator.transform.is_finite(), "Teleport reset must preserve finite spring transforms")
+	player.set_control_mode(true)
+	player.controls.left_hand.basis = Basis.from_euler(Vector3(0.2, -0.4, 0.6))
+	var grip_pose: Transform3D = player.controls.pose(player.controls.left_hand)
+	var wrist_pose: Transform3D = player.controls.hand_pose("left")
+	check(wrist_pose.origin.is_equal_approx(grip_pose.origin) and wrist_pose.basis.is_equal_approx(grip_pose.basis * PlatformXRInput.GRIP_TO_HUMANOID), "Controller grip rotations must convert to the avatar wrist basis")
+	check(player.controls.get_node("Origin").get_meta("avatar_hands_active", false), "Loaded avatars must take over first-person hands in VR")
+	for mesh: MeshInstance3D in player.controls.get_node("Origin/LeftHand/LeftHand").find_children("*", "MeshInstance3D", true, false):
+		check(mesh.layers == 0, "Controller hand meshes must not overlap avatar hands")
 	player.set_avatar("default")
+	check(not player.controls.get_node("Origin").get_meta("avatar_hands_active", false), "Fallback avatars must restore separate hand visuals")
+	player.set_control_mode(false)
+	root.use_xr = false
 	check(avatar.model == null and avatar.get_node("Body").visible, "Reset must restore the fallback immediately")
 	check(avatar.get_node("Head") == anchor, "Reset must preserve voice/pose anchor identity")
 	# Supersede a queued network request before it starts; no download required.

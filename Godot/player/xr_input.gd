@@ -20,6 +20,10 @@ static func prepare_hand_model(model: Node) -> void:
 		mesh.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC
 
 
+# Godot hand trackers already use the humanoid joint basis; controller grip
+# poses use OpenXR's grip basis and need this conversion for avatar wrists.
+const GRIP_TO_HUMANOID := Basis(Vector3(-1, 0, 0), Vector3(0, 0, -1), Vector3(0, -1, 0))
+
 static var _tracker_paths := {"left": &"/user/hand_tracker/left", "right": &"/user/hand_tracker/right"}
 
 

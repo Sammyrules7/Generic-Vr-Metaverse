@@ -33,6 +33,8 @@ func pose(node: Node3D) -> Transform3D:
 func hand_pose(side: String) -> Transform3D:
 	var origin := get_node_or_null("Origin") as XROrigin3D
 	var tracker := PlatformXRInput.hand_tracker(side)
-	if origin != null and PlatformXRInput.optical_hand(tracker) and PlatformXRInput.joint_valid(tracker, XRHandTracker.HAND_JOINT_WRIST):
+	if origin != null and PlatformXRInput.optical_hand(tracker) and PlatformXRInput.joint_valid(tracker, XRHandTracker.HAND_JOINT_WRIST) and (tracker.get_hand_joint_flags(XRHandTracker.HAND_JOINT_WRIST) & XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID) != 0:
 		return body.global_transform.affine_inverse() * PlatformXRInput.joint_world(origin, tracker, XRHandTracker.HAND_JOINT_WRIST)
-	return pose(left_hand if side == "left" else right_hand)
+	var grip := pose(left_hand if side == "left" else right_hand)
+	grip.basis *= PlatformXRInput.GRIP_TO_HUMANOID
+	return grip

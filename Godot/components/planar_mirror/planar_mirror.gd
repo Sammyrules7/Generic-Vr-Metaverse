@@ -15,7 +15,7 @@ extends Node3D
 ## saving the scene never serializes an editor World3D override.
 
 ## Cap the reflection pass; the aspect ratio follows the glass. XR is capped
-## at 1024 per eye because stereo requires two scene renders.
+## at the same quality as desktop, with two scene renders in stereo.
 @export var max_viewport_size := Vector2i(1920, 1920):
 	set(value):
 		max_viewport_size = Vector2i(maxi(1, value.x), maxi(1, value.y))
@@ -258,6 +258,11 @@ func _resize_viewport() -> void:
 	if viewport == null:
 		return
 	var size := viewport.get_visible_rect().size
+	if _stereo:
+		# The browser's desktop mirror window can be much smaller than the HMD.
+		# Size eye reflections from the XR target, not that window.
+		var interface := XRServer.primary_interface
+		size = interface.get_render_target_size() if interface != null and interface.is_initialized() else Vector2(max_viewport_size)
 	if size.x < 1.0 or size.y < 1.0:
 		return
 	# Fit the glass aspect rather than the desktop/XR framebuffer aspect.
@@ -265,8 +270,6 @@ func _resize_viewport() -> void:
 	var glass := mirror_glass.global_transform
 	var aspect := maxf(0.01, bounds.size.x * glass.basis.x.length()) / maxf(0.01, bounds.size.z * glass.basis.z.length())
 	var cap := max_viewport_size
-	if _stereo:
-		cap = Vector2i(mini(cap.x, 1024), mini(cap.y, 1024))
 	var width := minf(cap.x, size.x)
 	var height := width / aspect
 	if height > minf(cap.y, size.y):

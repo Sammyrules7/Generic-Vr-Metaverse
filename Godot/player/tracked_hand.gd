@@ -26,6 +26,10 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if bool(get_parent().get_meta("avatar_hands_active", false)):
+		hide()
+		modifier.active = false
+		return
 	# Validity must react within one frame: tests and gameplay drive flag
 	# changes and call _process directly. The single cached tracker lookup
 	# above keeps this cheap; the joint scan early-outs on first invalid.
