@@ -165,3 +165,34 @@ without moving wrist goals. UI hand overlays are not enabled by default.
 Touch tuning follows Meta's surface-normal poke and contact-feedback guidance:
 https://developers.meta.com/vr/design/touch_specs/
 https://developers.meta.com/vr/documentation/unity/unity-isdk-poke-interaction/
+
+
+## Local Custom library
+
+Import avatar opens a native file chooser or the browser's file chooser. Custom
+VRM 0.x/1.0 files (.vrm or VRM-bearing .glb) are copied into
+`user://avatars/custom/<sha256>.vrm`; the small library manifest saves only hash,
+title and byte size. Source files stay outside the project. Imports select their
+preview without automatically equipping; use Wear avatar to apply. The Custom
+collection is always available. Local-only scope appears beneath the preview.
+Peers receive Explorer when a custom avatar is equipped, including late joins;
+custom hashes received from another peer never resolve to private local files.
+There is no P2P file transfer or cloning in this step.
+
+Preflight runs in WorkerThreadPool (with a synchronous fallback in non-threaded
+web builds), before the existing texture-decoding/import pipeline. It requires
+embedded binary buffers and PNG/JPEG images, rejects external URIs and unknown
+extensions including Godot scene/script extensions, and checks graph and buffer
+bounds. Current limits: 32 MiB/file, 32 files/256 MiB library, 100k triangles,
+200k vertices including instances, 32 materials, 256 bones/skin, 128 morph targets
+and 8 million vertex-target pairs, 4096 pixels per texture side and 32 megapixels
+in total. Spring definitions are bounded too. These are resource limits, not a
+security sandbox or a guarantee against importer bugs. Separate .gltf files,
+external images, compressed geometry and Unity/FBX sources need conversion first.
+
+Only successfully parsed models enter the persistent manifest. Failed imports
+leave the previous preview/equipped avatar intact. Hashes deduplicate repeated
+imports. Browser persistence uses Godot's user storage and is subject to browser
+storage quotas/eviction. Native and browser device acceptance remains necessary.
+Run `res://tests/avatar_custom_test.gd` and the picker suite to cover local
+import, duplicate detection, persistence, filtering and private replication.

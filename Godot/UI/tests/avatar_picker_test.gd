@@ -393,6 +393,38 @@ func _run() -> void:
 	ui.get_node("%OpenAvatarPicker").pressed.emit()
 	check(await _wait_until(func(): return card.get_node("%AvatarList/AvatarGodette").is_visible_in_tree() and card._model == null), "Reopening the card did not restart the preview for the default avatar")
 
+	# Local imports appear in Custom and preview through the same loader, without
+	# silently changing the equipped avatar or treating import errors as preview errors.
+	var library_existed := FileAccess.file_exists(AvatarLocalLibrary.MANIFEST)
+	var library_backup := FileAccess.get_file_as_bytes(AvatarLocalLibrary.MANIFEST) if library_existed else PackedByteArray()
+	var local_bytes := FileAccess.get_file_as_bytes("res://avatar/godette.vrm")
+	var local_hash := HashingContext.new()
+	local_hash.start(HashingContext.HASH_SHA256)
+	local_hash.update(local_bytes)
+	var local_id := local_hash.finish().hex_encode()
+	var local_existed := AvatarCatalog.has_avatar(local_id)
+	var previously_worn := PlayerProfile.avatar_id
+	check(card.get_node("%ImportAvatar") != null, "Custom import entry point missing")
+	card._finish_import_avatar(local_bytes, "Local Godette.vrm")
+	check(await _wait_until(func(): return not card._import_busy), "Local import did not finish")
+	check(card._pending_id == local_id and PlayerProfile.avatar_id == previously_worn, "Import must select its preview without auto-wearing")
+	check(card.get_node("%CollectionFilter").get_item_text(card.get_node("%CollectionFilter").selected) == "Custom", "Import did not open the Custom collection")
+	check(await _wait_until(func(): return card._preview_ready), "Imported avatar did not preview")
+	check(card.get_node("%Attribution").text == "Only visible to you", "Local-only scope must be visible")
+	card._finish_import_avatar(local_bytes, "Invalid.gd")
+	check(await _wait_until(func(): return not card._import_busy), "Rejected import did not finish")
+	check(card._import_status.visible and not card._preview_failed, "Import errors must not turn a valid preview into Retry")
+	card.sync_pending("default")
+	if not local_existed:
+		AvatarCatalog.unregister_local(local_id)
+		DirAccess.remove_absolute(AvatarLocalLibrary.path_for(local_id))
+	if library_existed:
+		FileAccess.open(AvatarLocalLibrary.MANIFEST, FileAccess.WRITE).store_buffer(library_backup)
+	else:
+		DirAccess.remove_absolute(AvatarLocalLibrary.MANIFEST)
+	card._set_import_status("")
+	card._browse_all()
+
 	# Springs remain a viewing preference without a redundant menu toggle.
 	AvatarService.set_springs_enabled(true)
 	check(PlayerProfile.spring_bones_enabled, "Spring preference must remain available to the service")
@@ -431,6 +463,7 @@ func _run() -> void:
 	check(vr_rect.position.x >= 0 and vr_rect.end.x <= 1120 and vr_rect.position.y >= 0 and vr_rect.end.y <= 800, "Wide wardrobe must fit the headset panel")
 	ui.vr_mode = false
 	ui.reparent(game)
+	panel.click_audio.stop()
 	panel.queue_free()
 
 	state.current_room = null

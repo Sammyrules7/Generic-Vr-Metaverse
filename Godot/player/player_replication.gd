@@ -46,7 +46,7 @@ func set_local_player(player: NetworkPlayer) -> void:
 
 func _peer_connected(peer_id: int) -> void:
 	if local_player != null:
-		spawn_player.rpc_id(peer_id, local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, PlayerProfile.avatar_id)
+		spawn_player.rpc_id(peer_id, local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, AvatarCatalog.replication_id(PlayerProfile.avatar_id))
 		# Also used after a world reload: the peer may already be connected, so we
 		# cannot rely on another peer_connected event to repopulate the new scene.
 		request_player.rpc_id(peer_id)
@@ -55,7 +55,7 @@ func _peer_connected(peer_id: int) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func request_player() -> void:
 	if local_player != null:
-		spawn_player.rpc_id(multiplayer.get_remote_sender_id(), local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, PlayerProfile.avatar_id)
+		spawn_player.rpc_id(multiplayer.get_remote_sender_id(), local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, AvatarCatalog.replication_id(PlayerProfile.avatar_id))
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -76,7 +76,7 @@ func spawn_player(use_vr: bool, initial_pose: Transform3D, display_name := "Expl
 
 func broadcast_avatar(id: String) -> void:
 	if local_player != null and AvatarCatalog.has_avatar(id) and not multiplayer.get_peers().is_empty():
-		announce_avatar.rpc(id)
+		announce_avatar.rpc(AvatarCatalog.replication_id(id))
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -87,7 +87,7 @@ func announce_avatar(id: String) -> void:
 
 
 func _receive_avatar(peer_id: int, id: String) -> void:
-	var valid_id := id if AvatarCatalog.has_avatar(id) else "default"
+	var valid_id := AvatarCatalog.replication_id(id)
 	_avatar_by_peer[peer_id] = valid_id
 	avatar_received.emit(peer_id, valid_id)
 

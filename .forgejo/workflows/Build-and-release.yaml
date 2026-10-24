@@ -114,6 +114,8 @@ jobs:
         run: |
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/touch_approach_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_custom_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_loading_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_container_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_rig_test.gd
@@ -252,6 +254,8 @@ jobs:
         run: |
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/touch_approach_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_custom_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_loading_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_container_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_rig_test.gd

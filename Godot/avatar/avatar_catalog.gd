@@ -17,6 +17,9 @@ static func _ensure_loaded() -> void:
 				_entries.append(entry)
 	for entry in _entries:
 		_by_id[entry.id] = entry
+	for entry in AvatarLocalLibrary.load_entries():
+		_entries.append(entry)
+		_by_id[entry.id] = entry
 
 
 static func entries() -> Array[Dictionary]:
@@ -36,7 +39,7 @@ static func definition(id: String) -> Dictionary:
 
 static func collections() -> Array[String]:
 	_ensure_loaded()
-	var names: Array[String] = []
+	var names: Array[String] = ["Custom"]
 	for entry in _entries:
 		var collection := str(entry.get("collection", "Bundled"))
 		if not collection in names:
@@ -56,3 +59,28 @@ static func search(query: String = "", collection: String = "") -> Array[Diction
 		if query.is_empty() or query in text.to_lower():
 			result.append(entry.duplicate(true))
 	return result
+
+
+static func is_custom(id: String) -> bool:
+	return bool(definition(id).get("local_custom", false))
+
+
+static func replication_id(id: String) -> String:
+	return id if has_avatar(id) and not is_custom(id) else "default"
+
+
+static func register_local(entry: Dictionary) -> void:
+	_ensure_loaded()
+	if not AvatarLocalLibrary.valid_id(str(entry.get("id", ""))) or _by_id.has(entry.id):
+		return
+	_entries.append(entry.duplicate(true))
+	_by_id[entry.id] = _entries.back()
+
+
+static func unregister_local(id: String) -> void:
+	if not is_custom(id):
+		return
+	for i in range(_entries.size() - 1, -1, -1):
+		if _entries[i].id == id:
+			_entries.remove_at(i)
+	_by_id.erase(id)

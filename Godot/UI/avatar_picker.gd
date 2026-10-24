@@ -20,6 +20,12 @@ const ERROR_COLOR := Color("#f28b82")
 const DEFAULT_ID := "default"
 const SPRINGS_SCRIPT := "res://avatar/avatar_springs.gd"
 
+var _import_button: Button
+var _import_status: Label
+var _file_dialog: FileDialog
+var _web_import_callback: JavaScriptObject
+var _import_busy := false
+
 var _pending_id := DEFAULT_ID
 var _applied_id := DEFAULT_ID
 var _generation := 0
@@ -60,6 +66,24 @@ func _ready() -> void:
 		%CollectionFilter.add_item(collection)
 	%CollectionFilter.item_selected.connect(func(_index: int): _filter_changed())
 	_build_collection_navigation()
+	var import_button := Button.new()
+	_import_button = import_button
+	import_button.name = "ImportAvatar"
+	import_button.text = "Import avatar"
+	import_button.custom_minimum_size = Vector2(0, 42)
+	import_button.pressed.connect(_open_import_avatar)
+	var sidebar := %CloseAvatarSettings.get_parent()
+	sidebar.add_child(import_button)
+	import_button.owner = self
+	import_button.unique_name_in_owner = true
+	_import_status = Label.new()
+	_import_status.name = "ImportStatus"
+	_import_status.hide()
+	_import_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_import_status.add_theme_font_size_override("font_size", 13)
+	sidebar.add_child(_import_status)
+	sidebar.move_child(_import_status, %CloseAvatarSettings.get_index())
+	sidebar.move_child(import_button, %CloseAvatarSettings.get_index())
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
 	%FavoriteAvatar.pressed.connect(_toggle_favorite)
@@ -243,7 +267,7 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 	var license := str(entry.get("license", ""))
-	%Attribution.text = license
+	%Attribution.text = "Only visible to you" if AvatarCatalog.is_custom(id) else license
 	%Attribution.tooltip_text = str(entry.get("attribution", license))
 	if with_preview:
 		_show_preview(id)
@@ -806,3 +830,117 @@ func _update_download_progress() -> void:
 		_set_status("Downloading %.1f MB" % (downloaded / 1048576.0))
 	else:
 		_set_status("Connecting...")
+
+
+func _open_import_avatar() -> void:
+	if _import_busy:
+		return
+	if OS.has_feature("web"):
+		_open_web_import_avatar()
+		return
+	if not is_instance_valid(_file_dialog):
+		_file_dialog = FileDialog.new()
+		_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_file_dialog.use_native_dialog = true
+		_file_dialog.filters = PackedStringArray(["*.vrm,*.glb ; VRM avatars"])
+		_file_dialog.file_selected.connect(_on_import_avatar_file_selected)
+		add_child(_file_dialog)
+	_file_dialog.popup_centered_ratio(0.75)
+
+
+func _begin_import() -> void:
+	_import_busy = true
+	_import_button.disabled = true
+	_set_import_status("Importing...")
+
+
+func _on_import_avatar_file_selected(path: String) -> void:
+	if _import_busy:
+		return
+	_begin_import()
+	var result: Dictionary = await AvatarService.import_local_file(path)
+	_import_finished(result)
+
+
+func _finish_import_avatar(bytes: PackedByteArray, file_name: String) -> void:
+	if _import_busy:
+		return
+	_begin_import()
+	var result: Dictionary = await AvatarService.import_local_bytes(file_name, bytes)
+	_import_finished(result)
+
+
+func _import_finished(result: Dictionary) -> void:
+	_import_busy = false
+	_import_button.disabled = false
+	var id := str(result.get("id", ""))
+	var error := str(result.get("error", ""))
+	if not error.is_empty() or id.is_empty():
+		_set_import_status(error if not error.is_empty() else "Import failed", true)
+		return
+	_set_import_status("")
+	if not is_visible_in_tree():
+		return
+	_favorites_only = false
+	%AvatarSearch.text = ""
+	for index in %CollectionFilter.item_count:
+		if %CollectionFilter.get_item_text(index) == "Custom":
+			%CollectionFilter.select(index)
+			break
+	_filter_changed()
+	sync_pending(id)
+
+
+func _open_web_import_avatar() -> void:
+	if _web_import_callback == null:
+		_web_import_callback = JavaScriptBridge.create_callback(_on_web_import_avatar_files)
+	var window = JavaScriptBridge.get_interface("window")
+	if window == null:
+		_set_import_status("File picker unavailable", true)
+		return
+	window.__godotAvatarImport = _web_import_callback
+	JavaScriptBridge.eval("""
+	(() => {
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.vrm,.glb';
+		input.id = 'avatar-local-file';
+		input.style.display = 'none';
+		const finish = (...args) => {
+			input.remove();
+			if (window.__godotAvatarImport) window.__godotAvatarImport(...args);
+		};
+		input.oncancel = () => input.remove();
+		input.onchange = () => {
+			const file = input.files[0];
+			if (!file) { input.remove(); return; }
+			if (file.size > 32 * 1024 * 1024) { finish(null, file.name, 'Avatar exceeds 32 MiB'); return; }
+			const reader = new FileReader();
+			reader.onerror = () => finish(null, file.name, 'Could not read avatar');
+			reader.onload = () => finish(reader.result, file.name, '');
+			reader.readAsArrayBuffer(file);
+		};
+		document.querySelector('#avatar-local-file')?.remove();
+		document.body.appendChild(input);
+		input.click();
+	})();
+	""", true)
+
+
+func _on_web_import_avatar_files(args: Array) -> void:
+	if args.size() < 3:
+		return
+	if not str(args[2]).is_empty():
+		_set_import_status(str(args[2]), true)
+		return
+	if not args[0] is JavaScriptObject or not JavaScriptBridge.is_js_buffer(args[0]):
+		_set_import_status("Could not read avatar", true)
+		return
+	_finish_import_avatar(JavaScriptBridge.js_buffer_to_packed_byte_array(args[0]), str(args[1]))
+
+
+func _set_import_status(message: String, is_error := false) -> void:
+	_import_status.visible = not message.is_empty()
+	_import_status.text = message
+	_import_status.add_theme_color_override("font_color", ERROR_COLOR if is_error else STATUS_COLOR)

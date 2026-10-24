@@ -22,7 +22,7 @@ func run() -> void:
 	check(AvatarGIF.decode(gif.slice(0, 15)) == null, "Truncated GIF must fail without a partial image")
 	var service := root.get_node("AvatarService")
 	check(AvatarCatalog.entries().size() > 4000, "Full registry catalog missing")
-	check(AvatarCatalog.collections().size() == 10, "Bundled and all upstream collections must be available")
+	check(AvatarCatalog.collections().size() == 11, "Bundled and all upstream collections must be available")
 	check(AvatarCatalog.search("", "100Avatars R2").size() == 100, "Collection filtering must include the entire collection")
 	check(AvatarCatalog.search("Godette").size() == 1, "Catalog name search failed")
 	for entry in AvatarCatalog.entries():

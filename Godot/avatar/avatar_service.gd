@@ -30,6 +30,8 @@ var _image_job: AvatarImageJob
 var _import_model: Node3D
 var _next_import := 0
 var _exiting := false
+var _custom_job: AvatarCustomJob
+var _custom_busy := false
 # Optional injected trust store for isolated test environments; verification stays on.
 var tls_options: TLSOptions
 
@@ -114,7 +116,7 @@ func _process(_delta: float) -> void:
 				_loads.erase(id)
 				continue
 			if not job.error.is_empty():
-				if job.from_cache and not load.retried:
+				if job.from_cache and not load.retried and not AvatarCatalog.is_custom(id):
 					DirAccess.remove_absolute(job.path)
 					load.retried = true
 					load.started = false
@@ -212,6 +214,9 @@ func _start(id: String) -> void:
 	var load: Dictionary = _loads[id]
 	var definition := AvatarCatalog.definition(id)
 	load.started = true
+	if definition.get("local_custom", false):
+		_verify(id, PackedByteArray(), AvatarLocalLibrary.path_for(id), true)
+		return
 	if definition.has("bundled_path"):
 		_verify(id, FileAccess.get_file_as_bytes(str(definition.bundled_path)), "", false)
 		return
@@ -329,6 +334,8 @@ func _prune_disk_cache() -> void:
 
 func _exit_tree() -> void:
 	_exiting = true
+	if _custom_job != null and _custom_job.task_id >= 0:
+		WorkerThreadPool.wait_for_task_completion(_custom_job.task_id)
 	if is_instance_valid(_import_model):
 		_import_model.free()
 	_import_model = null
@@ -353,3 +360,70 @@ func download_progress(id: String) -> Dictionary:
 	if is_instance_valid(entry.http):
 		return {"downloaded": entry.http.get_downloaded_bytes(), "total": entry.http.get_body_size()}
 	return {"preparing": entry.started}
+
+
+func import_local_bytes(filename: String, bytes: PackedByteArray) -> Dictionary:
+	var job := AvatarCustomJob.new()
+	job.filename = filename
+	job.bytes = bytes
+	return await _import_local(job)
+
+
+func import_local_file(path: String) -> Dictionary:
+	var job := AvatarCustomJob.new()
+	job.source_path = path
+	return await _import_local(job)
+
+
+func _run_custom_job(job: AvatarCustomJob, operation: Callable) -> void:
+	_custom_job = job
+	if OS.has_feature("web") and not OS.has_feature("threads"):
+		operation.call()
+	else:
+		job.task_id = WorkerThreadPool.add_task(operation, false, "Validate local avatar")
+		while not WorkerThreadPool.is_task_completed(job.task_id):
+			await get_tree().process_frame
+		WorkerThreadPool.wait_for_task_completion(job.task_id)
+		job.task_id = -1
+	_custom_job = null
+
+
+func _import_local(job: AvatarCustomJob) -> Dictionary:
+	if _custom_busy:
+		return {"error": "Another avatar is being imported"}
+	_custom_busy = true
+	await _run_custom_job(job, job.run)
+	if _exiting:
+		return {"error": "Import canceled"}
+	if not job.error.is_empty():
+		_custom_busy = false
+		return {"error": job.error}
+	var existing := AvatarCatalog.has_avatar(job.id)
+	var custom_entries := AvatarCatalog.search("", "Custom")
+	var stored_bytes := 0
+	for item in custom_entries:
+		stored_bytes += int(item.get("size_bytes", 0))
+	if not existing and (custom_entries.size() >= AvatarLocalLibrary.MAX_FILES or stored_bytes + job.bytes.size() > AvatarLocalLibrary.MAX_DISK_BYTES):
+		_custom_busy = false
+		return {"error": "Custom library is full (32 avatars / 256 MiB)"}
+	await _run_custom_job(job, job.store)
+	if not job.error.is_empty():
+		_custom_busy = false
+		return {"error": job.error}
+	AvatarCatalog.register_local(AvatarLocalLibrary.entry(job.id, job.title, job.bytes.size()))
+	var request := acquire(job.id)
+	if not request.finished:
+		await request.completed
+	var reason := request.error
+	if reason.is_empty() and request.scene == null:
+		reason = "Avatar could not be imported"
+	request.release()
+	if reason.is_empty() and AvatarLocalLibrary.save_entries(AvatarCatalog.entries()) != OK:
+		reason = "Could not save the custom avatar library"
+	if not reason.is_empty() and not existing:
+		AvatarCatalog.unregister_local(job.id)
+		_cache.erase(job.id)
+		_lru.erase(job.id)
+		DirAccess.remove_absolute(AvatarLocalLibrary.path_for(job.id))
+	_custom_busy = false
+	return {"id": job.id, "error": ""} if reason.is_empty() else {"error": reason}
