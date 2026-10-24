@@ -5,10 +5,23 @@ const Packets = preload("res://Networking/Generated/Packets.gd")
 var failures: Array[String] = []
 var profile_existed := false
 var profile_backup := PackedByteArray()
+var _custom_fixture := ""
+var _custom_owned := false
+var _custom_manifest_existed := false
+var _custom_manifest_backup := PackedByteArray()
 @onready var root := get_tree().root
 
 
 func quit(code := 0) -> void:
+	if not _custom_fixture.is_empty():
+		if not _custom_owned:
+			AvatarCatalog.unregister_local(_custom_fixture)
+			DirAccess.remove_absolute(AvatarLocalLibrary.path_for(_custom_fixture))
+		if _custom_manifest_existed:
+			FileAccess.open(AvatarLocalLibrary.MANIFEST, FileAccess.WRITE).store_buffer(_custom_manifest_backup)
+		else:
+			DirAccess.remove_absolute(AvatarLocalLibrary.MANIFEST)
+		_custom_fixture = ""
 	if profile_existed:
 		FileAccess.open("user://profile.cfg", FileAccess.WRITE).store_buffer(profile_backup)
 	else:
@@ -359,7 +372,7 @@ func _run() -> void:
 	a.voice_chat.voice_packet.rpc_id(b.client_id, voice_frame)
 	if not await _wait_until(func(): return b.voice_chat.peer_activity_deadlines.has(a.client_id), "Opus decoded from dedicated voice channel"):
 		return
-	if not _check(a.room_networking.rtc_mesh.multiplayer_peer.get_peer(b.client_id).channels.size() == 4, "Voice data channel was not negotiated"):
+	if not _check(a.room_networking.rtc_mesh.multiplayer_peer.get_peer(b.client_id).channels.size() == 5, "Voice and avatar data channels were not negotiated"):
 		return
 	a.voice_chat._speaker_playback(b.client_id)
 	var remote_head := am.players.get_node(str(b.client_id) + "/Avatar/Head")
@@ -369,6 +382,37 @@ func _run() -> void:
 	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").model != null, "reliable avatar selection and runtime import"):
 		return
 	if not _check(a.voice_chat.speakers[b.client_id].get_parent() == remote_head, "Avatar swap replaced the stable voice anchor"):
+		return
+	# Force actual bulk bytes over the fifth WebRTC data channel, even though
+	# these fixture peers share their process/catalog.
+	_custom_manifest_existed = FileAccess.file_exists(AvatarLocalLibrary.MANIFEST)
+	_custom_manifest_backup = FileAccess.get_file_as_bytes(AvatarLocalLibrary.MANIFEST) if _custom_manifest_existed else PackedByteArray()
+	var custom_bytes := FileAccess.get_file_as_bytes("res://avatar/godette.vrm")
+	var custom_hash := HashingContext.new()
+	custom_hash.start(HashingContext.HASH_SHA256)
+	custom_hash.update(custom_bytes)
+	_custom_fixture = custom_hash.finish().hex_encode()
+	_custom_owned = AvatarCatalog.is_owned(_custom_fixture)
+	var custom: Dictionary = await root.get_node("AvatarService").import_local_bytes("WebRTC fixture.vrm", custom_bytes)
+	if not _check(custom.get("id", "") == _custom_fixture, "Could not import WebRTC custom fixture"):
+		return
+	var transfer = a.player_replication.avatar_transfer
+	var completed_before: int = transfer.completed_transfers
+	var bytes_before: int = transfer.received_bytes_total
+	b.player_replication.broadcast_avatar(_custom_fixture)
+	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == _custom_fixture, "custom content hash announced"):
+		return
+	transfer.ensure(b.client_id, _custom_fixture, true)
+	if not await _wait_until(func(): return transfer.completed_transfers > completed_before, "verified custom VRM over dedicated WebRTC channel"):
+		return
+	if not _check(transfer.received_bytes_total - bytes_before == custom_bytes.size(), "WebRTC avatar bytes were lost or duplicated"):
+		return
+	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == _custom_fixture, "custom avatar applied to remote player"):
+		return
+	if not _check(a.voice_chat.speakers[b.client_id].get_parent() == remote_head, "P2P avatar swap replaced the voice anchor"):
+		return
+	b.player_replication.broadcast_avatar("godette")
+	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == "godette", "custom to catalog avatar switch"):
 		return
 	b.player_replication.announce_avatar.rpc("https://example.com/untrusted.vrm")
 	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == "default", "unknown avatar ID falls back without fetching peer URLs"):
@@ -412,6 +456,7 @@ func _run() -> void:
 	if not _check(bm.local_player == null and bm.players.get_child_count() == 0, "Leaving kept local players"):
 		return
 	PlayerProfile.avatar_id = "godette"
+	a.player_replication.broadcast_avatar("godette")
 	b.room_networking.join_room(room_id)
 	if not await _idle(b):
 		return

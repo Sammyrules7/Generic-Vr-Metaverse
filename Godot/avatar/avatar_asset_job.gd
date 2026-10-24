@@ -5,6 +5,7 @@ extends RefCounted
 var bytes := PackedByteArray()
 var expected_hash := ""
 var expected_size := 0
+var max_bytes := 64 * 1024 * 1024
 var path := ""
 var from_cache := false
 var error := ""
@@ -13,8 +14,12 @@ var task_id := -1
 
 func run() -> void:
 	if from_cache:
-		bytes = FileAccess.get_file_as_bytes(path)
-	if (expected_size > 0 and bytes.size() != expected_size) or bytes.size() < 20 or bytes.size() > 64 * 1024 * 1024:
+		var source := FileAccess.open(path, FileAccess.READ)
+		if source == null or source.get_length() > max_bytes:
+			error = "Avatar file is unavailable or exceeds the size limit"
+			return
+		bytes = source.get_buffer(source.get_length())
+	if (expected_size > 0 and bytes.size() != expected_size) or bytes.size() < 20 or bytes.size() > max_bytes:
 		error = "Avatar download has an unexpected size"
 		return
 	var hash := HashingContext.new()

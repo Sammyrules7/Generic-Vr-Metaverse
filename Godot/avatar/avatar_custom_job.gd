@@ -7,6 +7,10 @@ const ALLOWED_EXTENSIONS := ["VRM", "VRMC_vrm", "VRMC_springBone", "VRMC_materia
 var bytes := PackedByteArray()
 var filename := ""
 var source_path := ""
+var expected_hash := ""
+var expected_size := 0
+var chunks: Array[PackedByteArray] = []
+var storage_directory := AvatarLocalLibrary.DIRECTORY
 var error := ""
 var id := ""
 var title := ""
@@ -15,6 +19,21 @@ var json: Dictionary = {}
 var _binary := PackedByteArray()
 
 func run() -> void:
+	if not chunks.is_empty():
+		if expected_size < 28 or expected_size > MAX_BYTES:
+			error = "Invalid received avatar size"
+			return
+		var buffer := StreamPeerBuffer.new()
+		buffer.resize(expected_size)
+		for chunk in chunks:
+			if buffer.get_position() + chunk.size() > expected_size or buffer.put_data(chunk) != OK:
+				error = "Invalid received avatar chunks"
+				return
+		if buffer.get_position() != expected_size:
+			error = "Received avatar is incomplete"
+			return
+		bytes = buffer.data_array
+		chunks.clear()
 	if not source_path.is_empty():
 		var source := FileAccess.open(source_path, FileAccess.READ)
 		if source == null or source.get_length() > MAX_BYTES:
@@ -57,6 +76,9 @@ func run() -> void:
 	hash.start(HashingContext.HASH_SHA256)
 	hash.update(bytes)
 	id = hash.finish().hex_encode()
+	if not expected_hash.is_empty() and id != expected_hash:
+		error = "Received avatar failed its SHA-256 integrity check"
+		return
 	title = filename.get_file().get_basename().strip_edges().left(80)
 	if title.is_empty():
 		title = "Custom avatar"
@@ -229,11 +251,11 @@ static func _be32(data: PackedByteArray, at: int) -> int:
 
 
 func store() -> void:
-	var path := AvatarLocalLibrary.path_for(id)
+	var path := storage_directory + "/" + id + ".vrm" if AvatarLocalLibrary.valid_id(id) else ""
 	if path.is_empty():
 		error = "Invalid custom avatar hash"
 		return
-	DirAccess.make_dir_recursive_absolute(AvatarLocalLibrary.DIRECTORY)
+	DirAccess.make_dir_recursive_absolute(storage_directory)
 	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
 	if file == null:
 		error = "Could not store avatar on this device"

@@ -8,7 +8,8 @@ extends Node3D
 ## reflection per eye; mesh UVs stay stable when the headset turns.
 ##
 ## The glass must stay single-sided (cull_back): the reflected camera sits
-## behind the mirror, so the glass back face is never drawn into its own view.
+## behind the mirror. Layer 18 also excludes glass from reflection passes:
+## face culling alone does not prevent WebGL framebuffer-feedback validation.
 ##
 ## In the editor the mirror follows the main 3D view camera and renders through
 ## an internal, unsaved SubViewport. The scene's own SubViewport is left alone so
@@ -16,7 +17,7 @@ extends Node3D
 
 ## Cap the reflection pass; the aspect ratio follows the glass. XR is capped
 ## at the same quality as desktop, with two scene renders in stereo.
-@export var max_viewport_size := Vector2i(1920, 1920):
+@export var max_viewport_size := Vector2i(2048, 2048):
 	set(value):
 		max_viewport_size = Vector2i(maxi(1, value.x), maxi(1, value.y))
 		if is_node_ready():
@@ -35,9 +36,13 @@ var _viewport_size := Vector2i.ZERO
 var _preview_viewport: SubViewport
 var _preview_camera: Camera3D
 var _preview_material: ShaderMaterial
+var _left_crop := Rect2(0, 0, 1, 1)
+var _right_crop := Rect2(0, 0, 1, 1)
 
 
 func _ready() -> void:
+	add_to_group("planar_mirrors")
+	mirror_glass.layers = AvatarView.MIRROR_SURFACE
 	var source_material := mirror_glass.get_active_material(0) as ShaderMaterial
 	if source_material == null:
 		push_error("MirrorGlass needs a ShaderMaterial with a viewport_texture uniform")
@@ -70,6 +75,7 @@ func _setup_runtime(source_material: ShaderMaterial) -> void:
 	# A SubViewport nested under MeshInstance3D does not inherit the world on its
 	# own, so share it explicitly or the reflection renders an empty scene.
 	sub_viewport.world_3d = get_world_3d()
+	_full_resolution(sub_viewport)
 
 
 func _setup_editor_preview(source_material: ShaderMaterial) -> void:
@@ -80,9 +86,11 @@ func _setup_editor_preview(source_material: ShaderMaterial) -> void:
 	_preview_viewport.name = "EditorMirrorViewport"
 	add_child(_preview_viewport, false, Node.INTERNAL_MODE_FRONT)
 	_preview_viewport.world_3d = get_world_3d()
+	_full_resolution(_preview_viewport)
 	_preview_camera = Camera3D.new()
 	_preview_camera.name = "EditorMirrorCamera"
 	_preview_camera.current = true
+	AvatarView.configure_mirror_camera(_preview_camera)
 	_preview_viewport.add_child(_preview_camera, false, Node.INTERNAL_MODE_FRONT)
 	_preview_material.set_shader_parameter("viewport_texture", _preview_viewport.get_texture())
 
@@ -94,7 +102,7 @@ func _process(_delta: float) -> void:
 	if _viewport_size == Vector2i.ZERO or Engine.is_editor_hint():
 		_resize_viewport()
 	var source := _view_camera()
-	var interface := XRServer.primary_interface
+	var interface := _active_xr_interface()
 	var stereo := not Engine.is_editor_hint() and source is XRCamera3D and get_viewport().use_xr and interface != null and interface.is_initialized() and interface.get_view_count() >= 2
 	if stereo != _stereo:
 		_stereo = stereo
@@ -112,6 +120,8 @@ func _process(_delta: float) -> void:
 	var eye := source.get_camera_transform().origin
 	var right_eye := eye
 	var active := _is_front_side(eye, glass.origin, normal)
+	var left_planes: Array[Plane] = []
+	var right_planes: Array[Plane] = []
 	if stereo:
 		# XRInterface expects the origin transform, not the already-tracked head.
 		var origin := (source.get_parent() as Node3D).global_transform
@@ -121,15 +131,24 @@ func _process(_delta: float) -> void:
 		right_eye = right_view.origin
 		var left_projection := interface.get_projection_for_view(0, 1.0, source.near, source.far)
 		var right_projection := interface.get_projection_for_view(1, 1.0, source.near, source.far)
-		active = active and (_bounds_in_planes(_projection_planes(left_projection, left_view), glass) or _bounds_in_planes(_projection_planes(right_projection, right_view), glass))
+		left_planes = _projection_planes(left_projection, left_view)
+		right_planes = _projection_planes(right_projection, right_view)
+		active = active and (_bounds_in_planes(left_planes, glass) or _bounds_in_planes(right_planes, glass))
 	else:
-		active = active and _is_in_view(source, glass)
+		left_planes = source.get_frustum()
+		active = active and _bounds_in_planes(left_planes, glass)
 	_set_updates(active)
 	if not active:
 		return
+	_left_crop = _visible_crop(left_planes, glass)
 	if stereo:
-		_fit_reflection(_right_camera, right_eye, source.far)
-	_fit_reflection(_target_camera(), eye, source.far)
+		_right_crop = _visible_crop(right_planes, glass)
+		_fit_reflection(_right_camera, right_eye, source.far, _right_crop)
+	_fit_reflection(_target_camera(), eye, source.far, _left_crop)
+	var material := _preview_material if Engine.is_editor_hint() else _runtime_material
+	if material != null:
+		material.set_shader_parameter("left_uv_rect", Vector4(_left_crop.position.x, _left_crop.position.y, _left_crop.size.x, _left_crop.size.y))
+		material.set_shader_parameter("right_uv_rect", Vector4(_right_crop.position.x, _right_crop.position.y, _right_crop.size.x, _right_crop.size.y))
 
 
 func _ensure_right_view() -> void:
@@ -138,6 +157,7 @@ func _ensure_right_view() -> void:
 	_right_viewport = SubViewport.new()
 	_right_viewport.name = "RightEyeReflection"
 	_right_viewport.world_3d = get_world_3d()
+	_full_resolution(_right_viewport)
 	add_child(_right_viewport, false, Node.INTERNAL_MODE_FRONT)
 	_right_camera = Camera3D.new()
 	_right_camera.current = true
@@ -152,7 +172,7 @@ func _set_updates(active: bool) -> void:
 		_right_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if active and _stereo else SubViewport.UPDATE_DISABLED
 
 
-func _fit_reflection(camera: Camera3D, eye: Vector3, far_distance: float) -> void:
+func _fit_reflection(camera: Camera3D, eye: Vector3, far_distance: float, crop := Rect2(0, 0, 1, 1)) -> void:
 	var glass := mirror_glass.global_transform
 	var bounds := mirror_glass.get_aabb()
 	var center := glass * bounds.get_center()
@@ -160,12 +180,15 @@ func _fit_reflection(camera: Camera3D, eye: Vector3, far_distance: float) -> voi
 	var up := glass.basis.z.normalized()
 	var normal := glass.basis.y.normalized()
 	var reflected_eye := _reflect_point(eye, center, normal)
+	var crop_center := crop.get_center()
+	center += right * ((crop_center.x - 0.5) * bounds.size.x * glass.basis.x.length())
+	center += up * ((0.5 - crop_center.y) * bounds.size.z * glass.basis.z.length())
 	# A proper-handed camera, fixed to the glass, avoids the negative camera
 	# determinant and head-rotation-dependent SCREEN_UV mapping of the old path.
 	camera.global_transform = Transform3D(Basis(right, up, -normal), reflected_eye)
 	var depth := maxf(0.01, (center - reflected_eye).dot(normal))
 	var offset := Vector2((center - reflected_eye).dot(right), (center - reflected_eye).dot(up))
-	var height := bounds.size.z * glass.basis.z.length()
+	var height := bounds.size.z * glass.basis.z.length() * crop.size.y
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	camera.h_offset = 0.0
 	camera.v_offset = 0.0
@@ -257,23 +280,15 @@ func _resize_viewport() -> void:
 	var viewport := _view_viewport()
 	if viewport == null:
 		return
-	var size := viewport.get_visible_rect().size
-	if _stereo:
-		# The browser's desktop mirror window can be much smaller than the HMD.
-		# Size eye reflections from the XR target, not that window.
-		var interface := XRServer.primary_interface
-		size = interface.get_render_target_size() if interface != null and interface.is_initialized() else Vector2(max_viewport_size)
-	if size.x < 1.0 or size.y < 1.0:
-		return
 	# Fit the glass aspect rather than the desktop/XR framebuffer aspect.
 	var bounds := mirror_glass.get_aabb()
 	var glass := mirror_glass.global_transform
 	var aspect := maxf(0.01, bounds.size.x * glass.basis.x.length()) / maxf(0.01, bounds.size.z * glass.basis.z.length())
 	var cap := max_viewport_size
-	var width := minf(cap.x, size.x)
+	var width := float(cap.x)
 	var height := width / aspect
-	if height > minf(cap.y, size.y):
-		height = minf(cap.y, size.y)
+	if height > cap.y:
+		height = float(cap.y)
 		width = height * aspect
 	var target := Vector2i(maxi(1, roundi(width)), maxi(1, roundi(height)))
 	_viewport_size = target
@@ -282,3 +297,67 @@ func _resize_viewport() -> void:
 		target_viewport.size = target
 	if _right_viewport != null:
 		_right_viewport.size = target
+
+
+static func _active_xr_interface() -> XRInterface:
+	var primary := XRServer.primary_interface
+	if primary != null and primary.is_initialized():
+		return primary
+	for name in ["WebXR", "OpenXR"]:
+		var interface := XRServer.find_interface(name)
+		if interface != null and interface.is_initialized():
+			return interface
+	return null
+
+
+static func _full_resolution(viewport: SubViewport) -> void:
+	viewport.vrs_mode = Viewport.VRS_DISABLED
+	viewport.scaling_3d_scale = 1.0
+	viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+
+
+func _visible_crop(planes: Array[Plane], glass: Transform3D) -> Rect2:
+	# Clip the actual glass polygon against this eye's view volume. A close
+	# viewer sees only its center: allocating the texture to the whole glass
+	# wastes most pixels on off-screen edges. UV remapping preserves geometry.
+	var bounds := mirror_glass.get_aabb()
+	var center := bounds.get_center()
+	var half_width := bounds.size.x * 0.5
+	var half_height := bounds.size.z * 0.5
+	var polygon: Array[Vector3] = []
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		polygon.append(glass * (center + Vector3(corner.x * half_width, 0, corner.y * half_height)))
+	for plane in planes:
+		var clipped: Array[Vector3] = []
+		if polygon.is_empty():
+			return Rect2(0, 0, 1, 1)
+		var previous := polygon.back() as Vector3
+		var previous_distance := plane.distance_to(previous)
+		for point in polygon:
+			var distance := plane.distance_to(point)
+			if (distance <= 0) != (previous_distance <= 0):
+				clipped.append(previous.lerp(point, previous_distance / (previous_distance - distance)))
+			if distance <= 0:
+				clipped.append(point)
+			previous = point
+			previous_distance = distance
+		polygon = clipped
+	if polygon.is_empty():
+		return Rect2(0, 0, 1, 1)
+	var inverse := glass.affine_inverse()
+	var minimum := Vector2.ONE
+	var maximum := Vector2.ZERO
+	for point in polygon:
+		var local := inverse * point - center
+		var uv := Vector2(local.x / bounds.size.x + 0.5, 0.5 - local.z / bounds.size.z)
+		minimum = minimum.min(uv)
+		maximum = maximum.max(uv)
+	# Equal normalized extents keep the glass/target aspect ratio unchanged.
+	# A small guard band prevents tiny pose changes exposing a crop boundary.
+	var extent := clampf(maxf(maximum.x - minimum.x, maximum.y - minimum.y) * 1.08, 0.02, 1.0)
+	var middle := ((minimum + maximum) * 0.5).clamp(Vector2.ONE * extent * 0.5, Vector2.ONE * (1.0 - extent * 0.5))
+	return Rect2(middle - Vector2.ONE * extent * 0.5, Vector2.ONE * extent)
+
+
+func debug_report() -> String:
+	return "Mirror: %s | stereo %s | left %s | right %s | crop L %s / R %s | VRS disabled, scale 1" % [name, _stereo, _target_viewport().size, _right_viewport.size if _right_viewport != null else Vector2i.ZERO, _left_crop, _right_crop]

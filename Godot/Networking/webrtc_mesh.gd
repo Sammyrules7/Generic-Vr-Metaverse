@@ -7,8 +7,9 @@ const MAX_QUEUED_CANDIDATES := 64
 # Allow relay pod startup and several full ICE attempts before giving up.
 const TRANSPORT_RECOVERY_MS := 90000
 # Transfer channel 0 owns WebRTC's three built-in mode-specific channels. Voice
-# uses high-level transfer channel 1, backed by this fourth physical channel.
-const EXTRA_CHANNELS := [MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED]
+# uses high-level channel 1 (physical 3); avatar bytes use reliable channel 2
+# (physical 4), keeping bulk data off pose/identity/voice channels.
+const EXTRA_CHANNELS := [MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED, MultiplayerPeer.TRANSFER_MODE_RELIABLE]
 
 signal packet_created(packet: Packets.ClientPacket)
 signal connection_error(reason: String)

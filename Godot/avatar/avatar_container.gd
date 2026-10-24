@@ -14,9 +14,14 @@ var _springs: Array[SpringBoneSimulator3D] = []
 var _previous_body := Vector3.ZERO
 var _have_previous := false
 var _local := false
+var _equip_timer: Timer
 
 
 func _ready() -> void:
+	_equip_timer = Timer.new()
+	_equip_timer.one_shot = true
+	_equip_timer.wait_time = 0.001
+	add_child(_equip_timer)
 	_local = get_parent().is_multiplayer_authority()
 	# Controls sample before this; visuals follow tracking at display frame rate.
 	process_priority = 5
@@ -46,8 +51,12 @@ func set_avatar(id: String) -> void:
 	_request = request
 	if not request.finished:
 		await request.completed
-	# Preview presentation can use the completion frame; player setup follows.
-	await get_tree().process_frame
+	if generation != _generation or not is_inside_tree() or request.released:
+		return
+	# A child timer cancels with this player; a global frame await can resume
+	# after a room change has already freed the player.
+	_equip_timer.start()
+	await _equip_timer.timeout
 	if generation != _generation or not is_inside_tree() or request.released:
 		return
 	if request.scene == null:

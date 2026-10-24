@@ -13,7 +13,7 @@ static func path_for(id: String) -> String:
 	return DIRECTORY + "/" + id + ".vrm" if valid_id(id) else ""
 
 static func entry(id: String, title: String, size: int) -> Dictionary:
-	return {"id": id, "title": title.strip_edges().left(80), "collection": "Custom", "local_custom": true, "local_path": path_for(id), "sha256": id, "size_bytes": size, "url": "", "license": "Local", "attribution": "Only visible to you"}
+	return {"id": id, "title": title.strip_edges().left(80), "collection": "Custom", "local_custom": true, "local_path": path_for(id), "sha256": id, "size_bytes": size, "url": "", "license": "Local", "attribution": "Shared with peers while worn"}
 
 static func load_entries() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []

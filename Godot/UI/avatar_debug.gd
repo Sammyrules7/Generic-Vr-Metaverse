@@ -56,7 +56,10 @@ func focus_entry() -> void:
 func report() -> String:
 	var peer_count := multiplayer.get_peers().size()
 	var replication = Networking.player_replication
-	return AvatarService.debug_report() + "\n\nNetwork peers: %d\nReceived avatar IDs: %s" % [peer_count, replication._avatar_by_peer if replication != null else {}]
+	var mirrors: Array[String] = []
+	for mirror in get_tree().get_nodes_in_group("planar_mirrors"):
+		mirrors.append(mirror.debug_report())
+	return "\n".join(mirrors) + "\n\n" + AvatarService.debug_report() + "\n\n" + (replication.avatar_transfer.debug_report() if replication != null and replication.avatar_transfer != null else "P2P unavailable") + "\n\nNetwork peers: %d\nReceived avatar IDs: %s" % [peer_count, replication._avatar_by_peer if replication != null else {}]
 
 
 func handle_stick(stick: Vector2, delta: float) -> void:

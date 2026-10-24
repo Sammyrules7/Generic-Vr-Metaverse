@@ -10,6 +10,9 @@ signal pose_received(peer_id: int, body_pose: Transform3D, head_pose: Transform3
 
 var local_player: NetworkPlayer
 var _avatar_by_peer: Dictionary = {}
+var _desired_avatar_by_peer: Dictionary = {}
+var avatar_transfer: AvatarTransfer
+var _local_avatar_id := "default"
 
 const REPLICATION_HZ := 15.0
 const POSITION_EPSILON := 0.002
@@ -29,6 +32,13 @@ var _cached_transport: WebRTCMultiplayerPeer
 
 
 func _ready() -> void:
+	_local_avatar_id = PlayerProfile.avatar_id
+	avatar_transfer = AvatarTransfer.new()
+	avatar_transfer.name = "AvatarTransfer"
+	avatar_transfer.equipped_id = func(): return _local_avatar_id
+	avatar_transfer.avatar_ready.connect(_custom_avatar_ready)
+	avatar_transfer.avatar_failed.connect(func(peer: int, id: String, reason: String): AvatarService.record_event(id, "remote avatar failed", "peer %d: %s" % [peer, reason]))
+	add_child(avatar_transfer)
 	multiplayer.peer_connected.connect(_peer_connected)
 	# Despawn is owned by room membership (explicit leave, despawn RPC, or an
 	# expired transport recovery), never by the raw data-channel signal: a
@@ -40,13 +50,14 @@ func set_local_player(player: NetworkPlayer) -> void:
 		despawn_player.rpc()
 	local_player = player
 	if local_player != null:
+		_local_avatar_id = PlayerProfile.avatar_id
 		for peer_id in multiplayer.get_peers():
 			_peer_connected(peer_id)
 
 
 func _peer_connected(peer_id: int) -> void:
 	if local_player != null:
-		spawn_player.rpc_id(peer_id, local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, AvatarCatalog.replication_id(PlayerProfile.avatar_id))
+		spawn_player.rpc_id(peer_id, local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, AvatarCatalog.replication_id(_local_avatar_id))
 		# Also used after a world reload: the peer may already be connected, so we
 		# cannot rely on another peer_connected event to repopulate the new scene.
 		request_player.rpc_id(peer_id)
@@ -55,12 +66,12 @@ func _peer_connected(peer_id: int) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func request_player() -> void:
 	if local_player != null:
-		spawn_player.rpc_id(multiplayer.get_remote_sender_id(), local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, AvatarCatalog.replication_id(PlayerProfile.avatar_id))
+		spawn_player.rpc_id(multiplayer.get_remote_sender_id(), local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, AvatarCatalog.replication_id(_local_avatar_id))
 
 
 @rpc("any_peer", "call_remote", "reliable")
 func despawn_player() -> void:
-	_avatar_by_peer.erase(multiplayer.get_remote_sender_id())
+	forget_avatar(multiplayer.get_remote_sender_id())
 	player_removed.emit(multiplayer.get_remote_sender_id())
 
 
@@ -75,6 +86,7 @@ func spawn_player(use_vr: bool, initial_pose: Transform3D, display_name := "Expl
 
 
 func broadcast_avatar(id: String) -> void:
+	_local_avatar_id = AvatarCatalog.replication_id(id)
 	if local_player != null and AvatarCatalog.has_avatar(id) and not multiplayer.get_peers().is_empty():
 		announce_avatar.rpc(AvatarCatalog.replication_id(id))
 
@@ -87,14 +99,37 @@ func announce_avatar(id: String) -> void:
 
 
 func _receive_avatar(peer_id: int, id: String) -> void:
+	_desired_avatar_by_peer[peer_id] = id.left(64)
+	if AvatarLocalLibrary.valid_id(id):
+		if AvatarService.remote_available(id):
+			if avatar_transfer != null:
+				avatar_transfer.cancel_receive(peer_id)
+			_avatar_by_peer[peer_id] = id
+			avatar_received.emit(peer_id, id)
+		elif avatar_transfer != null:
+			_avatar_by_peer[peer_id] = "default"
+			avatar_received.emit(peer_id, "default")
+			avatar_transfer.ensure(peer_id, id)
+		return
+	if avatar_transfer != null:
+		avatar_transfer.cancel_receive(peer_id)
 	var valid_id := AvatarCatalog.replication_id(id)
-	AvatarService.record_event(id, "remote announcement", "Peer %d: %s" % [peer_id, "No P2P custom transfer; using Explorer" if id != valid_id and id.length() == 64 else "Unknown ID; using Explorer" if id != valid_id else "accepted"])
+	AvatarService.record_event(id, "remote announcement", "Peer %d: %s" % [peer_id, "Unknown ID; using Explorer" if id != valid_id else "accepted"])
 	_avatar_by_peer[peer_id] = valid_id
 	avatar_received.emit(peer_id, valid_id)
 
 
+func _custom_avatar_ready(peer_id: int, id: String) -> void:
+	if _desired_avatar_by_peer.get(peer_id, "") == id and multiplayer.get_peers().has(peer_id):
+		_avatar_by_peer[peer_id] = id
+		avatar_received.emit(peer_id, id)
+
+
 func forget_avatar(peer_id: int) -> void:
 	_avatar_by_peer.erase(peer_id)
+	_desired_avatar_by_peer.erase(peer_id)
+	if avatar_transfer != null:
+		avatar_transfer.cancel_receive(peer_id)
 
 
 func _physics_process(delta: float) -> void:

@@ -171,18 +171,16 @@ https://developers.meta.com/vr/documentation/unity/unity-isdk-poke-interaction/
 
 ## Local Custom library
 
-Import avatar is available in the home Custom tab before entering VR; it opens
-a native file chooser or the browser's file chooser. Import is hidden in rooms
-and immersive mode, with guidance to import before VR. Existing imports remain
-wearable in rooms. Custom
-VRM 0.x/1.0 files (.vrm or VRM-bearing .glb) are copied into
-`user://avatars/custom/<sha256>.vrm`; the small library manifest saves only hash,
-title and byte size. Source files stay outside the project. Imports select their
-preview without automatically equipping; use Wear avatar to apply. The top-level Custom tab sits with All avatars and Favorites, separately from
-public collections. Local-only scope appears beneath the preview.
-Peers receive Explorer when a custom avatar is equipped, including late joins;
-custom hashes received from another peer never resolve to private local files.
-There is no P2P file transfer or cloning in this step.
+The Custom tab includes a plus upload tile alongside owned avatars, including
+when the library is empty. There are no sidebar upload/status controls. Upload
+is enabled both in rooms and immersive mode for device testing; picker callbacks
+and a ten-second no-response warning make browser limitations observable rather
+than blocking the action. Import status/errors appear on the tile. VRM 0.x/1.0
+files (.vrm or VRM-bearing .glb) are copied into
+`user://avatars/custom/<sha256>.vrm`. The small manifest saves hash, title and
+byte size; source files stay outside the project. Imports preview without
+immediately equipping. Use Wear avatar to announce the content hash to peers.
+Custom sits alongside All avatars and Favorites, separately from collections.
 
 Preflight runs in WorkerThreadPool (with a synchronous fallback in non-threaded
 web builds), before the existing texture-decoding/import pipeline. It requires
@@ -200,7 +198,7 @@ leave the previous preview/equipped avatar intact. Hashes deduplicate repeated
 imports. Browser persistence uses Godot's user storage and is subject to browser
 storage quotas/eviction. Native and browser device acceptance remains necessary.
 Run `res://tests/avatar_custom_test.gd` and the picker suite to cover local
-import, duplicate detection, persistence, filtering and private replication.
+import, duplicate detection, persistence, filtering and content-hash announcements.
 
 
 ## Import profiling and UI hand overlays
@@ -209,8 +207,9 @@ The full home and session menus link to Debug. It shows threading/renderer/XR
 capabilities, active downloads, selected/network avatar IDs, received peer IDs,
 cache state, failures, a bounded 64-event history, stage CPU timings and peak
 frame duration. Copy report exports the text; Reset clears timing history.
-Custom transfer is explicitly reported as unavailable rather than implying an
-in-flight download. No avatar bytes are transmitted by this version.
+P2P diagnostics include receive/send byte counts, queued owners, validation,
+completion, cancellation and timeout/rejection reasons. Mirror diagnostics show
+actual reflection target sizes and per-eye visible-region UV crops.
 
 Runtime normalization now transforms detached vertex and blend-shape arrays in
 WorkerThreadPool. Mesh reads and GPU-facing surface creation remain on main, at
@@ -227,3 +226,32 @@ about 125 ms. The overlay casts no shadow, draws over the offset avatar hand,
 and uses only the local first-person layer. Tracking loss and hiding/rebinding
 the panel clear proximity; without a humanoid avatar the normal opaque tracked
 hand remains the fallback. Controller rays retain their existing feedback.
+
+
+## P2P custom avatars
+
+PlayerReplication owns a persistent AvatarTransfer child. Spawn snapshots and
+selection changes announce owned custom SHA-256 IDs. Unknown hashes show Explorer
+while fetching bytes directly from that peer, then pass the same resource-limit
+preflight, SHA-256 verification and runtime importer before application. Already
+verified content can be reused. A peer only serves its currently equipped owned
+avatar, never arbitrary paths, public URLs or received avatars. Received entries
+are not listed in the picker/favorites and cannot be worn as one's own.
+
+The mesh negotiates a dedicated reliable high-level channel 2 (physical channel
+4), alongside the existing pose/identity channels and voice channel 1. Transfer
+uses 12 KiB chunks, a 192 KiB acknowledgement window and a four-packet global
+per-frame send budget, round-robin across peers. SCTP buffered bytes are checked
+before enqueueing more data. Two incoming transfers cap received payload memory
+at 64 MiB; each asset is at most 32 MiB. Chunk order, owner, hash and request nonce
+are checked. Avatar changes and disconnects cancel obsolete work; stalled
+transfers report a 20-second idle or five-minute overall timeout.
+
+Assembly and verification run in WorkerThreadPool. Successful received assets
+use a separate 128 MiB disk cache under `user://avatars/received`, with no owned
+library manifest entry. Imported scenes share the normal bounded scene cache.
+Scene/GPU import calls can still hitch, including for remote arrivals. This is
+transport and resource validation, not a sandbox against importer bugs. Protocol
+checks run via `avatar_transfer_test.gd`; the multiplayer integration suite also
+forces real fixture bytes through WebRTC channel 2 while testing voice and swaps.
+All peers must use a build with the new channel/RPC layout.

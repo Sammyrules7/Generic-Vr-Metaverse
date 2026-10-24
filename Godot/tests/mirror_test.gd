@@ -69,6 +69,7 @@ func _test_scene() -> void:
 	check(viewport.world_3d != null and viewport.world_3d == root.world_3d, "Mirror viewport must share the main 3D world")
 	check(reflected_camera.global_position.is_equal_approx(Vector3(0, 0, -4)), "Reflect camera must follow the active player camera")
 	check(reflected_camera.cull_mask & AvatarView.FULL_BODY != 0, "Mirror must draw the full local avatar")
+	check(glass.layers == AvatarView.MIRROR_SURFACE and reflected_camera.cull_mask & AvatarView.MIRROR_SURFACE == 0, "Reflection passes must exclude mirror surfaces to prevent WebGL feedback")
 	check(reflected_camera.cull_mask & AvatarView.FIRST_PERSON == 0, "Mirror must not draw the first-person body")
 	var material := glass.material_override as ShaderMaterial
 	check(material != null and material != MIRROR_MATERIAL, "Each mirror must own its material instance")
@@ -76,10 +77,12 @@ func _test_scene() -> void:
 	check(viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS, "Visible mirror must keep its reflection current")
 
 	check(viewport.size.x == viewport.size.y, "Square glass must have a square reflection, independent of the window aspect")
-	check(viewport.size.x <= 1920, "Default reflection must respect the quality cap")
+	check(viewport.size.x <= 2048, "Default reflection must respect the quality cap")
+	check(viewport.size == Vector2i(2048, 2048), "Actual reflection resolution must not be clamped to the desktop window")
+	check(viewport.vrs_mode == Viewport.VRS_DISABLED and viewport.scaling_3d_scale == 1.0, "Reflections must keep a uniform full-resolution raster")
 	mirror.max_viewport_size = Vector2i(320, 320)
 	check(viewport.size == Vector2i(320, 320), "Changing mirror quality must resize the render target")
-	mirror.max_viewport_size = Vector2i(1920, 1920)
+	mirror.max_viewport_size = Vector2i(2048, 2048)
 	mirror._process(0.016)
 	var top_right := glass.global_transform * Vector3(1, 0, 1)
 	var bottom_left := glass.global_transform * Vector3(-1, 0, -1)
@@ -100,7 +103,7 @@ func _test_scene() -> void:
 	mirror._ensure_right_view()
 	mirror._stereo = true
 	mirror._resize_viewport()
-	check(viewport.size == Vector2i(1920, 1920) and mirror._right_viewport.size == viewport.size, "XR reflection quality must use the full cap rather than the small desktop window")
+	check(viewport.size == Vector2i(2048, 2048) and mirror._right_viewport.size == viewport.size, "XR reflection quality must use the full cap rather than the small desktop window")
 	mirror._stereo = false
 	mirror._resize_viewport()
 	mirror._right_viewport.size = viewport.size
@@ -109,6 +112,19 @@ func _test_scene() -> void:
 	check(not reflected_camera.global_position.is_equal_approx(mirror._right_camera.global_position), "Stereo reflections must have distinct eye positions")
 	check(reflected_camera.unproject_position(top_right).distance_to(mirror._right_camera.unproject_position(top_right)) < 0.01, "Both eye frustums must fit the same glass edges")
 	check(reflected_camera.frustum_offset.x > 0 and mirror._right_camera.frustum_offset.x < 0, "Eye frustum offsets must have opposite signs")
+
+	# Close-up pixels must follow the visible center instead of off-screen glass.
+	camera.position = Vector3(0, 0, 0.2)
+	camera.look_at(Vector3.ZERO, Vector3.UP)
+	for heading in [0.0, 0.15, -0.15]:
+		camera.rotation.y = heading
+		mirror._process(0.016)
+		var crop: Rect2 = mirror._left_crop
+		check(crop.size.x < 0.65 and is_equal_approx(crop.size.x, crop.size.y), "Close-up capture must concentrate pixels on the visible region and preserve aspect")
+		var point := glass.global_transform * Vector3(0.05, 0, 0.05)
+		var sample_uv := (Vector2(0.525, 0.475) - crop.position) / crop.size
+		check((reflected_camera.unproject_position(point) / Vector2(viewport.size)).distance_to(sample_uv) < 0.0001, "Cropped shader UVs must match the reflected camera even when turning")
+	check(mirror._right_viewport.vrs_mode == Viewport.VRS_DISABLED, "Both eye reflections must disable VRS")
 
 	# Up close the glass can cover the screen while its center and corners are
 	# all outside the tiny frustum. The reflection must keep updating.

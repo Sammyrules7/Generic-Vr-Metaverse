@@ -62,16 +62,17 @@ static func search(query: String = "", collection: String = "") -> Array[Diction
 
 
 static func is_custom(id: String) -> bool:
-	return bool(definition(id).get("local_custom", false))
+	var entry := definition(id)
+	return bool(entry.get("local_custom", false)) or bool(entry.get("remote_custom", false))
 
 
 static func replication_id(id: String) -> String:
-	return id if has_avatar(id) and not is_custom(id) else "default"
+	return id if has_avatar(id) and not definition(id).get("remote_custom", false) else "default"
 
 
 static func register_local(entry: Dictionary) -> void:
 	_ensure_loaded()
-	if not AvatarLocalLibrary.valid_id(str(entry.get("id", ""))) or _by_id.has(entry.id):
+	if not AvatarLocalLibrary.valid_id(str(entry.get("id", ""))) or (_by_id.has(entry.id) and not definition(entry.id).get("remote_custom", false)):
 		return
 	_entries.append(entry.duplicate(true))
 	_by_id[entry.id] = _entries.back()
@@ -84,3 +85,15 @@ static func unregister_local(id: String) -> void:
 		if _entries[i].id == id:
 			_entries.remove_at(i)
 	_by_id.erase(id)
+
+
+static func is_owned(id: String) -> bool:
+	return bool(definition(id).get("local_custom", false))
+
+
+static func register_remote(entry: Dictionary) -> void:
+	_ensure_loaded()
+	if AvatarLocalLibrary.valid_id(str(entry.get("id", ""))) and not is_owned(entry.id):
+		# Received assets are resolvable for rendering but never browseable,
+		# favoriteable or selectable as one's own avatar.
+		_by_id[entry.id] = entry.duplicate(true)

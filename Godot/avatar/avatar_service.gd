@@ -5,6 +5,8 @@ signal selection_changed(id: String)
 signal springs_changed(enabled: bool)
 
 const CACHE_DIR := "user://avatars"
+const REMOTE_CACHE_DIR := CACHE_DIR + "/received"
+const MAX_REMOTE_DISK_BYTES := 128 * 1024 * 1024
 const MAX_DOWNLOADS := 2
 const MAX_MEMORY_SCENES := 4
 const MAX_DISK_BYTES := 128 * 1024 * 1024
@@ -32,6 +34,8 @@ var _next_import := 0
 var _exiting := false
 var _custom_job: AvatarCustomJob
 var _custom_busy := false
+var _remote_jobs: Array[AvatarCustomJob] = []
+var _remote_operations := {}
 var _mesh_job: AvatarMeshJob
 var _events: Array[String] = []
 var _stages := {}
@@ -52,9 +56,9 @@ func _ready() -> void:
 
 
 func select_avatar(id: String) -> void:
-	if not AvatarCatalog.has_avatar(id):
+	if not AvatarCatalog.has_avatar(id) or AvatarCatalog.definition(id).get("remote_custom", false):
 		return
-	record_event(id, "selected", "Local only; P2P transfer is not implemented" if AvatarCatalog.is_custom(id) else "Catalog avatar")
+	record_event(id, "selected", "P2P custom avatar" if AvatarCatalog.is_owned(id) else "Catalog avatar")
 	PlayerProfile.avatar_id = id
 	PlayerProfile.save()
 	selection_changed.emit(id)
@@ -238,8 +242,8 @@ func _start(id: String) -> void:
 	var load: Dictionary = _loads[id]
 	var definition := AvatarCatalog.definition(id)
 	load.started = true
-	if definition.get("local_custom", false):
-		_verify(id, PackedByteArray(), AvatarLocalLibrary.path_for(id), true)
+	if AvatarCatalog.is_custom(id):
+		_verify(id, PackedByteArray(), str(definition.local_path), true)
 		return
 	if definition.has("bundled_path"):
 		_verify(id, FileAccess.get_file_as_bytes(str(definition.bundled_path)), "", false)
@@ -359,6 +363,9 @@ func _prune_disk_cache() -> void:
 
 func _exit_tree() -> void:
 	_exiting = true
+	for job in _remote_jobs:
+		if job.task_id >= 0:
+			WorkerThreadPool.wait_for_task_completion(job.task_id)
 	if _mesh_job != null and _mesh_job.task_id >= 0:
 		WorkerThreadPool.wait_for_task_completion(_mesh_job.task_id)
 	if _custom_job != null and _custom_job.task_id >= 0:
@@ -427,7 +434,8 @@ func _import_local(job: AvatarCustomJob) -> Dictionary:
 		_custom_busy = false
 		record_event("custom", "import failed", job.error)
 		return {"error": job.error}
-	var existing := AvatarCatalog.has_avatar(job.id)
+	var previous_definition := AvatarCatalog.definition(job.id)
+	var existing := AvatarCatalog.is_owned(job.id)
 	var custom_entries := AvatarCatalog.search("", "Custom")
 	var stored_bytes := 0
 	for item in custom_entries:
@@ -453,6 +461,8 @@ func _import_local(job: AvatarCustomJob) -> Dictionary:
 		reason = "Could not save the custom avatar library"
 	if not reason.is_empty() and not existing:
 		AvatarCatalog.unregister_local(job.id)
+		if previous_definition.get("remote_custom", false):
+			AvatarCatalog.register_remote(previous_definition)
 		_cache.erase(job.id)
 		_lru.erase(job.id)
 		DirAccess.remove_absolute(AvatarLocalLibrary.path_for(job.id))
@@ -478,7 +488,7 @@ func record_event(id: String, stage: String, detail := "", duration_ms := -1.0) 
 
 
 func debug_report() -> String:
-	var lines: Array[String] = ["Avatar diagnostics", "Platform: %s | renderer: %s | worker threads: %s" % [OS.get_name(), RenderingServer.get_current_rendering_method(), not OS.has_feature("web") or OS.has_feature("threads")], "Frame: %.1f ms | peak: %.1f ms | FPS: %.0f" % [_last_frame_ms, _peak_frame_ms, Engine.get_frames_per_second()], "Custom avatars: local only. No P2P transfer is implemented; peers see Explorer.", "Selected: %s | network: %s" % [PlayerProfile.avatar_id, AvatarCatalog.replication_id(PlayerProfile.avatar_id)], "Cache: %d scenes | requests: %d | custom import: %s" % [_cache.size(), _loads.size(), _custom_busy], "", "Active loads:"]
+	var lines: Array[String] = ["Avatar diagnostics", "Platform: %s | renderer: %s | worker threads: %s" % [OS.get_name(), RenderingServer.get_current_rendering_method(), not OS.has_feature("web") or OS.has_feature("threads")], "Frame: %.1f ms | peak: %.1f ms | FPS: %.0f" % [_last_frame_ms, _peak_frame_ms, Engine.get_frames_per_second()], "Custom avatars: SHA-256 verified P2P transfer on reliable channel 2.", "Selected: %s | network: %s" % [PlayerProfile.avatar_id, AvatarCatalog.replication_id(PlayerProfile.avatar_id)], "Cache: %d scenes | requests: %d | custom import: %s" % [_cache.size(), _loads.size(), _custom_busy], "", "Active loads:"]
 	for id in _loads:
 		var stage: Dictionary = _stages.get(id, {})
 		lines.append("%s: %s | %.1fs | %s" % [id, stage.get("stage", "queued"), (Time.get_ticks_msec() - int(stage.get("at", Time.get_ticks_msec()))) / 1000.0, download_progress(id)])
@@ -548,3 +558,96 @@ func reset_diagnostics() -> void:
 	_events.clear()
 	_phase_ms.clear()
 	_peak_frame_ms = 0.0
+
+
+func remote_available(id: String) -> bool:
+	var definition := AvatarCatalog.definition(id)
+	return not definition.is_empty() and (_cache.has(id) or FileAccess.file_exists(str(definition.get("local_path", ""))))
+
+
+func import_remote_chunks(id: String, chunks: Array[PackedByteArray], size: int, title: String) -> Dictionary:
+	if not AvatarLocalLibrary.valid_id(id):
+		return {"error": "Invalid remote avatar hash"}
+	if _remote_operations.has(id):
+		var pending: AvatarLoadRequest = _remote_operations[id]
+		if not pending.finished:
+			await pending.completed
+		return {"id": id, "error": pending.error}
+	var operation := AvatarLoadRequest.new()
+	_remote_operations[id] = operation
+	var job := AvatarCustomJob.new()
+	job.filename = "Remote avatar.vrm"
+	job.expected_hash = id
+	job.expected_size = size
+	job.chunks.assign(chunks)
+	job.storage_directory = REMOTE_CACHE_DIR
+	var result: Dictionary = await _import_received(job, title.strip_edges().left(80))
+	operation.finish(null, str(result.get("error", "")))
+	_remote_operations.erase(id)
+	return result
+
+
+func _remote_job(job: AvatarCustomJob, operation: Callable) -> void:
+	_remote_jobs.append(job)
+	if OS.has_feature("web") and not OS.has_feature("threads"):
+		operation.call()
+	else:
+		job.task_id = WorkerThreadPool.add_task(operation, false, "Validate P2P avatar")
+		while not WorkerThreadPool.is_task_completed(job.task_id):
+			await get_tree().process_frame
+		WorkerThreadPool.wait_for_task_completion(job.task_id)
+		job.task_id = -1
+	_remote_jobs.erase(job)
+
+
+func _import_received(job: AvatarCustomJob, title: String) -> Dictionary:
+	record_event(job.expected_hash, "P2P verifying", "Worker assembly, VRM limits and SHA-256")
+	await _remote_job(job, job.run)
+	if not job.error.is_empty():
+		return {"error": job.error}
+	if not AvatarCatalog.is_owned(job.id):
+		await _remote_job(job, job.store)
+		if not job.error.is_empty():
+			return {"error": job.error}
+		AvatarCatalog.register_remote({"id": job.id, "title": title if not title.is_empty() else "Remote avatar", "remote_custom": true, "local_path": REMOTE_CACHE_DIR + "/" + job.id + ".vrm", "sha256": job.id, "size_bytes": job.bytes.size(), "url": ""})
+	var request := acquire(job.id)
+	if not request.finished:
+		await request.completed
+	var reason := request.error
+	if reason.is_empty() and request.scene == null:
+		reason = "Received avatar could not be imported"
+	request.release()
+	_prune_remote_cache()
+	return {"id": job.id, "error": reason}
+
+
+func _prune_remote_cache() -> void:
+	if not DirAccess.dir_exists_absolute(REMOTE_CACHE_DIR):
+		return
+	var files: Array[Dictionary] = []
+	var total := 0
+	for name in DirAccess.get_files_at(REMOTE_CACHE_DIR):
+		if not name.ends_with(".vrm"):
+			continue
+		var path := REMOTE_CACHE_DIR + "/" + name
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file != null:
+			var size := file.get_length()
+			total += size
+			files.append({"path": path, "id": name.get_basename(), "size": size, "time": FileAccess.get_modified_time(path)})
+	files.sort_custom(func(a: Dictionary, b: Dictionary): return a.time < b.time)
+	for file in files:
+		if total <= MAX_REMOTE_DISK_BYTES:
+			break
+		if _loads.has(file.id) or _remote_operations.has(file.id):
+			continue
+		DirAccess.remove_absolute(file.path)
+		total -= int(file.size)
+
+
+func receive_remote_chunks(id: String, chunks: Array[PackedByteArray], size: int, title: String, on_complete: Callable) -> void:
+	# The persistent service owns the await. Disconnected/freed peer endpoints
+	# leave an invalid callable rather than a coroutine on a freed Node.
+	var result: Dictionary = await import_remote_chunks(id, chunks, size, title)
+	if on_complete.is_valid():
+		on_complete.call(result)

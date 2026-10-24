@@ -25,6 +25,9 @@ var _import_status: Label
 var _file_dialog: FileDialog
 var _web_import_callback: JavaScriptObject
 var _import_busy := false
+var _upload_message := "Upload avatar"
+var _upload_error := false
+var _picker_wait_at := -1
 
 var _pending_id := DEFAULT_ID
 var _applied_id := DEFAULT_ID
@@ -70,24 +73,6 @@ func _ready() -> void:
 			%CollectionFilter.add_item(collection)
 	%CollectionFilter.item_selected.connect(func(_index: int): _filter_changed())
 	_build_collection_navigation()
-	var import_button := Button.new()
-	_import_button = import_button
-	import_button.name = "ImportAvatar"
-	import_button.text = "Import avatar"
-	import_button.custom_minimum_size = Vector2(0, 42)
-	import_button.pressed.connect(_open_import_avatar)
-	var sidebar := %CloseAvatarSettings.get_parent()
-	sidebar.add_child(import_button)
-	import_button.owner = self
-	import_button.unique_name_in_owner = true
-	_import_status = Label.new()
-	_import_status.name = "ImportStatus"
-	_import_status.hide()
-	_import_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_import_status.add_theme_font_size_override("font_size", 13)
-	sidebar.add_child(_import_status)
-	sidebar.move_child(_import_status, %CloseAvatarSettings.get_index())
-	sidebar.move_child(import_button, %CloseAvatarSettings.get_index())
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
 	%BrowseCustom.pressed.connect(_browse_custom)
@@ -149,6 +134,10 @@ func focus_entry() -> void:
 
 
 func _process(delta: float) -> void:
+	if _picker_wait_at >= 0 and Time.get_ticks_msec() - _picker_wait_at > 10000:
+		_picker_wait_at = -1
+		_set_import_status("Picker has not returned. Try outside VR.", true)
+		AvatarService.record_event("custom", "file picker waiting", "No file/cancel callback after 10s; retry outside immersive mode")
 	if visible:
 		_layout_browser()
 	if not visible:
@@ -200,9 +189,13 @@ func _refresh_list() -> void:
 		child.free()
 	_buttons.clear()
 	_loaded_count = 0
-	%EmptyResults.visible = _filtered.is_empty()
+	_import_button = null
+	_import_status = null
+	if _custom_only:
+		_add_upload_tile()
+	%EmptyResults.visible = _filtered.is_empty() and not _custom_only
 	%EmptyResults.text = "Your favorites will appear here.\nChoose a look and select the star to save it." if _favorites_only else "No matching avatars.\nTry another collection or clear your search."
-	%GalleryTrack.visible = not _filtered.is_empty()
+	%GalleryTrack.visible = _custom_only or not _filtered.is_empty()
 	_append_batch()
 
 
@@ -277,7 +270,7 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 	var license := str(entry.get("license", ""))
-	%Attribution.text = "Only visible to you" if AvatarCatalog.is_custom(id) else license
+	%Attribution.text = "P2P avatar" if AvatarCatalog.is_owned(id) else license
 	%Attribution.tooltip_text = str(entry.get("attribution", license))
 	if with_preview:
 		_show_preview(id)
@@ -708,6 +701,8 @@ func _layout_browser() -> void:
 	%SelectedTitle.get_parent().custom_minimum_size.y = header_height
 	var available := _scroll.size.x
 	_list.columns = clampi(int((available + 12.0) / 150.0), 2, 4)
+	if is_instance_valid(_import_button):
+		_import_button.custom_minimum_size.x = maxf(138, floorf((available - 12.0 * (_list.columns - 1)) / _list.columns))
 
 
 func _style_scrollbar(scroll: ScrollContainer) -> void:
@@ -849,11 +844,11 @@ func _update_download_progress() -> void:
 
 
 func _open_import_avatar() -> void:
-	if not _import_home or _import_immersive:
-		_set_import_status("Import from the home page before entering VR.")
+	if _import_busy or _picker_wait_at >= 0:
 		return
-	if _import_busy:
-		return
+	_picker_wait_at = Time.get_ticks_msec()
+	_set_import_status("Choose a VRM file...")
+	AvatarService.record_event("custom", "file picker opened", "in room: %s | immersive: %s" % [not _import_home, _import_immersive])
 	if OS.has_feature("web"):
 		_open_web_import_avatar()
 		return
@@ -864,17 +859,21 @@ func _open_import_avatar() -> void:
 		_file_dialog.use_native_dialog = true
 		_file_dialog.filters = PackedStringArray(["*.vrm,*.glb ; VRM avatars"])
 		_file_dialog.file_selected.connect(_on_import_avatar_file_selected)
+		_file_dialog.canceled.connect(_picker_canceled)
 		add_child(_file_dialog)
 	_file_dialog.popup_centered_ratio(0.75)
 
 
 func _begin_import() -> void:
 	_import_busy = true
-	_import_button.disabled = true
+	if is_instance_valid(_import_button):
+		_import_button.disabled = true
 	_set_import_status("Importing...")
 
 
 func _on_import_avatar_file_selected(path: String) -> void:
+	_picker_wait_at = -1
+	AvatarService.record_event("custom", "file chosen", path.get_file())
 	if _import_busy:
 		return
 	_begin_import()
@@ -892,7 +891,8 @@ func _finish_import_avatar(bytes: PackedByteArray, file_name: String) -> void:
 
 func _import_finished(result: Dictionary) -> void:
 	_import_busy = false
-	_import_button.disabled = false
+	if is_instance_valid(_import_button):
+		_import_button.disabled = false
 	var id := str(result.get("id", ""))
 	var error := str(result.get("error", ""))
 	if not error.is_empty() or id.is_empty():
@@ -924,10 +924,10 @@ func _open_web_import_avatar() -> void:
 			input.remove();
 			if (window.__godotAvatarImport) window.__godotAvatarImport(...args);
 		};
-		input.oncancel = () => input.remove();
+		input.oncancel = () => finish(null, "", "canceled");
 		input.onchange = () => {
 			const file = input.files[0];
-			if (!file) { input.remove(); return; }
+			if (!file) { finish(null, '', 'canceled'); return; }
 			if (file.size > 32 * 1024 * 1024) { finish(null, file.name, 'Avatar exceeds 32 MiB'); return; }
 			const reader = new FileReader();
 			reader.onerror = () => finish(null, file.name, 'Could not read avatar');
@@ -944,6 +944,10 @@ func _open_web_import_avatar() -> void:
 func _on_web_import_avatar_files(args: Array) -> void:
 	if args.size() < 3:
 		return
+	_picker_wait_at = -1
+	if str(args[2]) == "canceled":
+		_picker_canceled()
+		return
 	if not str(args[2]).is_empty():
 		_set_import_status(str(args[2]), true)
 		return
@@ -954,9 +958,20 @@ func _on_web_import_avatar_files(args: Array) -> void:
 
 
 func _set_import_status(message: String, is_error := false) -> void:
-	_import_status.visible = not message.is_empty()
-	_import_status.text = message
-	_import_status.add_theme_color_override("font_color", ERROR_COLOR if is_error else STATUS_COLOR)
+	_upload_message = message if not message.is_empty() else "Upload avatar"
+	_upload_error = is_error
+	if is_instance_valid(_import_status):
+		_import_status.text = _upload_message
+		_import_status.add_theme_color_override("font_color", ERROR_COLOR if is_error else STATUS_COLOR)
+		_import_button.tooltip_text = _upload_message
+	if is_error:
+		AvatarService.record_event("custom", "upload UI error", message)
+
+
+func _picker_canceled() -> void:
+	_picker_wait_at = -1
+	_set_import_status("")
+	AvatarService.record_event("custom", "file picker canceled")
 
 
 func _browse_custom() -> void:
@@ -975,8 +990,62 @@ func set_import_context(home: bool, immersive: bool) -> void:
 
 
 func _update_import_access() -> void:
-	_import_button.visible = _custom_only and _import_home and not _import_immersive
-	if _custom_only and (not _import_home or _import_immersive):
-		_set_import_status("Import from the home page before entering VR.")
-	elif not _import_busy:
-		_set_import_status("Custom avatars stay on this device." if _custom_only else "")
+	# Upload is intentionally enabled in rooms and immersive sessions while
+	# testing device/browser picker behavior. No forced XR session exit.
+	if is_instance_valid(_import_button):
+		_import_button.disabled = _import_busy
+
+
+func _add_upload_tile() -> void:
+	_import_button = Button.new()
+	_import_button.name = "ImportAvatar"
+	_import_button.custom_minimum_size = Vector2(138, 178)
+	_import_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_import_button.disabled = _import_busy
+	_import_button.pressed.connect(_open_import_avatar)
+	_list.add_child(_import_button)
+	_import_button.owner = self
+	_import_button.unique_name_in_owner = true
+	_decorate_button(_import_button)
+	var content := VBoxContainer.new()
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 16
+	content.offset_right = -16
+	content.offset_top = 12
+	content.offset_bottom = -12
+	_import_button.add_child(content)
+	var plus := Label.new()
+	plus.name = "Plus"
+	plus.text = "+"
+	plus.add_theme_font_size_override("font_size", 64)
+	plus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	plus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	plus.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	plus.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(plus)
+	_import_status = Label.new()
+	_import_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_import_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_import_status.max_lines_visible = 3
+	_import_status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_import_status.add_theme_font_size_override("font_size", 15)
+	_import_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(_import_status)
+	_set_import_status(_upload_message, _upload_error)
+	var upload_button := _import_button
+	var caption := _import_status
+	var update_colors := func():
+		if not is_instance_valid(upload_button) or not is_instance_valid(plus) or not is_instance_valid(caption):
+			return
+		var active := upload_button.is_hovered() or upload_button.has_focus()
+		var color := upload_button.get_theme_color("font_hover_color" if active else "font_color")
+		plus.add_theme_color_override("font_color", color)
+		caption.add_theme_color_override("font_color", ERROR_COLOR if _upload_error else color)
+	_import_button.mouse_entered.connect(update_colors)
+	_import_button.mouse_exited.connect(update_colors)
+	_import_button.focus_entered.connect(update_colors)
+	_import_button.focus_exited.connect(update_colors)
+	var owner_ui := get_parent()
+	if owner_ui != null and owner_ui.has_method("_configure_buttons"):
+		owner_ui.call("_configure_buttons", _import_button)
