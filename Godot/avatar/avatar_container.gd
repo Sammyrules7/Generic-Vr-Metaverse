@@ -46,14 +46,18 @@ func set_avatar(id: String) -> void:
 	_request = request
 	if not request.finished:
 		await request.completed
+	# Preview presentation can use the completion frame; player setup follows.
+	await get_tree().process_frame
 	if generation != _generation or not is_inside_tree() or request.released:
 		return
 	if request.scene == null:
 		var reason := request.error
 		request.release()
 		_request = null
+		AvatarService.record_event(id, "player load failed", reason)
 		avatar_failed.emit(id, reason)
 		return
+	var started := Time.get_ticks_usec()
 	var replacement := request.scene.instantiate() as Node3D
 	request.release()
 	_request = null
@@ -71,6 +75,7 @@ func set_avatar(id: String) -> void:
 	_springs = load("res://avatar/avatar_springs.gd").install(model)
 	_set_springs_enabled(PlayerProfile.spring_bones_enabled)
 	_update_fallback()
+	AvatarService.record_event(id, "player equipped", "peer %d" % get_parent().get_multiplayer_authority(), (Time.get_ticks_usec() - started) / 1000.0)
 	avatar_loaded.emit(id)
 
 

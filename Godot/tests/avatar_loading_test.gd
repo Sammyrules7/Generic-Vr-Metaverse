@@ -60,6 +60,19 @@ func run() -> void:
 		var first := survivor.scene.instantiate() as Node3D
 		check(int(first.get_meta("avatar_decoded_textures", 0)) > 0, "GLTF import must reuse worker-decoded textures")
 		var second := survivor.scene.instantiate() as Node3D
+		var reference_scene: PackedScene = service.import_bytes(FileAccess.get_file_as_bytes("res://avatar/godette.vrm"))
+		var reference := reference_scene.instantiate() as Node3D
+		for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
+			var expected := reference.get_node(first.get_path_to(mesh)) as MeshInstance3D
+			for surface in mesh.mesh.get_surface_count():
+				check(mesh.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX] == expected.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX], "Worker normalization changed base geometry")
+				var actual_shapes := mesh.mesh.surface_get_blend_shape_arrays(surface)
+				var expected_shapes := expected.mesh.surface_get_blend_shape_arrays(surface)
+				check(actual_shapes.size() == expected_shapes.size(), "Worker normalization lost blend shapes")
+				for shape in actual_shapes.size():
+					check(actual_shapes[shape][Mesh.ARRAY_VERTEX] == expected_shapes[shape][Mesh.ARRAY_VERTEX], "Worker normalization changed blend shape geometry")
+		reference.free()
+		check(service.debug_report().contains("normalize rig"), "Import diagnostics must retain stage timings")
 		var skeleton := first.find_child("GeneralSkeleton", true, false) as Skeleton3D
 		var other := second.find_child("GeneralSkeleton", true, false) as Skeleton3D
 		check(skeleton != null and other != null, "VRM humanoid mapping missing")

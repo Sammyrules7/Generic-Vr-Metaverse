@@ -73,6 +73,7 @@ func bind_rig(new_origin: XROrigin3D, new_camera: XRCamera3D) -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	_clear_hand_overlays()
 	# The viewport base disables processing for several update modes; the
 	# subclass must reassert it every frame to keep head following alive.
 	set_process(true)
@@ -193,6 +194,8 @@ func _update_hand_touch(side: String, contact: HandContact) -> void:
 	contact.pointer.set_meta("ui_poke_depth", point.z)
 	var at := to_global(Vector3(point.x, point.y, 0))
 	var in_bounds := contains_ui_point(at)
+	if in_bounds and point.z >= -0.08 and point.z < 0.18:
+		origin.set_meta("ui_hand_overlay_" + side, 1.0 - smoothstep(0.025, 0.16, maxf(0.0, point.z)))
 	var target := _surface_body
 	if not contact.touching:
 		if in_bounds:
@@ -237,6 +240,7 @@ func contains_ui_point(world_point: Vector3) -> bool:
 
 
 func release_touch(cancelled := true) -> void:
+	_clear_hand_overlays()
 	for contact in hand_contacts.values():
 		_release_hand(contact, cancelled)
 
@@ -256,3 +260,13 @@ func _release_hand(contact: HandContact, cancelled := true) -> void:
 		contact.hovering = false
 	contact.previous_depth = INF
 	contact.approach.reset()
+
+
+func _clear_hand_overlays() -> void:
+	if is_instance_valid(origin):
+		origin.set_meta("ui_hand_overlay_left", 0.0)
+		origin.set_meta("ui_hand_overlay_right", 0.0)
+
+
+func _exit_tree() -> void:
+	_clear_hand_overlays()

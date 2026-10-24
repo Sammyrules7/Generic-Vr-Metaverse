@@ -156,6 +156,14 @@ func run() -> void:
 		origin.set_meta("avatar_hands_active", true)
 		driver._process(0.016)
 		check(not driver.visible and not driver.modifier.active, "Separate hand models must hide while avatar hands are active")
+		origin.set_meta("ui_hand_overlay_" + side, 1.0)
+		driver._process(0.04)
+		check(driver.visible and driver.modifier.active and driver._overlay_alpha > 0 and driver._overlay_alpha < 1, "UI hands must fade in with native joint tracking")
+		for surface in driver._surfaces:
+			check((surface.fade as BaseMaterial3D).transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and (surface.fade as BaseMaterial3D).albedo_color.a < 1.0, "Hand fade must use mobile-compatible material alpha")
+		origin.set_meta("ui_hand_overlay_" + side, 0.0)
+		driver._process(0.2)
+		check(not driver.visible and not driver.modifier.active, "Leaving UI must fade separate hands away")
 		origin.set_meta("avatar_hands_active", false)
 		driver._process(0.016)
 		await process_frame

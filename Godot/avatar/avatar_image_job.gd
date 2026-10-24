@@ -4,8 +4,10 @@ extends RefCounted
 var bytes := PackedByteArray()
 var images := {}
 var task_id := -1
+var elapsed_ms := 0.0
 
 func run() -> void:
+	var started := Time.get_ticks_usec()
 	if bytes.size() < 20:
 		return
 	var json_length := bytes.decode_u32(12)
@@ -48,3 +50,4 @@ func run() -> void:
 		if result != OK:
 			continue
 		images[encoded] = image
+	elapsed_ms = (Time.get_ticks_usec() - started) / 1000.0

@@ -5,6 +5,8 @@
 [ext_resource type="Texture2D" path="res://UI/icons/menu.svg" id="3_menu_icon"]
 [ext_resource type="PackedScene" path="res://UI/avatar_picker.tscn" id="4_avatar_settings"]
 
+[ext_resource type="Script" path="res://UI/avatar_debug.gd" id="99_debug"]
+
 [node name="roomSelector" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -464,3 +466,19 @@ show_percentage = false
 unique_name_in_owner = true
 layout_mode = 2
 text = "Leave room"
+
+[node name="DebugSettings" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+script = ExtResource("99_debug")
+
+[node name="OpenDebug" type="Button" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Debug"
+
+[node name="OpenSessionDebug" type="Button" parent="Session/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Debug"

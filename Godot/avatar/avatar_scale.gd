@@ -3,7 +3,7 @@ extends RefCounted
 ## Bake standing eye height into geometry/rest data, keeping native solvers unscaled.
 
 
-static func normalize(model: Node3D, eye_height := 1.7) -> void:
+static func normalize(model: Node3D, eye_height := 1.7, prepared_meshes: Dictionary = {}) -> void:
 	var skeleton := model.find_child("GeneralSkeleton", true, false) as Skeleton3D
 	if skeleton == null:
 		return
@@ -14,7 +14,7 @@ static func normalize(model: Node3D, eye_height := 1.7) -> void:
 	if eye.y < 0.3 or eye.y > 3.0:
 		return
 	var factor := clampf(eye_height / eye.y, 0.5, 3.0)
-	var meshes := {}
+	var meshes := prepared_meshes
 	var skins := {}
 	var springs := {}
 	var colliders := {}
@@ -90,3 +90,11 @@ static func _scale_vertices(vertices: PackedVector3Array, factor: float) -> Pack
 	# This packed-array transform runs in native code rather than a GDScript
 	# iteration for every base/blend-shape vertex in the avatar.
 	return Transform3D(Basis.from_scale(Vector3.ONE * factor), Vector3.ZERO) * vertices
+
+
+static func mesh_factor(model: Node3D, eye_height := 1.7) -> float:
+	var skeleton := model.find_child("GeneralSkeleton", true, false) as Skeleton3D
+	if skeleton == null or skeleton.find_bone("Head") < 0:
+		return 1.0
+	var eye := (skeleton.transform * skeleton.get_bone_global_rest(skeleton.find_bone("Head"))) * AvatarEyes.offset(model, skeleton)
+	return clampf(eye_height / eye.y, 0.5, 3.0) if eye.y >= 0.3 and eye.y <= 3.0 else 1.0

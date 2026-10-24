@@ -49,6 +49,14 @@ custom_minimum_size = Vector2(0, 42)
 toggle_mode = true
 alignment = 0
 
+[node name="BrowseCustom" type="Button" parent="Content/Body/Sidebar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Custom"
+custom_minimum_size = Vector2(0, 42)
+toggle_mode = true
+alignment = 0
+
 [node name="CollectionsLabel" type="Label" parent="Content/Body/Sidebar"]
 layout_mode = 2
 text = "COLLECTIONS"

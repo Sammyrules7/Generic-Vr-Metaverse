@@ -131,6 +131,7 @@ func run() -> void:
 	panel._process(0.0)
 	check(panel.touching and events.has(XRToolsPointerEvent.Type.PRESSED), "Finger crossing the panel did not press the UI")
 	check(panel.hand_contacts.right.pointer.get_meta("ui_poke_intent") == "press", "Straight pre-contact motion must latch press intent")
+	check(float(origin.get_meta("ui_hand_overlay_right", 0)) > 0.9, "Direct contact must reveal the accurate right-hand overlay")
 	var frozen: Transform3D = panel.global_transform
 	head.rotation.y += deg_to_rad(40)
 	set_tip(right, origin, panel.to_global(Vector3(0.02, 0, 0.005)))
@@ -139,6 +140,7 @@ func run() -> void:
 	check(events.back() == XRToolsPointerEvent.Type.MOVED, "Finger drag did not use the UI pointer path")
 	right.has_tracking_data = false
 	panel._process(0.016)
+	check(float(origin.get_meta("ui_hand_overlay_right", 0)) == 0, "Tracking loss must clear UI hand overlays")
 	check(not panel.touching and events.has(XRToolsPointerEvent.Type.RELEASED), "Tracking loss did not release finger contact")
 	panel._process(0.1)
 	check(not panel.global_transform.is_equal_approx(frozen), "Head following did not resume after contact ended")

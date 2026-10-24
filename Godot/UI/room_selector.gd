@@ -9,6 +9,7 @@ var vr_mode := false:
 	set(value):
 		vr_mode = value
 		if is_node_ready():
+			%AvatarSettings.set_import_context(room_networking == null or room_networking.current_room == null, vr_mode)
 			_update_mode_badge()
 			_configure_buttons(self)
 var webxr_supported := false
@@ -28,7 +29,7 @@ func _ready() -> void:
 	_apply_theme()
 	get_viewport().size_changed.connect(_fit_ui)
 	$VBoxContainer.minimum_size_changed.connect(_queue_fit_ui)
-	for card: Control in [$Session, $QuickSession, %VoiceSettings, %AvatarSettings, %WorldLoading]:
+	for card: Control in [$Session, $QuickSession, %VoiceSettings, %AvatarSettings, %DebugSettings, %WorldLoading]:
 		card.minimum_size_changed.connect(_queue_fit_ui)
 	_fit_ui()
 	PlayerProfile.restore()
@@ -60,6 +61,9 @@ func _ready() -> void:
 	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
 	# One shared avatar card lives in this scene (like VoiceSettings) and serves
 	# both the lobby and the in-room menu.
+	%OpenDebug.pressed.connect(_set_debug_open.bind(true))
+	%OpenSessionDebug.pressed.connect(_set_debug_open.bind(true))
+	%DebugSettings.closed.connect(_set_debug_open.bind(false))
 	%AvatarSettings.closed.connect(_set_avatar_open.bind(false))
 	%OpenAvatarPicker.pressed.connect(_set_avatar_open.bind(true))
 	%OpenSessionAvatarPicker.pressed.connect(_set_avatar_open.bind(true))
@@ -190,7 +194,7 @@ func _fit_ui() -> void:
 	var quick := $QuickSession as Control
 	quick.size = quick.get_combined_minimum_size().max(Vector2(540, 120))
 	quick.position = (available - quick.size) * 0.5
-	for card: Control in [$Session, %VoiceSettings, %AvatarSettings, %WorldLoading]:
+	for card: Control in [$Session, %VoiceSettings, %AvatarSettings, %DebugSettings, %WorldLoading]:
 		var card_size := card.get_combined_minimum_size().max(Vector2(520, 700 if card in [%VoiceSettings, %AvatarSettings] else 320))
 		card.scale = Vector2.ONE * minf(1.0, minf(available.x / (card_size.x + 32), available.y / (card_size.y + 32)))
 		card.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -244,7 +248,7 @@ func _update_mode_badge() -> void:
 func xr_point_is_visible(point: Vector2) -> bool:
 	if world_loading:
 		return %WorldLoading.get_global_rect().has_point(point)
-	for card: Control in [$Session, $QuickSession, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse, %AvatarSettings]:
+	for card: Control in [$Session, $QuickSession, %VoiceSettings, $VBoxContainer/Layout/Columns/Setup, $VBoxContainer/Layout/Columns/Browse, %AvatarSettings, %DebugSettings]:
 		if card.is_visible_in_tree() and card.get_global_rect().has_point(point):
 			return true
 	return false
@@ -455,6 +459,7 @@ func set_menu_open(open: bool) -> void:
 		$QuickSession.hide()
 		$MenuHint.hide()
 	%VoiceSettings.hide()
+	%DebugSettings.hide()
 	%AvatarSettings.set_open(false)
 	_fit_ui()
 	_queue_fit_ui()
@@ -494,12 +499,14 @@ func _open_voice_settings() -> void:
 
 
 func _set_avatar_open(open: bool) -> void:
+	%DebugSettings.hide()
 	if world_loading:
 		%AvatarSettings.set_open(false)
 		return
 	var in_room := room_networking != null and room_networking.current_room != null
 	# The two submenus are mutually exclusive; each keeps its own focus rules.
 	_set_voice_settings_open(false)
+	%AvatarSettings.set_import_context(not in_room, vr_mode)
 	%AvatarSettings.set_open(open)
 	$VBoxContainer.visible = not in_room and not open
 	$Session.visible = in_room and menu_open and not open
@@ -513,6 +520,7 @@ func _set_avatar_open(open: bool) -> void:
 
 
 func _set_voice_settings_open(open: bool) -> void:
+	%DebugSettings.hide()
 	if world_loading:
 		%VoiceSettings.hide()
 		return
@@ -534,7 +542,10 @@ func _input(event: InputEvent) -> void:
 		# Some browsers deliver Escape after reporting the pointer-lock loss.
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("exit") and %AvatarSettings.visible:
+	if event.is_action_pressed("exit") and %DebugSettings.visible:
+		_set_debug_open(false)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("exit") and %AvatarSettings.visible:
 		%AvatarSettings.close()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("exit") and %VoiceSettings.visible:
@@ -712,3 +723,21 @@ func xr_button_at(point: Vector2, node: Node = null) -> BaseButton:
 		if found != null:
 			return found
 	return null
+
+
+func _set_debug_open(open: bool) -> void:
+	if world_loading:
+		return
+	var in_room := room_networking != null and room_networking.current_room != null
+	%AvatarSettings.set_open(false)
+	%VoiceSettings.hide()
+	%DebugSettings.visible = open
+	$VBoxContainer.visible = not in_room and not open
+	$Session.visible = in_room and menu_open and not open
+	_fit_ui()
+	if open:
+		%DebugSettings.focus_entry()
+	elif in_room:
+		%OpenSessionDebug.grab_focus()
+	else:
+		%OpenDebug.grab_focus()

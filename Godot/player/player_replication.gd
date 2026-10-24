@@ -88,6 +88,7 @@ func announce_avatar(id: String) -> void:
 
 func _receive_avatar(peer_id: int, id: String) -> void:
 	var valid_id := AvatarCatalog.replication_id(id)
+	AvatarService.record_event(id, "remote announcement", "Peer %d: %s" % [peer_id, "No P2P custom transfer; using Explorer" if id != valid_id and id.length() == 64 else "Unknown ID; using Explorer" if id != valid_id else "accepted"])
 	_avatar_by_peer[peer_id] = valid_id
 	avatar_received.emit(peer_id, valid_id)
 

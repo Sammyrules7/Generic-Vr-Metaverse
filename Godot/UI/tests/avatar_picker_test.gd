@@ -405,10 +405,19 @@ func _run() -> void:
 	var local_existed := AvatarCatalog.has_avatar(local_id)
 	var previously_worn := PlayerProfile.avatar_id
 	check(card.get_node("%ImportAvatar") != null, "Custom import entry point missing")
+	card._browse_custom()
+	check(card.get_node("%ImportAvatar").visible, "Import must be available on desktop home Custom tab")
+	for index in card.get_node("%CollectionFilter").item_count:
+		check(card.get_node("%CollectionFilter").get_item_text(index) != "Custom", "Custom must not appear among public collections")
+	card.set_import_context(true, true)
+	check(not card.get_node("%ImportAvatar").visible and card._import_status.text.contains("before entering VR"), "Immersive mode must explain the file picker restriction")
+	card.set_import_context(false, false)
+	check(not card.get_node("%ImportAvatar").visible, "Import must not be offered in a room")
+	card.set_import_context(true, false)
 	card._finish_import_avatar(local_bytes, "Local Godette.vrm")
 	check(await _wait_until(func(): return not card._import_busy), "Local import did not finish")
 	check(card._pending_id == local_id and PlayerProfile.avatar_id == previously_worn, "Import must select its preview without auto-wearing")
-	check(card.get_node("%CollectionFilter").get_item_text(card.get_node("%CollectionFilter").selected) == "Custom", "Import did not open the Custom collection")
+	check(card.get_node("%BrowseCustom").button_pressed, "Import did not open the Custom collection")
 	check(await _wait_until(func(): return card._preview_ready), "Imported avatar did not preview")
 	check(card.get_node("%Attribution").text == "Only visible to you", "Local-only scope must be visible")
 	card._finish_import_avatar(local_bytes, "Invalid.gd")
@@ -424,6 +433,15 @@ func _run() -> void:
 		DirAccess.remove_absolute(AvatarLocalLibrary.MANIFEST)
 	card._set_import_status("")
 	card._browse_all()
+
+	ui.get_node("%OpenDebug").pressed.emit()
+	check(ui.get_node("%DebugSettings").visible and not card.visible, "Debug must replace other submenus")
+	var report: String = ui.get_node("%DebugSettings").report()
+	check(report.contains("\n") and not report.contains("\\n"), "Debug report must contain readable line breaks")
+	check(report.contains("No P2P transfer") and report.contains("GLTF parse") and report.contains("worker threads"), "Debug report lacks transfer status, import timings or capabilities")
+	ui._input(_key(KEY_ESCAPE))
+	check(not ui.get_node("%DebugSettings").visible and ui.get_node("VBoxContainer").visible, "Escape must return from Debug to home")
+	ui.get_node("%OpenAvatarPicker").pressed.emit()
 
 	# Springs remain a viewing preference without a redundant menu toggle.
 	AvatarService.set_springs_enabled(true)

@@ -161,7 +161,9 @@ The separate scrollbar remains directly draggable.
 
 VR applies a 10 cm torso setback while counter-shifting the head to keep its eye
 position tracked. This puts the camera in front of the chest when looking down
-without moving wrist goals. UI hand overlays are not enabled by default.
+without moving wrist goals. Accurate optical hand overlays fade in near visible UI and fade out on withdrawal;
+they use native joint poses and per-hand alpha materials supported by the mobile
+and Compatibility renderers. The full avatar remains visible in mirrors.
 Touch tuning follows Meta's surface-normal poke and contact-feedback guidance:
 https://developers.meta.com/vr/design/touch_specs/
 https://developers.meta.com/vr/documentation/unity/unity-isdk-poke-interaction/
@@ -169,12 +171,15 @@ https://developers.meta.com/vr/documentation/unity/unity-isdk-poke-interaction/
 
 ## Local Custom library
 
-Import avatar opens a native file chooser or the browser's file chooser. Custom
+Import avatar is available in the home Custom tab before entering VR; it opens
+a native file chooser or the browser's file chooser. Import is hidden in rooms
+and immersive mode, with guidance to import before VR. Existing imports remain
+wearable in rooms. Custom
 VRM 0.x/1.0 files (.vrm or VRM-bearing .glb) are copied into
 `user://avatars/custom/<sha256>.vrm`; the small library manifest saves only hash,
 title and byte size. Source files stay outside the project. Imports select their
-preview without automatically equipping; use Wear avatar to apply. The Custom
-collection is always available. Local-only scope appears beneath the preview.
+preview without automatically equipping; use Wear avatar to apply. The top-level Custom tab sits with All avatars and Favorites, separately from
+public collections. Local-only scope appears beneath the preview.
 Peers receive Explorer when a custom avatar is equipped, including late joins;
 custom hashes received from another peer never resolve to private local files.
 There is no P2P file transfer or cloning in this step.
@@ -196,3 +201,29 @@ imports. Browser persistence uses Godot's user storage and is subject to browser
 storage quotas/eviction. Native and browser device acceptance remains necessary.
 Run `res://tests/avatar_custom_test.gd` and the picker suite to cover local
 import, duplicate detection, persistence, filtering and private replication.
+
+
+## Import profiling and UI hand overlays
+
+The full home and session menus link to Debug. It shows threading/renderer/XR
+capabilities, active downloads, selected/network avatar IDs, received peer IDs,
+cache state, failures, a bounded 64-event history, stage CPU timings and peak
+frame duration. Copy report exports the text; Reset clears timing history.
+Custom transfer is explicitly reported as unavailable rather than implying an
+in-flight download. No avatar bytes are transmitted by this version.
+
+Runtime normalization now transforms detached vertex and blend-shape arrays in
+WorkerThreadPool. Mesh reads and GPU-facing surface creation remain on main, at
+one surface per frame; already normalized meshes bypass rebuilding. Rig/rest
+updates remain on main. GLTF parsing, scene generation and first-use GPU/shader
+work can still hitch; the debug timings identify remaining expensive stages.
+Synchronous import_bytes remains a test/tool path. Geometry regression tests
+compare worker-normalized base and blend-shape arrays with that reference.
+
+The native tracked hand uses the same joint poses as UI poke detection. When an
+avatar's hands are active, the separate native mesh fades in per hand within
+16 cm of visible UI, reaches full overlay strength at 2.5 cm and retreats over
+about 125 ms. The overlay casts no shadow, draws over the offset avatar hand,
+and uses only the local first-person layer. Tracking loss and hiding/rebinding
+the panel clear proximity; without a humanoid avatar the normal opaque tracked
+hand remains the fallback. Controller rays retain their existing feedback.

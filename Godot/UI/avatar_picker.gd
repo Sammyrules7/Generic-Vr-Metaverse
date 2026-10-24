@@ -40,6 +40,9 @@ var _loaded_count := 0
 var _next_append_frame := 0
 var _filtered: Array[Dictionary] = []
 var _favorites_only := false
+var _custom_only := false
+var _import_home := true
+var _import_immersive := false
 var _collection_buttons: Array[Button] = []
 var _thumbnails: AvatarThumbnails
 var _preview_ready := true
@@ -63,7 +66,8 @@ func _ready() -> void:
 	%AvatarSearch.text_changed.connect(func(_text: String): _filter_changed())
 	%CollectionFilter.add_item("All collections")
 	for collection in AvatarCatalog.collections():
-		%CollectionFilter.add_item(collection)
+		if collection != "Custom":
+			%CollectionFilter.add_item(collection)
 	%CollectionFilter.item_selected.connect(func(_index: int): _filter_changed())
 	_build_collection_navigation()
 	var import_button := Button.new()
@@ -86,6 +90,7 @@ func _ready() -> void:
 	sidebar.move_child(import_button, %CloseAvatarSettings.get_index())
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
+	%BrowseCustom.pressed.connect(_browse_custom)
 	%FavoriteAvatar.pressed.connect(_toggle_favorite)
 	_thumbnails = AvatarThumbnails.new()
 	add_child(_thumbnails)
@@ -162,23 +167,28 @@ func _rebuild() -> void:
 	%AvatarSearch.text = ""
 	%CollectionFilter.select(0)
 	_favorites_only = false
+	_custom_only = AvatarCatalog.is_custom(_applied_id)
 	_filter_changed()
 	_sync_selection(_pending_id, true)
 
 
 func _filter_changed() -> void:
 	var collection: String = %CollectionFilter.get_item_text(%CollectionFilter.selected) if %CollectionFilter.selected > 0 else ""
-	_filtered = AvatarCatalog.search(%AvatarSearch.text, collection)
+	_filtered = AvatarCatalog.search(%AvatarSearch.text, "Custom" if _custom_only else collection)
+	if not _custom_only and not _favorites_only:
+		_filtered = _filtered.filter(func(entry: Dictionary): return not entry.get("local_custom", false))
 	if _favorites_only:
 		_filtered = _filtered.filter(func(entry: Dictionary): return str(entry.id) in PlayerProfile.avatar_favorites)
-	var scope := "Favorites" if _favorites_only else collection if not collection.is_empty() else "All avatars"
+	var scope := "Custom" if _custom_only else "Favorites" if _favorites_only else collection if not collection.is_empty() else "All avatars"
 	%AvatarSearch.placeholder_text = "Search all" if scope == "All avatars" else "Search in %s" % scope
 	%AvatarSearch.tooltip_text = %AvatarSearch.placeholder_text
 	%ResultCount.text = str(_filtered.size())
-	%BrowseAll.set_pressed_no_signal(not _favorites_only and collection.is_empty())
+	%BrowseAll.set_pressed_no_signal(not _custom_only and not _favorites_only and collection.is_empty())
 	%BrowseFavorites.set_pressed_no_signal(_favorites_only)
+	%BrowseCustom.set_pressed_no_signal(_custom_only)
+	_update_import_access()
 	for index in _collection_buttons.size():
-		_collection_buttons[index].set_pressed_no_signal(not _favorites_only and %CollectionFilter.selected == index + 1)
+		_collection_buttons[index].set_pressed_no_signal(not _custom_only and not _favorites_only and %CollectionFilter.selected == index + 1)
 	_refresh_list()
 
 
@@ -341,6 +351,7 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 
 
 func _place_model(scene: PackedScene) -> bool:
+	var started := Time.get_ticks_usec()
 	_clear_model()
 	var model := scene.instantiate() as Node3D
 	if model == null:
@@ -352,6 +363,7 @@ func _place_model(scene: PackedScene) -> bool:
 	# One install per preview model, even with the preference disabled, so
 	# toggling springs later just flips the returned simulators' active state.
 	_configure_model_simulation()
+	AvatarService.record_event(_pending_id, "preview placed", "main", (Time.get_ticks_usec() - started) / 1000.0)
 	return true
 
 
@@ -534,6 +546,7 @@ func _build_collection_navigation() -> void:
 
 
 func _choose_collection(index: int) -> void:
+	_custom_only = false
 	_favorites_only = false
 	%CollectionFilter.select(index)
 	%AvatarSearch.text = ""
@@ -541,6 +554,7 @@ func _choose_collection(index: int) -> void:
 
 
 func _browse_all() -> void:
+	_custom_only = false
 	_favorites_only = false
 	%CollectionFilter.select(0)
 	%AvatarSearch.text = ""
@@ -548,6 +562,7 @@ func _browse_all() -> void:
 
 
 func _browse_favorites() -> void:
+	_custom_only = false
 	_favorites_only = true
 	%CollectionFilter.select(0)
 	%AvatarSearch.text = ""
@@ -688,6 +703,7 @@ func _layout_browser() -> void:
 	var header_height := maxf(%BrowseAll.get_minimum_size().y, %AvatarSearch.get_minimum_size().y)
 	%BrowseAll.custom_minimum_size.y = header_height
 	%BrowseFavorites.custom_minimum_size.y = header_height
+	%BrowseCustom.custom_minimum_size.y = header_height
 	%AvatarSearch.custom_minimum_size.y = header_height
 	%SelectedTitle.get_parent().custom_minimum_size.y = header_height
 	var available := _scroll.size.x
@@ -833,6 +849,9 @@ func _update_download_progress() -> void:
 
 
 func _open_import_avatar() -> void:
+	if not _import_home or _import_immersive:
+		_set_import_status("Import from the home page before entering VR.")
+		return
 	if _import_busy:
 		return
 	if OS.has_feature("web"):
@@ -882,13 +901,7 @@ func _import_finished(result: Dictionary) -> void:
 	_set_import_status("")
 	if not is_visible_in_tree():
 		return
-	_favorites_only = false
-	%AvatarSearch.text = ""
-	for index in %CollectionFilter.item_count:
-		if %CollectionFilter.get_item_text(index) == "Custom":
-			%CollectionFilter.select(index)
-			break
-	_filter_changed()
+	_browse_custom()
 	sync_pending(id)
 
 
@@ -944,3 +957,26 @@ func _set_import_status(message: String, is_error := false) -> void:
 	_import_status.visible = not message.is_empty()
 	_import_status.text = message
 	_import_status.add_theme_color_override("font_color", ERROR_COLOR if is_error else STATUS_COLOR)
+
+
+func _browse_custom() -> void:
+	_custom_only = true
+	_favorites_only = false
+	%CollectionFilter.select(0)
+	%AvatarSearch.text = ""
+	_filter_changed()
+
+
+func set_import_context(home: bool, immersive: bool) -> void:
+	_import_home = home
+	_import_immersive = immersive
+	if is_node_ready():
+		_update_import_access()
+
+
+func _update_import_access() -> void:
+	_import_button.visible = _custom_only and _import_home and not _import_immersive
+	if _custom_only and (not _import_home or _import_immersive):
+		_set_import_status("Import from the home page before entering VR.")
+	elif not _import_busy:
+		_set_import_status("Custom avatars stay on this device." if _custom_only else "")

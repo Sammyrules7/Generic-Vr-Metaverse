@@ -32,6 +32,12 @@ var _next_import := 0
 var _exiting := false
 var _custom_job: AvatarCustomJob
 var _custom_busy := false
+var _mesh_job: AvatarMeshJob
+var _events: Array[String] = []
+var _stages := {}
+var _phase_ms := {}
+var _peak_frame_ms := 0.0
+var _last_frame_ms := 0.0
 # Optional injected trust store for isolated test environments; verification stays on.
 var tls_options: TLSOptions
 
@@ -48,6 +54,7 @@ func _ready() -> void:
 func select_avatar(id: String) -> void:
 	if not AvatarCatalog.has_avatar(id):
 		return
+	record_event(id, "selected", "Local only; P2P transfer is not implemented" if AvatarCatalog.is_custom(id) else "Catalog avatar")
 	PlayerProfile.avatar_id = id
 	PlayerProfile.save()
 	selection_changed.emit(id)
@@ -101,6 +108,8 @@ func _release(id: String, token: int) -> void:
 
 
 func _process(_delta: float) -> void:
+	_last_frame_ms = _delta * 1000.0
+	_peak_frame_ms = maxf(_peak_frame_ms, _last_frame_ms)
 	for id: String in _loads.keys():
 		if not _loads.has(id):
 			continue
@@ -145,6 +154,7 @@ func _process(_delta: float) -> void:
 
 
 func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
+	record_event(id, "decoding textures")
 	_importing = true
 	_next_import += 1
 	var generation := _next_import
@@ -158,6 +168,7 @@ func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
 		while not WorkerThreadPool.is_task_completed(_image_job.task_id):
 			await get_tree().process_frame
 		WorkerThreadPool.wait_for_task_completion(_image_job.task_id)
+	record_event(id, "decode textures", "%d images, worker" % _image_job.images.size() if not OS.has_feature("web") or OS.has_feature("threads") else "single-thread fallback", _image_job.elapsed_ms)
 	var images := _image_job.images
 	_image_job = null
 	if not _import_is_current(id, generation):
@@ -167,31 +178,43 @@ func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
 	var state := _import_state()
 	state.set_additional_data(&"avatar/decoded_images", images)
 	state.set_additional_data(&"avatar/decoded_image_hits", 0)
+	var stage_start := Time.get_ticks_usec()
 	var result := document.append_from_buffer(bytes, "", state, 8)
+	record_event(id, "GLTF parse", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
 	# Keep indivisible engine import calls on main, but don't stack parsing,
 	# generation, geometry baking and consumer instantiation into one frame.
 	await get_tree().process_frame
 	var model: Node3D
 	var extensions: Dictionary = state.json.get("extensions", {})
 	if _import_is_current(id, generation) and result == OK and (extensions.has("VRM") or extensions.has("VRMC_vrm")):
+		stage_start = Time.get_ticks_usec()
 		model = document.generate_scene(state) as Node3D
+		record_event(id, "generate scene", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
 		_import_model = model
 		if is_instance_valid(model):
 			AvatarSprings.prepare_sources(model)
 			model.set_meta("avatar_decoded_textures", state.get_additional_data(&"avatar/decoded_image_hits"))
 	await get_tree().process_frame
 	if is_instance_valid(model) and _import_is_current(id, generation):
-		AvatarScale.normalize(model)
+		var meshes: Dictionary = await _prepare_scaled_meshes(id, model, generation)
+		if _import_is_current(id, generation):
+			stage_start = Time.get_ticks_usec()
+			AvatarScale.normalize(model, 1.7, meshes)
+			record_event(id, "normalize rig", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
 		await get_tree().process_frame
 		await get_tree().process_frame
 	var packed: PackedScene
 	if is_instance_valid(model):
 		if _import_is_current(id, generation):
+			stage_start = Time.get_ticks_usec()
 			packed = PackedScene.new()
 			if packed.pack(model) != OK:
 				packed = null
+			record_event(id, "pack scene", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
 		model.free()
 	_import_model = null
+	# Consumer instantiation must not stack on the packing/freeing frame.
+	await get_tree().process_frame
 	_importing = false
 	if _import_is_current(id, generation):
 		_complete(id, packed, "Could not import avatar" if packed == null else "")
@@ -211,6 +234,7 @@ func _import_state() -> GLTFState:
 
 
 func _start(id: String) -> void:
+	record_event(id, "loading asset")
 	var load: Dictionary = _loads[id]
 	var definition := AvatarCatalog.definition(id)
 	load.started = true
@@ -269,6 +293,7 @@ func _verify(id: String, bytes: PackedByteArray, path: String, from_cache: bool)
 
 
 func _complete(id: String, packed: PackedScene, error: String) -> void:
+	record_event(id, "failed" if not error.is_empty() else "ready", error)
 	if not _loads.has(id):
 		return
 	var requests: Array = _loads[id].requests.values()
@@ -334,6 +359,8 @@ func _prune_disk_cache() -> void:
 
 func _exit_tree() -> void:
 	_exiting = true
+	if _mesh_job != null and _mesh_job.task_id >= 0:
+		WorkerThreadPool.wait_for_task_completion(_mesh_job.task_id)
 	if _custom_job != null and _custom_job.task_id >= 0:
 		WorkerThreadPool.wait_for_task_completion(_custom_job.task_id)
 	if is_instance_valid(_import_model):
@@ -392,11 +419,13 @@ func _import_local(job: AvatarCustomJob) -> Dictionary:
 	if _custom_busy:
 		return {"error": "Another avatar is being imported"}
 	_custom_busy = true
+	record_event("custom", "validating local import", job.filename if job.source_path.is_empty() else job.source_path.get_file())
 	await _run_custom_job(job, job.run)
 	if _exiting:
 		return {"error": "Import canceled"}
 	if not job.error.is_empty():
 		_custom_busy = false
+		record_event("custom", "import failed", job.error)
 		return {"error": job.error}
 	var existing := AvatarCatalog.has_avatar(job.id)
 	var custom_entries := AvatarCatalog.search("", "Custom")
@@ -405,10 +434,12 @@ func _import_local(job: AvatarCustomJob) -> Dictionary:
 		stored_bytes += int(item.get("size_bytes", 0))
 	if not existing and (custom_entries.size() >= AvatarLocalLibrary.MAX_FILES or stored_bytes + job.bytes.size() > AvatarLocalLibrary.MAX_DISK_BYTES):
 		_custom_busy = false
+		record_event(job.id, "custom import failed", "Library is full (32 avatars / 256 MiB)")
 		return {"error": "Custom library is full (32 avatars / 256 MiB)"}
 	await _run_custom_job(job, job.store)
 	if not job.error.is_empty():
 		_custom_busy = false
+		record_event("custom", "import failed", job.error)
 		return {"error": job.error}
 	AvatarCatalog.register_local(AvatarLocalLibrary.entry(job.id, job.title, job.bytes.size()))
 	var request := acquire(job.id)
@@ -425,5 +456,95 @@ func _import_local(job: AvatarCustomJob) -> Dictionary:
 		_cache.erase(job.id)
 		_lru.erase(job.id)
 		DirAccess.remove_absolute(AvatarLocalLibrary.path_for(job.id))
+	record_event(job.id, "custom import saved" if reason.is_empty() else "custom import failed", reason)
 	_custom_busy = false
 	return {"id": job.id, "error": ""} if reason.is_empty() else {"error": reason}
+
+
+func record_event(id: String, stage: String, detail := "", duration_ms := -1.0) -> void:
+	id = id.left(64)
+	detail = detail.left(512)
+	if duration_ms >= 0:
+		var previous: Dictionary = _phase_ms.get(stage, {})
+		_phase_ms[stage] = {"last": snappedf(duration_ms, 0.1), "max": snappedf(maxf(duration_ms, float(previous.get("max", 0))), 0.1)}
+	var title := str(AvatarCatalog.definition(id).get("title", id)).left(80)
+	var line := "%.1fs %s: %s%s%s" % [Time.get_ticks_msec() / 1000.0, title, stage, " (%.1f ms)" % duration_ms if duration_ms >= 0 else "", " — " + detail if not detail.is_empty() else ""]
+	_events.append(line)
+	if _events.size() > 64:
+		_events.pop_front()
+	_stages[id] = {"stage": stage, "at": Time.get_ticks_msec()}
+	if _stages.size() > 32:
+		_stages.erase(_stages.keys()[0])
+
+
+func debug_report() -> String:
+	var lines: Array[String] = ["Avatar diagnostics", "Platform: %s | renderer: %s | worker threads: %s" % [OS.get_name(), RenderingServer.get_current_rendering_method(), not OS.has_feature("web") or OS.has_feature("threads")], "Frame: %.1f ms | peak: %.1f ms | FPS: %.0f" % [_last_frame_ms, _peak_frame_ms, Engine.get_frames_per_second()], "Custom avatars: local only. No P2P transfer is implemented; peers see Explorer.", "Selected: %s | network: %s" % [PlayerProfile.avatar_id, AvatarCatalog.replication_id(PlayerProfile.avatar_id)], "Cache: %d scenes | requests: %d | custom import: %s" % [_cache.size(), _loads.size(), _custom_busy], "", "Active loads:"]
+	for id in _loads:
+		var stage: Dictionary = _stages.get(id, {})
+		lines.append("%s: %s | %.1fs | %s" % [id, stage.get("stage", "queued"), (Time.get_ticks_msec() - int(stage.get("at", Time.get_ticks_msec()))) / 1000.0, download_progress(id)])
+	if _loads.is_empty():
+		lines.append("None")
+	var xr := XRServer.primary_interface
+	lines.append("XR: %s | initialized: %s" % [xr.get_name() if xr != null else "None", xr.is_initialized() if xr != null else false])
+	lines.append("\nStage times (last / maximum milliseconds):")
+	for phase in _phase_ms:
+		lines.append("%s: %s" % [phase, _phase_ms[phase]])
+	lines.append("\nRecent events (oldest first):")
+	lines.append_array(_events)
+	return "\n".join(lines)
+
+
+func _prepare_scaled_meshes(id: String, model: Node3D, generation: int) -> Dictionary:
+	var result := {}
+	var factor := AvatarScale.mesh_factor(model)
+	for node: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if not _import_is_current(id, generation):
+			return result
+		var source := node.mesh as ArrayMesh
+		if source == null or result.has(source):
+			continue
+		if is_equal_approx(factor, 1.0):
+			result[source] = source
+			continue
+		var job := AvatarMeshJob.new()
+		job.factor = factor
+		for surface in source.get_surface_count():
+			# Readback and all rendering APIs stay on main, one surface per frame.
+			job.surfaces.append({"arrays": source.surface_get_arrays(surface), "shapes": source.surface_get_blend_shape_arrays(surface)})
+			await get_tree().process_frame
+			if not _import_is_current(id, generation):
+				return result
+		_mesh_job = job
+		if OS.has_feature("web") and not OS.has_feature("threads"):
+			job.run()
+		else:
+			job.task_id = WorkerThreadPool.add_task(job.run, false, "Prepare avatar mesh arrays")
+			while not WorkerThreadPool.is_task_completed(job.task_id):
+				await get_tree().process_frame
+			WorkerThreadPool.wait_for_task_completion(job.task_id)
+		_mesh_job = null
+		if not _import_is_current(id, generation):
+			return result
+		record_event(id, "scale mesh arrays", "worker" if not OS.has_feature("web") or OS.has_feature("threads") else "single-thread fallback", job.elapsed_ms)
+		var mesh := ArrayMesh.new()
+		mesh.resource_name = source.resource_name
+		mesh.blend_shape_mode = source.blend_shape_mode
+		for blend in source.get_blend_shape_count():
+			mesh.add_blend_shape(source.get_blend_shape_name(blend))
+		for surface in job.surfaces.size():
+			var started := Time.get_ticks_usec()
+			mesh.add_surface_from_arrays(source.surface_get_primitive_type(surface), job.surfaces[surface].arrays, job.surfaces[surface].shapes, {}, source.surface_get_format(surface))
+			mesh.surface_set_material(surface, source.surface_get_material(surface))
+			mesh.surface_set_name(surface, source.surface_get_name(surface))
+			record_event(id, "upload surface", "main", (Time.get_ticks_usec() - started) / 1000.0)
+			await get_tree().process_frame
+			if not _import_is_current(id, generation):
+				return result
+		result[source] = mesh
+	return result
+
+
+func reset_diagnostics() -> void:
+	_events.clear()
+	_phase_ms.clear()
+	_peak_frame_ms = 0.0
