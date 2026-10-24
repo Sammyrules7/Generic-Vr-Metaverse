@@ -150,8 +150,13 @@ The wardrobe supports native touchscreen and XR pointer dragging over avatar
 cards and collections. Fingertips give hover feedback at 15 cm, with a 20 cm exit zone to prevent
 flicker. Contact immediately highlights and pins the original button. Rays and native
 touchscreens select on release with tremor tolerance; optical fingertips can
-confirm by pressing through the surface before withdrawal. Lateral movement
-becomes scrolling, and release never selects a neighboring card.
+confirm by pressing through the surface before withdrawal when their approach
+is predominantly normal to the panel. The last 140 ms of near-surface motion
+classifies the approach: at least 6 mm of lateral travel latches scrolling, while
+a predominantly inward approach permits early poke confirmation. Scroll intent
+starts dragging immediately and cannot become a click through deeper penetration.
+Ambiguous approaches retain tap-on-release behavior; release never selects a
+neighboring card. Tracking loss and leaving the near-surface zone reset history.
 The separate scrollbar remains directly draggable.
 
 VR applies a 10 cm torso setback while counter-shifting the head to keep its eye

@@ -166,6 +166,7 @@ func _run() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var poke_point := default_button.get_global_rect().get_center()
+	pointer.set_meta("ui_poke_intent", "press")
 	pointer.set_meta("ui_poke_depth", 0.005)
 	pointer_event.event_type = XRToolsPointerEvent.Type.PRESSED
 	navigation.pointer_event(pointer_event, poke_point)
@@ -179,7 +180,22 @@ func _run() -> void:
 	navigation.pointer_event(pointer_event, poke_point)
 	await get_tree().process_frame
 	check(taps[0] == 2, "Poke release must not activate the card twice")
+	# A sideways approach must never click, even before reaching drag distance
+	# and even when the fingertip penetrates deeply into the panel.
+	pointer.set_meta("ui_poke_intent", "scroll")
+	pointer.set_meta("ui_poke_depth", -0.012)
+	pointer_event.event_type = XRToolsPointerEvent.Type.PRESSED
+	navigation.pointer_event(pointer_event, poke_point)
+	pointer_event.event_type = XRToolsPointerEvent.Type.MOVED
+	navigation.pointer_event(pointer_event, poke_point - Vector2(0, 8))
+	pointer_event.event_type = XRToolsPointerEvent.Type.RELEASED
+	navigation.pointer_event(pointer_event, poke_point - Vector2(0, 8))
+	await get_tree().process_frame
+	check(taps[0] == 2 and gallery_scroll.scroll_vertical > 0, "Sideways approach must scroll immediately without a deep-contact click")
+	gallery_scroll.scroll_vertical = 0
+	await get_tree().process_frame
 	pointer.remove_meta("ui_poke_depth")
+	pointer.remove_meta("ui_poke_intent")
 	# A small tremor remains a tap rather than becoming a canceled swipe.
 	touch.canceled = false
 	touch.pressed = true

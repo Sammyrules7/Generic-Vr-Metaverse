@@ -19,6 +19,7 @@ class HandContact:
 	var last_touch := Vector3.ZERO
 	var previous_depth := INF
 	var contact_frame := Transform3D.IDENTITY
+	var approach := TouchApproach.new()
 
 var origin: XROrigin3D
 var camera: XRCamera3D
@@ -194,6 +195,10 @@ func _update_hand_touch(side: String, contact: HandContact) -> void:
 	var in_bounds := contains_ui_point(at)
 	var target := _surface_body
 	if not contact.touching:
+		if in_bounds:
+			contact.approach.sample(point)
+		else:
+			contact.approach.reset()
 		var hover_distance := 0.20 if contact.hovering else 0.15
 		var near_surface := in_bounds and point.z >= -0.08 and point.z <= hover_distance
 		if near_surface:
@@ -212,6 +217,8 @@ func _update_hand_touch(side: String, contact: HandContact) -> void:
 			XRToolsPointerEvent.moved(contact.pointer, target, at, contact.last_touch)
 			contact.last_touch = at
 	elif contact.armed and in_bounds and is_finite(contact.previous_depth) and contact.previous_depth > 0.006 and point.z <= 0.006 and point.z >= -0.04:
+		contact.pointer.set_meta("ui_poke_intent", contact.approach.intent())
+		contact.approach.reset()
 		contact.touching = true
 		contact.armed = false
 		contact.contact_frame = (origin.global_transform * XRServer.get_reference_frame()).affine_inverse() * global_transform
@@ -248,3 +255,4 @@ func _release_hand(contact: HandContact, cancelled := true) -> void:
 		XRToolsPointerEvent.exited(contact.pointer, _surface_body, contact.last_touch)
 		contact.hovering = false
 	contact.previous_depth = INF
+	contact.approach.reset()

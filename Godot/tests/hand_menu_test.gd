@@ -130,6 +130,7 @@ func run() -> void:
 	set_tip(right, origin, panel.to_global(Vector3(0, 0, 0.005)))
 	panel._process(0.0)
 	check(panel.touching and events.has(XRToolsPointerEvent.Type.PRESSED), "Finger crossing the panel did not press the UI")
+	check(panel.hand_contacts.right.pointer.get_meta("ui_poke_intent") == "press", "Straight pre-contact motion must latch press intent")
 	var frozen: Transform3D = panel.global_transform
 	head.rotation.y += deg_to_rad(40)
 	set_tip(right, origin, panel.to_global(Vector3(0.02, 0, 0.005)))
@@ -188,6 +189,19 @@ func run() -> void:
 	set_tip(left, origin, panel.to_global(Vector3(-0.02, 0, 0.005)))
 	panel._process(0.0)
 	check(pressed_pointers.count(panel.hand_contacts.left.pointer) == 2, "Fresh left contact did not press once after small withdrawal")
+	left.has_tracking_data = false
+	panel.release_touch()
+	left.has_tracking_data = true
+	set_tip(left, origin, panel.to_global(Vector3(-0.02, 0, 0.025)))
+	panel._process(0.0)
+	set_tip(left, origin, panel.to_global(Vector3(-0.02, 0.02, 0.015)))
+	panel._process(0.0)
+	set_tip(left, origin, panel.to_global(Vector3(-0.02, 0.04, 0.005)))
+	panel._process(0.0)
+	check(panel.hand_contacts.left.pointer.get_meta("ui_poke_intent") == "scroll", "Sideways pre-contact motion must latch scroll intent")
+	set_tip(left, origin, panel.to_global(Vector3(-0.02, 0.04, -0.015)))
+	panel._process(0.0)
+	check(panel.hand_contacts.left.pointer.get_meta("ui_poke_intent") == "scroll", "Penetration must not convert a swipe into a press")
 	left.has_tracking_data = false
 	panel.release_touch()
 	# Leaving a room rebinds the persistent tablet to another rig.

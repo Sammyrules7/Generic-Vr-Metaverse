@@ -106,16 +106,16 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _begin_drag(region: Region, point: Vector2) -> void:
+func _begin_drag(region: Region, point: Vector2, scroll_intent := false) -> void:
 	_dragging = true
 	_region = region
 	_start = point
 	var scroll := _scroll_for_region(region)
 	_start_scroll = scroll.scroll_vertical if scroll != null else 0
-	_dragged = false
+	_dragged = scroll_intent
 	if scroll != null:
 		_start_button = ui.xr_button_at(point) as Button
-		if _start_button != null and scroll.is_ancestor_of(_start_button):
+		if not scroll_intent and _start_button != null and scroll.is_ancestor_of(_start_button):
 			_button_focus_style = _start_button.get_theme_stylebox("focus") if _start_button.has_theme_stylebox_override("focus") else null
 			_press_feedback_active = true
 			_start_button.add_theme_stylebox_override("focus", _start_button.get_theme_stylebox("pressed"))
@@ -180,6 +180,8 @@ func _confirm_poke(point: Vector2) -> void:
 		return
 	if not _start_button.get_global_rect().grow(TAP_RELEASE_TOLERANCE).has_point(point):
 		return
+	if _drag_pointer.get_meta("ui_poke_intent", "unknown") != "press":
+		return
 	if not _drag_pointer.has_meta("ui_poke_depth") or float(_drag_pointer.get_meta("ui_poke_depth")) > POKE_CONFIRM_DEPTH:
 		return
 	_poke_committed = true
@@ -213,7 +215,7 @@ func pointer_event(event: XRToolsPointerEvent, point: Vector2) -> bool:
 		var region := _region_at(point)
 		if region == Region.NONE:
 			return false
-		_begin_drag(region, point)
+		_begin_drag(region, point, event.pointer.get_meta("ui_poke_intent", "unknown") == "scroll")
 		_drag_pointer = event.pointer
 		_confirm_poke(point)
 	elif event.pointer != _drag_pointer:
