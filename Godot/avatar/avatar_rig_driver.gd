@@ -97,6 +97,13 @@ var vr_mode := false
 ## deliberately does not read XRBodyTracker; an unwired tracker must not turn
 ## into a hidden dependency.
 var lower_body_tracked := false
+## Ground-aware feet: a physics-tick ray probe and native leg IK. The eye/head
+## anchor stays authoritative; only the leg chain and foot orientation move.
+var ground_ik_enabled := true
+## World collision layers treated as ground. The project's world is layer 1.
+var ground_mask := 1
+## Separated helper that owns the probes, leg IK and foot orientation.
+var ground_feet: Node3D
 ## Native IK modifiers keyed by "left" and "right".
 var arm_ik := {}
 ## Proxy nodes the IK modifiers aim at, keyed by "left" and "right".
@@ -176,6 +183,7 @@ func configure(model: Node3D, head: Node3D, left: Node3D, right: Node3D, local: 
 	_capture_animation_pose()
 	_build_arm_ik()
 	_build_hand_modifiers()
+	_build_ground_feet()
 	_apply_mesh_layers()
 	_configured = true
 	set_process(true)
@@ -190,8 +198,26 @@ func set_control_mode(use_vr: bool) -> void:
 	_idle_time = 0.0
 	_idle_clip_time = 0.0
 	vr_mode = use_vr
+	if is_instance_valid(ground_feet):
+		ground_feet.reset()
 	_apply_mesh_layers()
 	_apply_desktop_targets()
+
+
+## Optional integration hooks for a future body tracker or for world layers
+## that put ground somewhere other than layer 1.
+func set_ground_mask(mask: int) -> void:
+	ground_mask = mask
+	if is_instance_valid(ground_feet):
+		ground_feet.ground_mask = mask
+
+
+func set_ground_ik(enabled_flag: bool) -> void:
+	ground_ik_enabled = enabled_flag
+	if is_instance_valid(ground_feet):
+		ground_feet.enabled = enabled_flag
+		if not enabled_flag:
+			ground_feet.reset()
 
 
 ## Put the imported layer split back, for previews that show the full model.
@@ -213,6 +239,7 @@ func _process(delta: float) -> void:
 		_animate_desktop(delta)
 	_update_body_pose()
 	_update_hand_targets()
+	_update_ground_feet(delta)
 
 
 func _find_skeleton(root: Node3D) -> Skeleton3D:
@@ -226,6 +253,12 @@ func _find_skeleton(root: Node3D) -> Skeleton3D:
 
 
 func _clear_ik() -> void:
+	if is_instance_valid(ground_feet):
+		ground_feet.clear()
+		if ground_feet.get_parent() != null:
+			ground_feet.get_parent().remove_child(ground_feet)
+		ground_feet.free()
+	ground_feet = null
 	if is_instance_valid(_wrist_modifier):
 		_wrist_modifier.free()
 	_wrist_modifier = null
@@ -478,6 +511,30 @@ func _update_hand_targets() -> void:
 			continue
 		var node: Node3D = hand_target[side]
 		node.global_transform = anchor.global_transform
+
+
+## Ground placement is a separate helper so the head/arm solve above stays the
+## only authority for the camera, torso and tracked hands.
+func _build_ground_feet() -> void:
+	if skeleton == null or avatar_model == null:
+		return
+	var helper = load("res://avatar/avatar_ground_feet.gd").new()
+	helper.name = "AvatarGroundFeet"
+	add_child(helper)
+	helper.ground_mask = ground_mask
+	helper.enabled = ground_ik_enabled
+	helper.lower_body_tracked = lower_body_tracked
+	helper.configure(avatar_model, skeleton)
+	ground_feet = helper
+
+
+func _update_ground_feet(delta: float) -> void:
+	if not is_instance_valid(ground_feet):
+		return
+	ground_feet.enabled = ground_ik_enabled
+	ground_feet.lower_body_tracked = lower_body_tracked
+	ground_feet.ground_mask = ground_mask
+	ground_feet.solve(delta)
 
 
 func _anchor_for(side: String) -> Node3D:

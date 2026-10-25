@@ -50,8 +50,20 @@ Standing eye height is baked into mesh/blend-shape positions, skeleton rest
 translations, inverse skin binds, eye offsets, and collider data. Runtime
 Skeleton3D and simulator node scales remain one, as required by the native
 spring solver. Camera alignment uses the imported eye offset rather than the
-head-bone origin. Desktop locomotion is procedural; foot planting and full-body
-tracking are not implemented.
+head-bone origin. Desktop locomotion blends procedural walking with CC0-derived
+idle motion. `AvatarGroundFeet` probes collision layer 1 on physics ticks and
+uses native two-bone leg IK plus foot rotation to match the floor. It estimates
+sole height from bind-pose mesh bounds (foot/toe proportions when unavailable),
+locks standing feet, and releases animation swings and airborne bodies. The
+owning player collider is excluded. No-ground, steep surfaces, missing legs,
+disabled IK and tracked lower-body input fall back to the animation pose.
+
+Ground placement never moves the camera or stretches bones. If the floor is
+outside the avatar's leg reach, `reach_limited` / `target_gap` expose the remaining
+gap; extreme avatar/user height differences need future calibration or a pelvis
+solver. Sole bounds are an estimate for unusual shoes, skirts and asymmetric
+feet. This is single-point contact, not heel/toe collision or moving-platform
+locomotion. Native/WebXR full-body tracking is not implemented.
 
 `PlayerReplication` reliably announces catalog IDs in spawn snapshots and on
 selection changes. Body/head/hand poses retain their existing unreliable update
@@ -59,7 +71,9 @@ channel. The scene-owned container keeps `Head`, `LeftHand`, and `RightHand`
 anchors stable for voice and input, replaces only model visuals, and consumes
 local tracking every display frame. Local VR uses the avatar's own hand geometry. Separate controller/optical hand
 models are hidden when a humanoid avatar is present and remain a fallback for
-Explorer or incomplete rigs. Local finger rotations use native XR hand modifiers;
+Explorer or incomplete rigs. Optical UI overlays use a neutral joint-position
+shell with brighter fingertip outlines; it fades in near the menu and stays out
+of mirrors. See `player/neutral_hand.md`. Local finger rotations use native XR hand modifiers;
 replicated wrist targets drive both end position and orientation after arm IK.
 
 Player cameras reserve visual layer 19 for the local VR body and tracked hands,
