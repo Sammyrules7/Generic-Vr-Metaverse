@@ -71,9 +71,9 @@ channel. The scene-owned container keeps `Head`, `LeftHand`, and `RightHand`
 anchors stable for voice and input, replaces only model visuals, and consumes
 local tracking every display frame. Local VR uses the avatar's own hand geometry. Separate controller/optical hand
 models are hidden when a humanoid avatar is present and remain a fallback for
-Explorer or incomplete rigs. Optical UI overlays use a neutral joint-position
-shell with brighter fingertip outlines; it fades in near the menu and stays out
-of mirrors. See `player/neutral_hand.md`. Local finger rotations use native XR hand modifiers;
+Explorer or incomplete rigs. Optical UI overlays use the raw tracked hand mesh with neutral shading
+and brighter fingertip outlines; it fades in near the menu and stays out
+of mirrors. See `player/hand_outline.md`. Local finger rotations use native XR hand modifiers;
 replicated wrist targets drive both end position and orientation after arm IK.
 
 Player cameras reserve visual layer 19 for the local VR body and tracked hands,

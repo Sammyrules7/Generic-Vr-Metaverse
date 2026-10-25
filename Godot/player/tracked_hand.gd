@@ -1,16 +1,32 @@
 extends XRNode3D
-## Neutral optical-hand shell. Joint positions drive the geometry directly, so
-## skin bind axes cannot turn palms/fingers inside out on different runtimes.
+## The original humanoid hand mesh and native skinning, with neutral outline
+## shading instead of skin textures or a procedural joint representation.
 @export_enum("left", "right") var hand := "left"
-var visual: NeutralHandVisual
+var skeleton: Skeleton3D
+var modifier: XRHandModifier3D
 var tracking_valid := false
 var _overlay_alpha := 0.0
+var _materials: Array[ShaderMaterial] = []
 
 func _ready() -> void:
 	tracker = StringName("/user/hand_tracker/" + hand)
 	pose = &"default"
-	visual = NeutralHandVisual.new()
-	add_child(visual)
+	var side := "Left" if hand == "left" else "Right"
+	var model := (load("res://player/hands/%sHandHumanoid.gltf" % side) as PackedScene).instantiate()
+	add_child(model)
+	PlatformXRInput.prepare_hand_model(model)
+	AvatarView.use_first_person_layer(model)
+	skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
+	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		var material := HandOutline.material_for(mesh, skeleton, side)
+		mesh.material_override = material
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_materials.append(material)
+	modifier = XRHandModifier3D.new()
+	modifier.hand_tracker = tracker
+	modifier.bone_update = XRHandModifier3D.BONE_UPDATE_FULL
+	skeleton.add_child(modifier)
+	skeleton.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
 	physics_interpolation_mode = Node3D.PHYSICS_INTERPOLATION_MODE_OFF
 	process_priority = -5
 	hide()
@@ -22,23 +38,22 @@ func _process(delta: float) -> void:
 	tracking_valid = false
 	if avatar_active and _overlay_alpha <= 0.001:
 		hide()
+		modifier.active = false
 		return
 	var hand_tracker := PlatformXRInput.hand_tracker(hand)
 	var valid := PlatformXRInput.optical_hand(hand_tracker)
 	if valid:
 		for joint in XRHandTracker.HAND_JOINT_MAX:
-			if not PlatformXRInput.joint_valid(hand_tracker, joint) or not hand_tracker.get_hand_joint_transform(joint).origin.is_finite():
+			if not PlatformXRInput.joint_valid(hand_tracker, joint) or (hand_tracker.get_hand_joint_flags(joint) & XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID) == 0:
 				valid = false
 				break
 	visible = valid
 	tracking_valid = valid
+	modifier.active = valid
 	if valid:
-		# Only the root frame uses orientation; the complete visual is derived
-		# from positions. An identity root also supports position-only trackers.
 		var palm := hand_tracker.get_hand_joint_transform(XRHandTracker.HAND_JOINT_PALM)
-		palm.basis = Basis.IDENTITY
-		visual.update_joints(hand_tracker, palm)
 		palm.origin *= XRServer.world_scale
 		transform = XRServer.get_reference_frame() * palm
-		visual.scale = Vector3.ONE * XRServer.world_scale
-		visual.set_appearance(_overlay_alpha if avatar_active else 1.0, avatar_active)
+		skeleton.scale = Vector3.ONE * XRServer.world_scale
+		for material in _materials:
+			HandOutline.set_appearance(material, _overlay_alpha if avatar_active else 1.0, avatar_active)

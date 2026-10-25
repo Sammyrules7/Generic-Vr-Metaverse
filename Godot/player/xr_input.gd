@@ -18,12 +18,13 @@ static var _neutral_controller_material: ShaderMaterial
 static func prepare_hand_model(model: Node) -> void:
 	if _neutral_controller_material == null:
 		_neutral_controller_material = ShaderMaterial.new()
-		_neutral_controller_material.shader = preload("res://player/neutral_hand.gdshader")
+		_neutral_controller_material.shader = preload("res://player/hand_outline.gdshader")
 	# These are moving meshes, including when a restored import cache still
 	# contains a scene generated with the importer's default Static GI mode.
 	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		mesh.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC
-		mesh.material_override = _neutral_controller_material
+		if mesh.material_override == null:
+			mesh.material_override = _neutral_controller_material
 
 
 # Godot hand trackers already use the humanoid joint basis; controller grip
