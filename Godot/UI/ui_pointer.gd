@@ -2,6 +2,11 @@
 extends XRToolsFunctionPointer
 
 
+func _ready() -> void:
+	for visual: VisualInstance3D in find_children("*", "VisualInstance3D", true, false):
+		visual.layers = AvatarView.LOCAL_UI
+
+
 func _process(delta: float) -> void:
 	# RayCast3D already updates every physics frame; forcing a second query
 	# every render frame doubled physics cost per pointer. Rely on the physics

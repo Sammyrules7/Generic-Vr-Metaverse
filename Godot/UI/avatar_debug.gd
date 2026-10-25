@@ -30,11 +30,6 @@ func _ready() -> void:
 	copy.text = "Copy report"
 	copy.pressed.connect(func(): DisplayServer.clipboard_set(report()))
 	actions.add_child(copy)
-	for direction in [-1, 1]:
-		var scroll := Button.new()
-		scroll.text = "Up" if direction < 0 else "Down"
-		scroll.pressed.connect(func(): _report.get_v_scroll_bar().value += direction * 300)
-		actions.add_child(scroll)
 	_done = Button.new()
 	_done.text = "Done"
 	_done.size_flags_horizontal = Control.SIZE_EXPAND_FILL

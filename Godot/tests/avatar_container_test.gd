@@ -69,7 +69,22 @@ func run() -> void:
 	player.set_avatar("default")
 	await process_frame
 	check(avatar.avatar_id == "default" and avatar.model == null, "A superseded selection must never replace the newest avatar")
+	# Queued detached instances must be discarded when superseded or freed.
+	player.set_avatar("godette")
+	var pending: AvatarInstanceJob = avatar._instance_job
+	check(pending != null, "Cached avatars must instantiate through the worker queue")
+	player.set_avatar("default")
+	check(pending.cancelled, "Superseding an instance must cancel its handoff")
+	player.set_avatar("godette")
+	pending = avatar._instance_job
+	await process_frame
 	player.free()
+	check(pending.cancelled, "Freeing a player must cancel its detached handoff")
+	var service := root.get_node("AvatarService")
+	deadline = Time.get_ticks_msec() + 5000
+	while (service._instance_job != null or not service._instance_jobs.is_empty()) and Time.get_ticks_msec() < deadline:
+		await process_frame
+	check(service._instance_job == null and service._instance_jobs.is_empty(), "Cancelled instances must be collected without stale callbacks")
 	await process_frame
 	print("Avatar container: %d failures" % failures)
 	quit(1 if failures > 0 else 0)

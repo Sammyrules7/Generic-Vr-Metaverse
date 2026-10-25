@@ -128,16 +128,17 @@ func _run() -> void:
 	ui.get_viewport().push_input(touch, true)
 	await get_tree().process_frame
 	check(taps[0] == 1 and not ui.get_node("Navigation")._dragging, "Canceled touches must clear the gesture without activating a card")
-	var collection_scroll: ScrollContainer = card.get_node("Content/Body/Sidebar/CollectionScroll")
-	check(collection_scroll.clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "Collections must clip to a rounded frame")
+	var collection_scroll: ScrollContainer = card.get_node("%CollectionScroll")
+	check(card.get_node("%CollectionFrame").clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "Collection cards must clip to a rounded frame")
 	card._collection_scroll_spacing()
-	check(card.get_node("%CollectionInset").get_theme_constant("margin_right") == (12 if collection_scroll.get_v_scroll_bar().visible else 0), "Collection button spacing must depend on scrollbar presence")
+	check(card.get_node("%CollectionScrollbarInset").visible == (collection_scroll.get_v_scroll_bar().max_value > collection_scroll.get_v_scroll_bar().page + 0.5), "Collection button spacing must depend on scrollbar presence")
 	check(card.get_node("%SelectedTitle").text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS, "Long preview titles must ellipsize")
 	var collection_button: Button = card.get_node("%Collections").get_child(0)
 	var collection_minimum := collection_button.custom_minimum_size
 	collection_button.custom_minimum_size.y += 500
 	await get_tree().process_frame
 	await get_tree().process_frame
+	check(card.get_node("%CollectionScrollbarInset").visible and card.get_node("%CollectionFrame").size.x < card.get_node("%BrowseAll").size.x, "Overflow must inset the cards, keeping the scrollbar outside their rounded frame")
 	touch.canceled = false
 	touch.pressed = true
 	touch.position = collection_scroll.get_global_rect().get_center()
@@ -292,7 +293,7 @@ func _run() -> void:
 	card.get_node("%FavoriteAvatar").pressed.emit()
 	check(card._filtered.is_empty() and card.get_node("%EmptyResults").visible, "Empty favorites needs a clear empty state")
 	card.get_node("%BrowseAll").pressed.emit()
-	check(card._filtered.size() == entries.size(), "All avatars did not restore the library")
+	check(card._filtered.size() == entries.filter(func(entry: Dictionary): return not entry.get("local_custom", false)).size(), "All avatars did not restore the public library")
 	check(card.get_node_or_null("%RotateLeft") == null and card.get_node_or_null("%SpringEnabled") == null and card.get_node_or_null("Content/Header") == null, "Removed layout controls must not remain")
 	check(card.get_node("%CloseAvatarSettings").get_parent() == card.get_node("Content/Body/Sidebar"), "Done must share the bottom action row in the sidebar")
 	check(card.get_node_or_null("%GalleryTitle") == null and card.get_node("%ResultCount").get_parent() == card.get_node("%AvatarSearch"), "Search and result count must replace the separate header")
@@ -413,8 +414,20 @@ func _run() -> void:
 	check(card.get_node("%ImportAvatar").visible, "Import must be available on desktop home Custom tab")
 	for index in card.get_node("%CollectionFilter").item_count:
 		check(card.get_node("%CollectionFilter").get_item_text(index) != "Custom", "Custom must not appear among public collections")
+	var web_client: bool = card._web_client
+	card._web_client = true
+	card._quest_browser = true
+	card.set_import_context(false, true)
+	check(card.get_node("%ImportAvatar").disabled and card._import_status.text == "Exit VR to upload", "Quest immersive WebXR must disable file uploads")
+	card.set_import_context(false, false)
+	check(not card.get_node("%ImportAvatar").disabled, "Quest browser outside immersive must allow uploads")
+	card._web_client = false
+	card.set_import_context(false, true)
+	check(not card.get_node("%ImportAvatar").disabled, "Native Android immersive uploads must remain available")
+	card._web_client = web_client
+	card._quest_browser = false
 	card.set_import_context(true, true)
-	check(card.get_node("%ImportAvatar").visible, "Immersive uploads must remain available for testing")
+	check(not card.get_node("%ImportAvatar").disabled, "Other immersive clients must remain enabled")
 	card.set_import_context(false, false)
 	check(card.get_node("%ImportAvatar").visible, "Upload must be available in a room")
 	card.set_import_context(true, false)

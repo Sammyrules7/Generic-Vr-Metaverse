@@ -35,14 +35,16 @@ fix in `1.0/VRMC_materials_mtoon.gd` records existing ShaderMaterials in the
 replacement map, preventing spurious missing-replacement errors with the
 Godette sample. Preserve the included upstream licenses when updating.
 
-HTTP is asynchronous. File verification, caching, texture decoding, glTF resource
-parsing and mesh-array preparation use WorkerThreadPool. Resource parsing is
-serialized to avoid sharing importer extension state across concurrent imports.
-Scene generation, GPU-facing setup and attachment stay on the main thread,
-with preparation stages separated across frames.
-There is a synchronous verification fallback for non-threaded web exports.
-This does not promise hitch-free imports: GPU upload and shader compilation need
-measurement on each target renderer.
+HTTP is asynchronous. Verification, caching and image decoding use worker jobs.
+One serialized worker owns glTF parsing, detached scene generation, height/mesh
+normalization and packing. Preview/player instantiation uses the same serialized
+queue, with cancellable handoffs owned by the persistent service. Workers never
+attach to the active scene tree or mutate a live player's resources. Main-thread
+callbacks attach completed instances and configure tracking/IK/native springs.
+Callbacks on freed players/pickers are discarded and detached nodes are freed.
+Non-threaded web exports run the same operations synchronously. GPU upload and
+first-use shader compilation can still synchronize with the renderer; detached
+CPU preparation does not guarantee entirely hitch-free first rendering.
 
 Standing eye height is baked into mesh/blend-shape positions, skeleton rest
 translations, inverse skin binds, eye offsets, and collider data. Runtime
@@ -269,3 +271,9 @@ Idle timeouts allow two minutes for throttled/background browser tabs, with a
 fifteen-minute total lifetime. Saved avatar identity
 is replayed when a remote player is created after its announcement. Diagnostics
 include the owner's equipped ID, ownership and connected peers.
+
+Quest Browser uploads are disabled only during immersive WebXR, with an
+“Exit VR to upload” caption. Desktop browsers and native Android retain uploads
+in rooms/immersive sessions. Local UI (panel, pointer, names and progress) uses
+visual layer 17, excluded from all reflection passes. Nameplate and picker loading
+bars use rounded pills: bytes fill the bar, preparation bounces a short segment.

@@ -1,6 +1,6 @@
 extends Node
 ## Persistent, deduplicated asset loading. Parsing is serialized on a worker;
-## scene generation and active scene attachment stay on main.
+## detached scene preparation stays on the worker; attachment stays on main.
 
 signal selection_changed(id: String)
 signal springs_changed(enabled: bool)
@@ -31,14 +31,14 @@ var _active_downloads := 0
 var _importing := false
 var _image_job: AvatarImageJob
 var _parse_job: AvatarParseJob
-var _import_model: Node3D
+var _instance_jobs: Array[AvatarInstanceJob] = []
+var _instance_job: AvatarInstanceJob
 var _next_import := 0
 var _exiting := false
 var _custom_job: AvatarCustomJob
 var _custom_busy := false
 var _remote_jobs: Array[AvatarCustomJob] = []
 var _remote_operations := {}
-var _mesh_job: AvatarMeshJob
 var _events: Array[String] = []
 var _stages := {}
 var _phase_ms := {}
@@ -114,6 +114,7 @@ func _release(id: String, token: int) -> void:
 
 
 func _process(_delta: float) -> void:
+	_poll_instances()
 	_last_frame_ms = _delta * 1000.0
 	_peak_frame_ms = maxf(_peak_frame_ms, _last_frame_ms)
 	for id: String in _loads.keys():
@@ -151,7 +152,7 @@ func _process(_delta: float) -> void:
 				_loads.erase(id)
 				continue
 			load.bytes = job.bytes
-		if load.has("bytes") and not load.get("importing", false) and not _importing:
+		if load.has("bytes") and not load.get("importing", false) and not _importing and _instance_job == null:
 			load.importing = true
 			_import_and_complete(id, load.bytes)
 			return
@@ -195,43 +196,12 @@ func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
 		while not WorkerThreadPool.is_task_completed(_parse_job.task_id):
 			await get_tree().process_frame
 		WorkerThreadPool.wait_for_task_completion(_parse_job.task_id)
-	var result := _parse_job.result
-	record_event(id, "GLTF parse", "single-thread fallback" if _parse_job.task_id < 0 else "worker", _parse_job.elapsed_ms)
+	var packed := _parse_job.scene
+	var location := "single-thread fallback" if _parse_job.task_id < 0 else "worker"
+	for stage: String in _parse_job.timings:
+		record_event(id, stage, location, _parse_job.timings[stage])
 	_parse_job = null
-	var stage_start := Time.get_ticks_usec()
-	# Scene generation and GPU-facing setup still need main-thread time; keep
-	# them separated from geometry baking and consumer instantiation.
-	await get_tree().process_frame
-	var model: Node3D
-	var extensions: Dictionary = state.json.get("extensions", {})
-	if _import_is_current(id, generation) and result == OK and (extensions.has("VRM") or extensions.has("VRMC_vrm")):
-		stage_start = Time.get_ticks_usec()
-		model = document.generate_scene(state) as Node3D
-		record_event(id, "generate scene", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
-		_import_model = model
-		if is_instance_valid(model):
-			AvatarSprings.prepare_sources(model)
-			model.set_meta("avatar_decoded_textures", state.get_additional_data(&"avatar/decoded_image_hits"))
-	await get_tree().process_frame
-	if is_instance_valid(model) and _import_is_current(id, generation):
-		var meshes: Dictionary = await _prepare_scaled_meshes(id, model, generation)
-		if _import_is_current(id, generation):
-			stage_start = Time.get_ticks_usec()
-			AvatarScale.normalize(model, 1.7, meshes)
-			record_event(id, "normalize rig", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
-		await get_tree().process_frame
-		await get_tree().process_frame
-	var packed: PackedScene
-	if is_instance_valid(model):
-		if _import_is_current(id, generation):
-			stage_start = Time.get_ticks_usec()
-			packed = PackedScene.new()
-			if packed.pack(model) != OK:
-				packed = null
-			record_event(id, "pack scene", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
-		model.free()
-	_import_model = null
-	# Consumer instantiation must not stack on the packing/freeing frame.
+	# Never stack the first consumer's attachment on the handoff frame.
 	await get_tree().process_frame
 	_importing = false
 	if _import_is_current(id, generation):
@@ -377,18 +347,20 @@ func _prune_disk_cache() -> void:
 
 func _exit_tree() -> void:
 	_exiting = true
+	if _instance_job != null:
+		if _instance_job.task_id >= 0:
+			WorkerThreadPool.wait_for_task_completion(_instance_job.task_id)
+		if is_instance_valid(_instance_job.model):
+			_instance_job.model.free()
+		_instance_job = null
+	_instance_jobs.clear()
 	if _parse_job != null and _parse_job.task_id >= 0:
 		WorkerThreadPool.wait_for_task_completion(_parse_job.task_id)
 	for job in _remote_jobs:
 		if job.task_id >= 0:
 			WorkerThreadPool.wait_for_task_completion(job.task_id)
-	if _mesh_job != null and _mesh_job.task_id >= 0:
-		WorkerThreadPool.wait_for_task_completion(_mesh_job.task_id)
 	if _custom_job != null and _custom_job.task_id >= 0:
 		WorkerThreadPool.wait_for_task_completion(_custom_job.task_id)
-	if is_instance_valid(_import_model):
-		_import_model.free()
-	_import_model = null
 	if _image_job != null and _image_job.task_id >= 0:
 		WorkerThreadPool.wait_for_task_completion(_image_job.task_id)
 	for load: Dictionary in _loads.values():
@@ -520,55 +492,6 @@ func debug_report() -> String:
 	return "\n".join(lines)
 
 
-func _prepare_scaled_meshes(id: String, model: Node3D, generation: int) -> Dictionary:
-	var result := {}
-	var factor := AvatarScale.mesh_factor(model)
-	for node: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
-		if not _import_is_current(id, generation):
-			return result
-		var source := node.mesh as ArrayMesh
-		if source == null or result.has(source):
-			continue
-		if is_equal_approx(factor, 1.0):
-			result[source] = source
-			continue
-		var job := AvatarMeshJob.new()
-		job.factor = factor
-		for surface in source.get_surface_count():
-			# Readback and all rendering APIs stay on main, one surface per frame.
-			job.surfaces.append({"arrays": source.surface_get_arrays(surface), "shapes": source.surface_get_blend_shape_arrays(surface)})
-			await get_tree().process_frame
-			if not _import_is_current(id, generation):
-				return result
-		_mesh_job = job
-		if OS.has_feature("web") and not OS.has_feature("threads"):
-			job.run()
-		else:
-			job.task_id = WorkerThreadPool.add_task(job.run, false, "Prepare avatar mesh arrays")
-			while not WorkerThreadPool.is_task_completed(job.task_id):
-				await get_tree().process_frame
-			WorkerThreadPool.wait_for_task_completion(job.task_id)
-		_mesh_job = null
-		if not _import_is_current(id, generation):
-			return result
-		record_event(id, "scale mesh arrays", "worker" if not OS.has_feature("web") or OS.has_feature("threads") else "single-thread fallback", job.elapsed_ms)
-		var mesh := ArrayMesh.new()
-		mesh.resource_name = source.resource_name
-		mesh.blend_shape_mode = source.blend_shape_mode
-		for blend in source.get_blend_shape_count():
-			mesh.add_blend_shape(source.get_blend_shape_name(blend))
-		for surface in job.surfaces.size():
-			var started := Time.get_ticks_usec()
-			mesh.add_surface_from_arrays(source.surface_get_primitive_type(surface), job.surfaces[surface].arrays, job.surfaces[surface].shapes, {}, source.surface_get_format(surface))
-			mesh.surface_set_material(surface, source.surface_get_material(surface))
-			mesh.surface_set_name(surface, source.surface_get_name(surface))
-			record_event(id, "upload surface", "main", (Time.get_ticks_usec() - started) / 1000.0)
-			await get_tree().process_frame
-			if not _import_is_current(id, generation):
-				return result
-		result[source] = mesh
-	return result
-
 
 func reset_diagnostics() -> void:
 	_events.clear()
@@ -667,3 +590,43 @@ func receive_remote_chunks(id: String, chunks: Array[PackedByteArray], size: int
 	var result: Dictionary = await import_remote_chunks(id, chunks, size, title)
 	if on_complete.is_valid():
 		on_complete.call(result)
+
+
+func instantiate_scene(scene: PackedScene, id: String, callback: Callable) -> AvatarInstanceJob:
+	var job := AvatarInstanceJob.new()
+	job.scene = scene
+	job.id = id
+	job.callback = callback
+	_instance_jobs.append(job)
+	return job
+
+
+func _poll_instances() -> void:
+	if _instance_job != null:
+		var job := _instance_job
+		if job.task_id >= 0 and not WorkerThreadPool.is_task_completed(job.task_id):
+			return
+		if job.task_id >= 0:
+			WorkerThreadPool.wait_for_task_completion(job.task_id)
+		_instance_job = null
+		record_event(job.id, "instantiate scene", "worker" if job.task_id >= 0 else "single-thread fallback", job.elapsed_ms)
+		if not job.cancelled and job.callback.is_valid():
+			job.callback.call(job)
+		if is_instance_valid(job.model):
+			job.model.free()
+		job.model = null
+	if _importing or _instance_jobs.is_empty():
+		return
+	var next: AvatarInstanceJob
+	while not _instance_jobs.is_empty():
+		next = _instance_jobs.pop_front()
+		if not next.cancelled and next.callback.is_valid():
+			break
+		next = null
+	if next == null:
+		return
+	_instance_job = next
+	if OS.has_feature("web") and not OS.has_feature("threads"):
+		next.run()
+	else:
+		next.task_id = WorkerThreadPool.add_task(next.run, false, "Instantiate detached avatar")

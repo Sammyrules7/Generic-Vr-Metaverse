@@ -15,8 +15,8 @@ extends Node3D
 ## an internal, unsaved SubViewport. The scene's own SubViewport is left alone so
 ## saving the scene never serializes an editor World3D override.
 
-## Base reflection size; close oblique views may use up to twice this size
-## to preserve texel density, bounded to 4096 (3072 per eye in XR).
+## Detail capture size. A half-resolution overview supplies the periphery;
+## close views keep a sharp, gaze-centered patch at a stable world-space density.
 @export var max_viewport_size := Vector2i(2048, 2048):
 	set(value):
 		max_viewport_size = Vector2i(maxi(1, value.x), maxi(1, value.y))
@@ -36,8 +36,13 @@ var _viewport_size := Vector2i.ZERO
 var _preview_viewport: SubViewport
 var _preview_camera: Camera3D
 var _preview_material: ShaderMaterial
-var _turn_scale := 1.0
-var _quality_hold_until := 0
+var _detail_close := false
+var _detail_left: SubViewport
+var _detail_right: SubViewport
+var _detail_left_camera: Camera3D
+var _detail_right_camera: Camera3D
+var _detail_left_crop := Rect2(0, 0, 1, 1)
+var _detail_right_crop := Rect2(0, 0, 1, 1)
 var _left_crop := Rect2(0, 0, 1, 1)
 var _right_crop := Rect2(0, 0, 1, 1)
 
@@ -121,6 +126,8 @@ func _process(_delta: float) -> void:
 	var normal := glass.basis.y.normalized()
 	var eye := source.get_camera_transform().origin
 	var right_eye := eye
+	var left_direction := -source.get_camera_transform().basis.z
+	var right_direction := left_direction
 	var active := _is_front_side(eye, glass.origin, normal)
 	var left_planes: Array[Plane] = []
 	var right_planes: Array[Plane] = []
@@ -131,6 +138,8 @@ func _process(_delta: float) -> void:
 		var right_view := interface.get_transform_for_view(1, origin)
 		eye = left_view.origin
 		right_eye = right_view.origin
+		left_direction = -left_view.basis.z
+		right_direction = -right_view.basis.z
 		var left_projection := interface.get_projection_for_view(0, 1.0, source.near, source.far)
 		var right_projection := interface.get_projection_for_view(1, 1.0, source.near, source.far)
 		left_planes = _projection_planes(left_projection, left_view)
@@ -142,16 +151,82 @@ func _process(_delta: float) -> void:
 	_set_updates(active)
 	if not active:
 		return
-	_left_crop = _visible_crop(left_planes, glass)
+	# A stable overview avoids reallocating or diluting the entire capture on
+	# head turns. The detail pass follows the gaze intersection on the glass;
+	# its physical extent depends on distance, never on the head's rotation.
+	_left_crop = Rect2(0, 0, 1, 1)
+	_right_crop = _left_crop
+	_fit_reflection(_target_camera(), eye, source.far)
 	if stereo:
-		_right_crop = _visible_crop(right_planes, glass)
-		_fit_reflection(_right_camera, right_eye, source.far, _right_crop)
-	_preserve_turn_detail(source, eye, glass)
-	_fit_reflection(_target_camera(), eye, source.far, _left_crop)
-	var material := _preview_material if Engine.is_editor_hint() else _runtime_material
-	if material != null:
-		material.set_shader_parameter("left_uv_rect", Vector4(_left_crop.position.x, _left_crop.position.y, _left_crop.size.x, _left_crop.size.y))
-		material.set_shader_parameter("right_uv_rect", Vector4(_right_crop.position.x, _right_crop.position.y, _right_crop.size.x, _right_crop.size.y))
+		_fit_reflection(_right_camera, right_eye, source.far)
+	if Engine.is_editor_hint():
+		return
+	_ensure_detail_views()
+	var height := mirror_glass.get_aabb().size.z * glass.basis.z.length()
+	var distance := absf((eye - glass.origin).dot(normal))
+	var close := distance < height * (0.3 if _detail_close else 0.2)
+	if close != _detail_close:
+		_detail_close = close
+		_resize_viewport()
+	_target_viewport().render_target_update_mode = SubViewport.UPDATE_ALWAYS if _detail_close else SubViewport.UPDATE_DISABLED
+	if _right_viewport != null:
+		_right_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if _detail_close and stereo else SubViewport.UPDATE_DISABLED
+	_runtime_material.set_shader_parameter("close_detail", _detail_close)
+	_detail_left_crop = _detail_crop(eye, left_direction, glass, _detail_left.size)
+	_fit_reflection(_detail_left_camera, eye, source.far, _detail_left_crop)
+	_detail_left.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	if stereo:
+		_detail_right_crop = _detail_crop(right_eye, right_direction, glass, _detail_right.size)
+		_fit_reflection(_detail_right_camera, right_eye, source.far, _detail_right_crop)
+		_detail_right.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_runtime_material.set_shader_parameter("detail_left_rect", Vector4(_detail_left_crop.position.x, _detail_left_crop.position.y, _detail_left_crop.size.x, _detail_left_crop.size.y))
+	_runtime_material.set_shader_parameter("detail_right_rect", Vector4(_detail_right_crop.position.x, _detail_right_crop.position.y, _detail_right_crop.size.x, _detail_right_crop.size.y))
+	_runtime_material.set_shader_parameter("detail_enabled", true)
+
+
+func _ensure_detail_views() -> void:
+	if _detail_left == null:
+		_detail_left = _make_detail_view("LeftEyeDetail")
+		_detail_left_camera = _detail_left.get_child(0) as Camera3D
+		_runtime_material.set_shader_parameter("detail_texture", _detail_left.get_texture())
+	if _stereo and _detail_right == null:
+		_detail_right = _make_detail_view("RightEyeDetail")
+		_detail_right_camera = _detail_right.get_child(0) as Camera3D
+		_runtime_material.set_shader_parameter("right_detail_texture", _detail_right.get_texture())
+	_resize_viewport()
+
+
+func _make_detail_view(label: String) -> SubViewport:
+	var viewport := SubViewport.new()
+	viewport.name = label
+	viewport.world_3d = get_world_3d()
+	_full_resolution(viewport)
+	add_child(viewport, false, Node.INTERNAL_MODE_FRONT)
+	var camera := Camera3D.new()
+	camera.current = true
+	AvatarView.configure_mirror_camera(camera)
+	viewport.add_child(camera)
+	return viewport
+
+
+func _detail_crop(eye: Vector3, direction: Vector3, glass: Transform3D, target_size: Vector2i) -> Rect2:
+	if not _detail_close:
+		return Rect2(0, 0, 1, 1)
+	var bounds := mirror_glass.get_aabb()
+	var normal := glass.basis.y.normalized()
+	var distance := (eye - glass.origin).dot(normal)
+	var toward := direction.dot(normal)
+	var hit := eye - normal * distance
+	if toward < -0.001:
+		hit = eye + direction * (-distance / toward)
+	var local := glass.affine_inverse() * hit - bounds.get_center()
+	var center := Vector2(local.x / bounds.size.x + 0.5, 0.5 - local.z / bounds.size.z)
+	# The center remains on the visible glass even near an edge. Padding may
+	# extend beyond it; only the physical glass samples this texture.
+	center = center.clamp(Vector2.ZERO, Vector2.ONE)
+	var side := maxf(0.04, absf(distance) * 4.0)
+	var size := Vector2(side * float(target_size.x) / target_size.y / (bounds.size.x * glass.basis.x.length()), side / (bounds.size.z * glass.basis.z.length()))
+	return Rect2(center - size * 0.5, size)
 
 
 func _ensure_right_view() -> void:
@@ -173,6 +248,10 @@ func _set_updates(active: bool) -> void:
 	_target_viewport().render_target_update_mode = SubViewport.UPDATE_ALWAYS if active else SubViewport.UPDATE_DISABLED
 	if _right_viewport != null:
 		_right_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS if active and _stereo else SubViewport.UPDATE_DISABLED
+	if _detail_left != null:
+		_detail_left.render_target_update_mode = SubViewport.UPDATE_ALWAYS if active else SubViewport.UPDATE_DISABLED
+	if _detail_right != null:
+		_detail_right.render_target_update_mode = SubViewport.UPDATE_ALWAYS if active and _stereo else SubViewport.UPDATE_DISABLED
 
 
 func _fit_reflection(camera: Camera3D, eye: Vector3, far_distance: float, crop := Rect2(0, 0, 1, 1)) -> void:
@@ -287,20 +366,27 @@ func _resize_viewport() -> void:
 	var bounds := mirror_glass.get_aabb()
 	var glass := mirror_glass.global_transform
 	var aspect := maxf(0.01, bounds.size.x * glass.basis.x.length()) / maxf(0.01, bounds.size.z * glass.basis.z.length())
-	var limit := 3072 if _stereo else 4096
-	var cap := Vector2i(mini(limit, roundi(max_viewport_size.x * _turn_scale)), mini(limit, roundi(max_viewport_size.y * _turn_scale)))
+	var cap := max_viewport_size if Engine.is_editor_hint() else max_viewport_size / 2
+	var target := _fit_size(cap, aspect)
+	_viewport_size = target
+	var target_viewport := _target_viewport()
+	if target_viewport != null and target_viewport.size != target:
+		target_viewport.size = target
+	if _right_viewport != null and _right_viewport.size != target:
+		_right_viewport.size = target
+	var detail_size := _fit_size(max_viewport_size, 1.0 if _detail_close else aspect)
+	for detail in [_detail_left, _detail_right]:
+		if detail != null and detail.size != detail_size:
+			detail.size = detail_size
+
+
+static func _fit_size(cap: Vector2i, aspect: float) -> Vector2i:
 	var width := float(cap.x)
 	var height := width / aspect
 	if height > cap.y:
 		height = float(cap.y)
 		width = height * aspect
-	var target := Vector2i(maxi(1, roundi(width)), maxi(1, roundi(height)))
-	_viewport_size = target
-	var target_viewport := _target_viewport()
-	if target_viewport != null:
-		target_viewport.size = target
-	if _right_viewport != null:
-		_right_viewport.size = target
+	return Vector2i(maxi(1, roundi(width)), maxi(1, roundi(height)))
 
 
 static func _active_xr_interface() -> XRInterface:
@@ -315,76 +401,11 @@ static func _active_xr_interface() -> XRInterface:
 
 
 static func _full_resolution(viewport: SubViewport) -> void:
+	viewport.canvas_cull_mask = 0
 	viewport.vrs_mode = Viewport.VRS_DISABLED
 	viewport.scaling_3d_scale = 1.0
 	viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 
 
-func _visible_crop(planes: Array[Plane], glass: Transform3D) -> Rect2:
-	# Clip the actual glass polygon against this eye's view volume. A close
-	# viewer sees only its center: allocating the texture to the whole glass
-	# wastes most pixels on off-screen edges. UV remapping preserves geometry.
-	var bounds := mirror_glass.get_aabb()
-	var center := bounds.get_center()
-	var half_width := bounds.size.x * 0.5
-	var half_height := bounds.size.z * 0.5
-	var polygon: Array[Vector3] = []
-	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
-		polygon.append(glass * (center + Vector3(corner.x * half_width, 0, corner.y * half_height)))
-	for plane in planes:
-		var clipped: Array[Vector3] = []
-		if polygon.is_empty():
-			return Rect2(0, 0, 1, 1)
-		var previous := polygon.back() as Vector3
-		var previous_distance := plane.distance_to(previous)
-		for point in polygon:
-			var distance := plane.distance_to(point)
-			if (distance <= 0) != (previous_distance <= 0):
-				clipped.append(previous.lerp(point, previous_distance / (previous_distance - distance)))
-			if distance <= 0:
-				clipped.append(point)
-			previous = point
-			previous_distance = distance
-		polygon = clipped
-	if polygon.is_empty():
-		return Rect2(0, 0, 1, 1)
-	var inverse := glass.affine_inverse()
-	var minimum := Vector2.ONE
-	var maximum := Vector2.ZERO
-	for point in polygon:
-		var local := inverse * point - center
-		var uv := Vector2(local.x / bounds.size.x + 0.5, 0.5 - local.z / bounds.size.z)
-		minimum = minimum.min(uv)
-		maximum = maximum.max(uv)
-	# Equal normalized extents keep the glass/target aspect ratio unchanged.
-	# A small guard band prevents tiny pose changes exposing a crop boundary.
-	var extent := clampf(maxf(maximum.x - minimum.x, maximum.y - minimum.y) * 1.08, 0.02, 1.0)
-	var middle := ((minimum + maximum) * 0.5).clamp(Vector2.ONE * extent * 0.5, Vector2.ONE * (1.0 - extent * 0.5))
-	return Rect2(middle - Vector2.ONE * extent * 0.5, Vector2.ONE * extent)
-
-
 func debug_report() -> String:
-	return "Mirror: %s | stereo %s | left %s | right %s | crop L %s / R %s | VRS disabled, scale 1" % [name, _stereo, _target_viewport().size, _right_viewport.size if _right_viewport != null else Vector2i.ZERO, _left_crop, _right_crop]
-
-
-func _preserve_turn_detail(source: Camera3D, eye: Vector3, glass: Transform3D) -> void:
-	# Turning exposes a larger span of glass, but must not dilute that span
-	# into the same number of texels. Increase capture size instead. Use
-	# coarse tiers and a hold period to avoid reallocations on every head turn.
-	var distance := absf((eye - glass.origin).dot(glass.basis.y.normalized()))
-	var height := mirror_glass.get_aabb().size.z * glass.basis.z.length()
-	var projection := source.get_camera_projection()
-	var frontal_extent := clampf(2.0 * distance / maxf(0.01, projection.y.y) / maxf(0.01, height) * 1.08, 0.02, 1.0)
-	var extent := maxf(_left_crop.size.x, _right_crop.size.x if _stereo else 0.0)
-	var ceiling := 1.5 if _stereo else 2.0
-	var wanted := clampf(ceilf(extent / frontal_extent * 2.0 - 0.05) / 2.0, 1.0, ceiling)
-	var now := Time.get_ticks_msec()
-	if wanted > _turn_scale:
-		_turn_scale = wanted
-		_quality_hold_until = now + 2000
-		_resize_viewport()
-	elif wanted == _turn_scale:
-		_quality_hold_until = now + 2000
-	elif now > _quality_hold_until:
-		_turn_scale = wanted
-		_resize_viewport()
+	return "Mirror: %s | stereo %s | overview %s | detail L %s / R %s | close %s | patch L %s / R %s | VRS disabled, scale 1" % [name, _stereo, _target_viewport().size, _detail_left.size if _detail_left != null else Vector2i.ZERO, _detail_right.size if _detail_right != null else Vector2i.ZERO, _detail_close, _detail_left_crop, _detail_right_crop]

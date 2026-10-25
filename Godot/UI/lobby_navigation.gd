@@ -49,7 +49,7 @@ func _region_at(point: Vector2) -> Region:
 	if avatar.is_visible_in_tree():
 		if avatar.get_node("%AvatarListScroll").get_global_rect().has_point(point):
 			return Region.AVATARS
-		var collections: ScrollContainer = avatar.get_node("Content/Body/Sidebar/CollectionScroll")
+		var collections: ScrollContainer = avatar.get_node("%CollectionScroll")
 		if collections.get_global_rect().has_point(point) and not collections.get_v_scroll_bar().get_global_rect().has_point(point):
 			return Region.COLLECTIONS
 		return Region.NONE
@@ -156,7 +156,7 @@ func _scroll_for_region(region: Region) -> ScrollContainer:
 	match region:
 		Region.ROOMS: return rooms
 		Region.AVATARS: return ui.get_node("%AvatarSettings/%AvatarListScroll")
-		Region.COLLECTIONS: return ui.get_node("%AvatarSettings/Content/Body/Sidebar/CollectionScroll")
+		Region.COLLECTIONS: return ui.get_node("%AvatarSettings").get_node("%CollectionScroll")
 	return null
 
 

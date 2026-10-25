@@ -1,63 +1,42 @@
 # Planar Mirror
 
-Instance `planar_mirror.tscn` into a world and position/rotate/scale the root so
-`MirrorGlass` sits where the mirror should be. The visible face is the plane's
-front; the shader culls the back. Keep the glass as a +Y-facing PlaneMesh in
-its local space, as provided by the component.
+Instance `planar_mirror.tscn` into a world. Keep its +Y-facing PlaneMesh;
+position/rotate/scale the root to place the glass. Each runtime instance owns
+its material and viewports. Editor preview uses a separate unsaved viewport.
 
-The reflection uses an off-axis frustum fitted to the visible glass from the
-reflected eye position. Its camera has a positive determinant and stays aligned
-to the glass rather than copying the viewer's head rotation. Texture coordinates
-come from the glass mesh, not SCREEN_UV, so asymmetric headset projections do not
-flip or warp the reflection when turning.
+Reflected eyes use proper-handed off-axis cameras aligned to the glass. The
+near plane stays on the glass, rejecting geometry behind it. World-space crop
+rectangles map directly to glass UVs, independently per XR eye; head rotation
+does not alter the camera basis or warp/flip the result.
 
-Desktop uses one reflection pass. OpenXR/WebXR use distinct eye positions from
-XRInterface and two ordinary SubViewports; the shader selects the matching
-texture using VIEW_INDEX. The XR origin transform is applied exactly once.
-All views use `max_viewport_size` (default 2048x2048) as their base size,
-independently of the browser/desktop window size. Close oblique views increase
-the capture in coarse tiers to compensate for the wider glass span: at most
-4096 on desktop or 3072 per eye in XR. A two-second hold avoids immediately
-dropping quality or reallocating textures as a head turn reverses. Targets
-retain the glass aspect ratio. Reflection viewports explicitly disable VRS, reduced 3D render
-scale and screen-space AA; sampling uses the full-resolution texture level. Each visible stereo mirror
-requires two scene passes, so profile on the target headset.
+At a distance, each eye renders one full-glass capture at `max_viewport_size`
+(default 2048x2048, fitted to glass aspect). This preserves the original distant
+clarity and pass count. The low-resolution overview is disabled then.
 
-Back-facing and off-screen mirrors stop rendering. Stereo visibility tests use
-both XR eye frustums. The near plane sits on the glass to reject geometry behind
-it. The full-body avatar layer is included and the first-person layer excluded.
-Editor preview uses an internal unsaved viewport; runtime instances own separate
-material and texture resources.
+Close to the glass, a half-size overview supplies peripheral coverage, while a
+full-resolution square detail capture follows the gaze intersection on the
+mirror. Its physical side is four times perpendicular eye distance, with a 4 cm
+minimum. Turning changes the patch center, not its extent or allocation, keeping
+the same texels per meter even for wide glass and near-grazing views. The shader
+softly blends patch edges over the overview. A distance hysteresis band switches
+between full-glass and close detail targets without oscillation during head bob.
+This replaces the old visible-bounds crop and turn-dependent resolution tiers,
+which spread pixels across increasingly wide regions as the head turned.
 
-Headless tests verify reflection positions, frustum/UV alignment, eye separation,
-rotation stability, visibility and quality limits. Stereo appearance and GPU
-cost still require a real OpenXR/WebXR device test.
+The close path uses two scene passes per eye, with a narrower detail frustum;
+the distant path uses one. There are no texture readbacks or GPU blits. All
+reflection targets disable VRS/reduced render scale. Device profiling is still
+needed: extra geometry submissions can matter on standalone headsets even when
+fragment cost is bounded. Back-facing/off-screen mirrors stop every pass.
 
-GLES emits VIEW_INDEX as an unsigned integer despite its shader-language type.
-The shader explicitly converts it to a float in the vertex stage and passes it
-to fragment, avoiding an unsigned-versus-signed comparison rejected by WebGL.
-Shader changes require an actual GLES/WebGL render check: headless projection
-tests and export success do not validate driver shader compilation.
+Layer 17 is local UI, 18 mirror surfaces, 19 first-person body/hands, and 20 the
+full local avatar. Reflection cameras exclude 17/18/19 and include 20. Reflection
+viewports additionally use a zero canvas cull mask, excluding all 2D UI. This also
+prevents WebGL framebuffer feedback and recursive mirrors. Player cameras include
+17/18 and choose their appropriate first-person body visibility.
 
-
-Close-up quality follows the visible portion of the mirror, independently per
-eye. The glass polygon is clipped against each source eye frustum; a padded UV
-rectangle concentrates the pixel budget there. The camera frustum fits
-that region and the shader remaps full-glass UVs into it. This avoids spending
-most pixels on off-screen edges when looking closely at the center. Equal
-normalized crop extents preserve the original glass/target aspect. Capture size
-changes only when crossing a compensation tier, with delayed reductions. The reflected camera retains its fixed,
-proper-handed basis; crop/UV mapping tests verify alignment while turning.
-
-There is no project-controlled inverted foveation map. Headset compositor
-foveation is separate from reflection viewport VRS; this change makes reflection
-sampling uniform and prioritizes the visible center geometrically. Debug reports
-actual per-eye sizes and crop rectangles. Device acceptance is still needed for
-perceived sharpness, boundary stability and the cost of two 2048 scene passes.
-
-
-Mirror glass reserves visual layer 18. Player cameras include it; reflection
-cameras (including the editor preview) exclude it along with first-person layer
-19. This prevents rendering/sampling a viewport's own attachment on WebGL, which
-can raise framebuffer-feedback errors even when face culling removes fragments.
-Other mirror surfaces are excluded too; recursive mirrors are not supported.
+GLES emits VIEW_INDEX as an unsigned integer. The glass shader converts it to
+float in vertex and passes it to fragment, avoiding signed/unsigned comparison
+errors. Headless tests cover UV/projection agreement, eye separation, wide-glass
+texel density through turns, culling and allocation. Shader changes additionally
+require an actual WebGL/GLES render; headset appearance requires device review.

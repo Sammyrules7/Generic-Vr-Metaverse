@@ -61,6 +61,7 @@ func set_display_name(display_name: String) -> void:
 	if label == null:
 		label = Label3D.new()
 		label.name = "NameTag"
+		label.layers = AvatarView.LOCAL_UI
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.font_size = 48
 		label.pixel_size = 0.004
@@ -74,10 +75,11 @@ func _process(_delta: float) -> void:
 	if avatar_replication == null or is_multiplayer_authority():
 		return
 	var progress := avatar_replication.avatar_progress(get_multiplayer_authority())
-	var pending := not progress.is_empty() or $Avatar._request != null
+	var pending := not progress.is_empty() or $Avatar._request != null or $Avatar._instance_job != null
 	if _avatar_progress == null and pending:
 		_avatar_progress = MeshInstance3D.new()
 		_avatar_progress.name = "AvatarProgress"
+		_avatar_progress.layers = AvatarView.LOCAL_UI
 		_avatar_progress.position.y = 2.02
 		var quad := QuadMesh.new()
 		quad.size = Vector2(0.65, 0.025)

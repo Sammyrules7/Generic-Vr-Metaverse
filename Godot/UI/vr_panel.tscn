@@ -31,6 +31,7 @@ size = Vector2i(1120, 800)
 render_target_update_mode = 4
 
 [node name="Screen" type="MeshInstance3D" parent="."]
+layers = 65536
 mesh = SubResource("quad")
 surface_material_override/0 = SubResource("material")
 

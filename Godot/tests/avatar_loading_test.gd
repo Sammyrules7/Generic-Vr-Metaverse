@@ -57,6 +57,8 @@ func run() -> void:
 	check(survivor.finished and survivor.scene != null and survivor.error.is_empty(), "Bundled VRM failed: " + survivor.error)
 	if survivor.scene != null:
 		check(service._events.any(func(event: String): return event.contains("GLTF parse") and event.contains("worker")), "Resource parsing must run on a worker")
+		for stage in ["generate scene", "normalize rig", "pack scene"]:
+			check(service._events.any(func(event: String): return event.contains(stage) and event.contains("worker")), "Detached preparation must stay on the worker: " + stage)
 		check(import_frames >= 3, "Avatar preparation must yield across frames rather than blocking one frame")
 		var first := survivor.scene.instantiate() as Node3D
 		check(int(first.get_meta("avatar_decoded_textures", 0)) > 0, "GLTF import must reuse worker-decoded textures")

@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://UI/avatar_picker.gd" id="1"]
+
+[ext_resource type="Script" path="res://UI/avatar_loading_bar.gd" id="2"]
 
 [node name="AvatarSettings" type="PanelContainer"]
 visible = false
@@ -63,23 +65,40 @@ text = "COLLECTIONS"
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.455, 0.525, 0.604, 1)
 
-[node name="CollectionScroll" type="ScrollContainer" parent="Content/Body/Sidebar"]
+[node name="CollectionTrack" type="HBoxContainer" parent="Content/Body/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="CollectionFrame" type="PanelContainer" parent="Content/Body/Sidebar/CollectionTrack"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 clip_children = 2
+
+[node name="CollectionScroll" type="ScrollContainer" parent="Content/Body/Sidebar/CollectionTrack/CollectionFrame"]
+unique_name_in_owner = true
 layout_mode = 2
 focus_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
 
-[node name="CollectionInset" type="MarginContainer" parent="Content/Body/Sidebar/CollectionScroll"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Collections" type="VBoxContainer" parent="Content/Body/Sidebar/CollectionScroll/CollectionInset"]
+[node name="Collections" type="VBoxContainer" parent="Content/Body/Sidebar/CollectionTrack/CollectionFrame/CollectionScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
+
+[node name="CollectionScrollbarInset" type="MarginContainer" parent="Content/Body/Sidebar/CollectionTrack"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="CollectionScrollbar" type="VScrollBar" parent="Content/Body/Sidebar/CollectionTrack/CollectionScrollbarInset"]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="CollectionFilter" type="OptionButton" parent="Content/Body/Sidebar"]
 unique_name_in_owner = true
@@ -260,7 +279,7 @@ unique_name_in_owner = true
 light_energy = 0.6
 light_color = Color(0.6, 0.83, 0.84, 1)
 
-[node name="DownloadProgress" type="ProgressBar" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
+[node name="DownloadProgress" type="Control" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
@@ -269,7 +288,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_top = -6.0
 mouse_filter = 2
-show_percentage = false
+script = ExtResource("2")
 
 [node name="PreviewStatus" type="Label" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame"]
 unique_name_in_owner = true

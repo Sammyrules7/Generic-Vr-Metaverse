@@ -33,6 +33,7 @@ var _pending_id := DEFAULT_ID
 var _applied_id := DEFAULT_ID
 var _generation := 0
 var _request: AvatarLoadRequest
+var _instance_job: AvatarInstanceJob
 var _model: Node3D
 var _model_bounds := AABB()
 var _simulators: Array = []
@@ -46,6 +47,8 @@ var _favorites_only := false
 var _custom_only := false
 var _import_home := true
 var _import_immersive := false
+var _web_client := OS.has_feature("web")
+var _quest_browser := false
 var _collection_buttons: Array[Button] = []
 var _thumbnails: AvatarThumbnails
 var _preview_ready := true
@@ -63,7 +66,11 @@ var _fallback_preview: Node3D
 
 func _ready() -> void:
 	_scroll.get_v_scroll_bar().share(%AvatarScrollbar)
-	$Content/Body/Sidebar/CollectionScroll.get_v_scroll_bar().visibility_changed.connect(_collection_scroll_spacing)
+	%CollectionScroll.get_v_scroll_bar().share(%CollectionScrollbar)
+	%CollectionScroll.get_v_scroll_bar().changed.connect(_collection_scroll_spacing)
+	if _web_client:
+		var agent := str(JavaScriptBridge.eval("navigator.userAgent", true))
+		_quest_browser = "OculusBrowser" in agent or "Quest" in agent
 	_collection_scroll_spacing.call_deferred()
 	_apply.pressed.connect(_apply_pressed)
 	%CloseAvatarSettings.pressed.connect(close)
@@ -330,7 +337,6 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 	if not error.is_empty():
 		_set_status(error, true)
 		return
-	%PreviewThumbnail.hide()
 	if scene == null:
 		# The bundled default has no model: rooms render a simple fallback body.
 		_show_default_preview()
@@ -338,18 +344,27 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 		_update_apply()
 		_set_status("")
 		return
-	if not _place_model(scene):
+	%DownloadProgress.show()
+	%DownloadProgress.indeterminate = true
+	_instance_job = AvatarService.instantiate_scene(scene, _id, _preview_instance_ready.bind(generation))
+
+
+func _preview_instance_ready(job: AvatarInstanceJob, generation: int) -> void:
+	if generation != _generation:
+		return
+	_instance_job = null
+	if not _place_model(job.take_model()):
 		_set_status("This avatar could not be shown in the preview.", true)
 		return
+	%DownloadProgress.hide()
 	_preview_ready = true
 	_update_apply()
 	_set_status("")
 
 
-func _place_model(scene: PackedScene) -> bool:
+func _place_model(model: Node3D) -> bool:
 	var started := Time.get_ticks_usec()
 	_clear_model()
-	var model := scene.instantiate() as Node3D
 	if model == null:
 		return false
 	_model = model
@@ -496,6 +511,9 @@ func _set_status(message: String, is_error := false, is_hint := false) -> void:
 
 
 func _release_request() -> void:
+	if _instance_job != null:
+		_instance_job.cancel()
+		_instance_job = null
 	var request := _request
 	_request = null
 	if request != null:
@@ -534,7 +552,7 @@ func _build_collection_navigation() -> void:
 		button.toggle_mode = true
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		button.custom_minimum_size = Vector2(154, 38)
+		button.custom_minimum_size = Vector2(0, 38)
 		button.add_theme_font_size_override("font_size", 14)
 		button.pressed.connect(_choose_collection.bind(index))
 		%Collections.add_child(button)
@@ -686,8 +704,8 @@ func handle_stick(stick: Vector2, point: Vector2, delta: float) -> void:
 	var target: ScrollContainer
 	if %GalleryTrack.get_global_rect().has_point(point):
 		target = _scroll
-	elif $Content/Body/Sidebar/CollectionScroll.get_global_rect().has_point(point):
-		target = $Content/Body/Sidebar/CollectionScroll
+	elif %CollectionScroll.get_global_rect().has_point(point):
+		target = %CollectionScroll
 	if target == null:
 		return
 	var amount := (absf(stick.y) - LobbyNavigation.STICK_DEADZONE) / (1.0 - LobbyNavigation.STICK_DEADZONE)
@@ -736,12 +754,14 @@ func _style_scrollbar_control(bar: VScrollBar) -> void:
 func _style_browser() -> void:
 	var progress_background := StyleBoxFlat.new()
 	progress_background.bg_color = Color("#142237")
+	progress_background.set_corner_radius_all(3)
 	%DownloadProgress.add_theme_stylebox_override("background", progress_background)
 	var progress_fill := StyleBoxFlat.new()
 	progress_fill.bg_color = Color("#a0bdd4")
+	progress_fill.set_corner_radius_all(3)
 	%DownloadProgress.add_theme_stylebox_override("fill", progress_fill)
 	_style_scrollbar_control(%AvatarScrollbar)
-	_style_scrollbar($Content/Body/Sidebar/CollectionScroll)
+	_style_scrollbar_control(%CollectionScrollbar)
 	var list_style := StyleBoxFlat.new()
 	list_style.bg_color = Color("#142237")
 	# Content starts flush with the sidebar row; spacing belongs between the
@@ -754,7 +774,7 @@ func _style_browser() -> void:
 		list_style.corner_radius_bottom_left = button_style.corner_radius_bottom_left
 		list_style.corner_radius_bottom_right = button_style.corner_radius_bottom_right
 	%ListFrame.add_theme_stylebox_override("panel", list_style)
-	$Content/Body/Sidebar/CollectionScroll.add_theme_stylebox_override("panel", list_style.duplicate())
+	%CollectionFrame.add_theme_stylebox_override("panel", list_style.duplicate())
 	# Reserve room inside the field for its result count. The built-in clear
 	# button is laid out before this margin, so neither text nor controls overlap.
 	for state in ["normal", "focus"]:
@@ -829,7 +849,7 @@ func _cancel_prefetch() -> void:
 
 
 func _update_download_progress() -> void:
-	var progress: Dictionary = AvatarService.download_progress(_pending_id)
+	var progress: Dictionary = {"preparing": true} if _instance_job != null else AvatarService.download_progress(_pending_id)
 	%DownloadProgress.show()
 	var total := int(progress.get("total", -1))
 	var downloaded := int(progress.get("downloaded", 0))
@@ -848,7 +868,7 @@ func _update_download_progress() -> void:
 
 
 func _open_import_avatar() -> void:
-	if _import_busy or _picker_wait_at >= 0:
+	if _import_busy or _picker_wait_at >= 0 or _upload_blocked():
 		return
 	_picker_wait_at = Time.get_ticks_msec()
 	_set_import_status("Choose a VRM file...")
@@ -895,8 +915,6 @@ func _finish_import_avatar(bytes: PackedByteArray, file_name: String) -> void:
 
 func _import_finished(result: Dictionary) -> void:
 	_import_busy = false
-	if is_instance_valid(_import_button):
-		_import_button.disabled = false
 	var id := str(result.get("id", ""))
 	var error := str(result.get("error", ""))
 	if not error.is_empty() or id.is_empty():
@@ -970,6 +988,7 @@ func _set_import_status(message: String, is_error := false) -> void:
 		_import_button.tooltip_text = _upload_message
 	if is_error:
 		AvatarService.record_event("custom", "upload UI error", message)
+	_update_import_access()
 
 
 func _picker_canceled() -> void:
@@ -993,11 +1012,19 @@ func set_import_context(home: bool, immersive: bool) -> void:
 		_update_import_access()
 
 
+func _upload_blocked() -> bool:
+	return _web_client and _quest_browser and _import_immersive
+
+
 func _update_import_access() -> void:
-	# Upload is intentionally enabled in rooms and immersive sessions while
-	# testing device/browser picker behavior. No forced XR session exit.
 	if is_instance_valid(_import_button):
-		_import_button.disabled = _import_busy
+		_import_button.disabled = _import_busy or _upload_blocked()
+		if _upload_blocked() and not _import_busy:
+			_import_status.text = "Exit VR to upload"
+			_import_button.tooltip_text = "Quest Browser cannot open the file picker during an immersive WebXR session."
+		else:
+			_import_status.text = _upload_message
+			_import_button.tooltip_text = _upload_message
 
 
 func _add_upload_tile() -> void:
@@ -1056,6 +1083,5 @@ func _add_upload_tile() -> void:
 
 
 func _collection_scroll_spacing() -> void:
-	# Inset the buttons only when the built-in scrollbar occupies the right edge.
-	var bar: VScrollBar = $Content/Body/Sidebar/CollectionScroll.get_v_scroll_bar()
-	%CollectionInset.add_theme_constant_override("margin_right", 12 if bar.visible else 0)
+	var bar := %CollectionScroll.get_v_scroll_bar() as VScrollBar
+	%CollectionScrollbarInset.visible = bar.max_value > bar.page + 0.5

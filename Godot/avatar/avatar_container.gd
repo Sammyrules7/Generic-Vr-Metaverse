@@ -14,14 +14,10 @@ var _springs: Array[SpringBoneSimulator3D] = []
 var _previous_body := Vector3.ZERO
 var _have_previous := false
 var _local := false
-var _equip_timer: Timer
+var _instance_job: AvatarInstanceJob
 
 
 func _ready() -> void:
-	_equip_timer = Timer.new()
-	_equip_timer.one_shot = true
-	_equip_timer.wait_time = 0.001
-	add_child(_equip_timer)
 	_local = get_parent().is_multiplayer_authority()
 	# Controls sample before this; visuals follow tracking at display frame rate.
 	process_priority = 5
@@ -34,10 +30,13 @@ func _ready() -> void:
 func set_avatar(id: String) -> void:
 	if not AvatarCatalog.has_avatar(id):
 		id = "default"
-	if id == avatar_id and (model != null or _request != null):
+	if id == avatar_id and (model != null or _request != null or _instance_job != null):
 		return
 	avatar_id = id
 	_generation += 1
+	if _instance_job != null:
+		_instance_job.cancel()
+		_instance_job = null
 	var generation := _generation
 	if _request != null:
 		_request.release()
@@ -53,12 +52,6 @@ func set_avatar(id: String) -> void:
 		await request.completed
 	if generation != _generation or not is_inside_tree() or request.released:
 		return
-	# A child timer cancels with this player; a global frame await can resume
-	# after a room change has already freed the player.
-	_equip_timer.start()
-	await _equip_timer.timeout
-	if generation != _generation or not is_inside_tree() or request.released:
-		return
 	if request.scene == null:
 		var reason := request.error
 		request.release()
@@ -66,10 +59,17 @@ func set_avatar(id: String) -> void:
 		AvatarService.record_event(id, "player load failed", reason)
 		avatar_failed.emit(id, reason)
 		return
-	var started := Time.get_ticks_usec()
-	var replacement := request.scene.instantiate() as Node3D
+	_instance_job = AvatarService.instantiate_scene(request.scene, id, _instance_ready.bind(id, generation))
 	request.release()
 	_request = null
+
+
+func _instance_ready(job: AvatarInstanceJob, id: String, generation: int) -> void:
+	if generation != _generation or not is_inside_tree():
+		return
+	_instance_job = null
+	var started := Time.get_ticks_usec()
+	var replacement := job.take_model()
 	if replacement == null:
 		avatar_failed.emit(id, "Avatar scene is invalid")
 		return
@@ -147,6 +147,9 @@ func _clear_model() -> void:
 
 func _exit_tree() -> void:
 	_generation += 1
+	if _instance_job != null:
+		_instance_job.cancel()
+		_instance_job = null
 	if _request != null:
 		_request.release()
 		_request = null
