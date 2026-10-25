@@ -34,6 +34,7 @@ func _ready() -> void:
 		if hand_mesh != null:
 			hand_mesh.process_physics_priority = 1
 			AvatarView.use_first_person_layer(hand_mesh)
+			PlatformXRInput.prepare_hand_model(hand_mesh)
 
 
 func update(delta: float) -> void:

@@ -306,7 +306,7 @@ func _activate_player_rig() -> void:
 
 func _retain_tracked_hands() -> void:
 	# PlayerManager calls this before freeing the outgoing player's controls.
-	# Keep the live optical meshes/modifiers for the next world in this session.
+	# Keep the live optical visuals for the next world in this session.
 	if not xr_active or not is_instance_valid(lobby_origin):
 		return
 	for tracked in tracked_hands.values():

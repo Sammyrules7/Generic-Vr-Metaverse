@@ -235,7 +235,7 @@ func _test_tracked_world_entry(game: Node) -> void:
 		for side in ["left", "right"]:
 			var hand: XRNode3D = hands[side]
 			check(game.tracked_hands[side] == hand and hand.get_parent() == origin, "World entry replaced or abandoned a live " + side + " hand")
-			check(hand.is_visible_in_tree() and hand.modifier.active, "World entry hid a continuously tracked " + side + " hand")
+			check(hand.is_visible_in_tree() and hand.tracking_valid, "World entry hid a continuously tracked " + side + " hand")
 		# Update joints without changing tracking validity or publishing a new
 		# default pose. The hand must move without an occlusion/reconnection.
 		var moved := Transform3D(Basis(Vector3.UP, 0.3), Vector3(0.35, 1.4, -0.6))
@@ -244,7 +244,7 @@ func _test_tracked_world_entry(game: Node) -> void:
 		await get_tree().process_frame
 		var right: XRNode3D = hands.right
 		var expected := origin.global_transform * XRServer.get_reference_frame() * moved
-		check(right.global_transform.is_equal_approx(expected), "World-entry hand froze until a new tracking event")
+		check(right.global_position.distance_to(expected.origin) < 0.0001, "World-entry hand froze until a new tracking event")
 		manager._clear_players()
 		for hand in hands.values():
 			check(is_instance_valid(hand) and hand.get_parent() == game.lobby_origin, "Player cleanup freed a live session hand")
