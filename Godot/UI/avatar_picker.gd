@@ -7,9 +7,8 @@ extends PanelContainer
 ## The 3D preview owns a distinct scene instance acquired from AvatarService;
 ## the request lease is released when switching avatars, closing the card, or
 ## freeing the card, so neither the main window nor remote peers are affected.
-## The preview renders the third-person layer only (the imported model marks the
-## first-person duplicate as layer 2) and stays static unless the native spring
-## installer is available, in which case it mirrors the current preference.
+## The preview renders the third-person layer only and rotates automatically.
+## Native springs follow the local viewing preference.
 
 signal closed
 
@@ -49,7 +48,8 @@ var _import_home := true
 var _import_immersive := false
 var _web_client := OS.has_feature("web")
 var _quest_browser := false
-var _collection_buttons: Array[Button] = []
+var _collection_buttons: Dictionary[String, Button] = {}
+var _collection := ""
 var _thumbnails: AvatarThumbnails
 var _preview_ready := true
 var _preview_failed := false
@@ -77,11 +77,6 @@ func _ready() -> void:
 	%CloseAvatarSettings.pressed.connect(close)
 	%CloseAvatarSettings.icon = preload("res://UI/icons/avatar/done.svg")
 	%AvatarSearch.text_changed.connect(func(_text: String): _filter_changed())
-	%CollectionFilter.add_item("All collections")
-	for collection in AvatarCatalog.collections():
-		if collection != "Custom":
-			%CollectionFilter.add_item(collection)
-	%CollectionFilter.item_selected.connect(func(_index: int): _filter_changed())
 	_build_collection_navigation()
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
@@ -164,7 +159,7 @@ func _rebuild() -> void:
 	_applied_id = _safe_id(PlayerProfile.avatar_id)
 	_pending_id = _applied_id
 	%AvatarSearch.text = ""
-	%CollectionFilter.select(0)
+	_collection = ""
 	_favorites_only = false
 	_custom_only = AvatarCatalog.is_custom(_applied_id)
 	_filter_changed()
@@ -172,7 +167,7 @@ func _rebuild() -> void:
 
 
 func _filter_changed() -> void:
-	var collection: String = %CollectionFilter.get_item_text(%CollectionFilter.selected) if %CollectionFilter.selected > 0 else ""
+	var collection := _collection
 	_filtered = AvatarCatalog.search(%AvatarSearch.text, "Custom" if _custom_only else collection)
 	if not _custom_only and not _favorites_only:
 		_filtered = _filtered.filter(func(entry: Dictionary): return not entry.get("local_custom", false))
@@ -186,8 +181,8 @@ func _filter_changed() -> void:
 	%BrowseFavorites.set_pressed_no_signal(_favorites_only)
 	%BrowseCustom.set_pressed_no_signal(_custom_only)
 	_update_import_access()
-	for index in _collection_buttons.size():
-		_collection_buttons[index].set_pressed_no_signal(not _custom_only and not _favorites_only and %CollectionFilter.selected == index + 1)
+	for collection_name in _collection_buttons:
+		_collection_buttons[collection_name].set_pressed_no_signal(not _custom_only and not _favorites_only and _collection == collection_name)
 	_refresh_list()
 
 
@@ -275,16 +270,25 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 		_set_status("This avatar is no longer in the catalog.", true)
 		return
 	_update_apply()
-	%SelectedTitle.text = str(entry.get("title", id))
-	%SelectedTitle.tooltip_text = %SelectedTitle.text
+	_refresh_credits(id)
 	_layout_browser()
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
-	var license := str(entry.get("license", ""))
-	%Attribution.text = license
-	%Attribution.tooltip_text = str(entry.get("attribution", license))
 	if with_preview:
 		_show_preview(id)
+
+
+func _refresh_credits(id: String) -> void:
+	var entry := AvatarCatalog.definition(id)
+	%SelectedTitle.text = str(entry.get("title", id))
+	%SelectedTitle.tooltip_text = %SelectedTitle.text
+	%Attribution.text = str(entry.get("license", ""))
+	%Attribution.tooltip_text = str(entry.get("attribution", entry.get("license", "")))
+	if _buttons.has(id):
+		var artist := _buttons[id].get_node_or_null("Card/Credits/Artist") as Label
+		if artist != null:
+			artist.text = str(entry.get("creator", ""))
+			artist.tooltip_text = artist.text
 
 
 func _safe_id(id: String) -> String:
@@ -327,21 +331,12 @@ func _show_preview(id: String) -> void:
 	_process_result(request, id, generation)
 
 
-func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -> void:
+func _process_result(request: AvatarLoadRequest, id: String, generation: int) -> void:
 	if generation != _generation or request.released:
 		# A stale or released lease must not touch the current preview.
 		return
 	%DownloadProgress.hide()
-	var entry := AvatarCatalog.definition(_id)
-	%SelectedTitle.text = str(entry.get("title", _id))
-	%SelectedTitle.tooltip_text = %SelectedTitle.text
-	%Attribution.text = str(entry.get("license", ""))
-	%Attribution.tooltip_text = str(entry.get("attribution", ""))
-	if _buttons.has(_id):
-		var artist := _buttons[_id].get_node_or_null("Card/Credits/Artist") as Label
-		if artist != null:
-			artist.text = str(entry.get("creator", "SirRichard94 / Lyuma" if _id == "godette" else ""))
-			artist.tooltip_text = artist.text
+	_refresh_credits(id)
 	var error := request.error
 	var scene := request.scene
 	_release_request()
@@ -357,7 +352,7 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 		return
 	%DownloadProgress.show()
 	%DownloadProgress.indeterminate = true
-	_instance_job = AvatarService.instantiate_scene(scene, _id, _preview_instance_ready.bind(generation))
+	_instance_job = AvatarService.instantiate_scene(scene, id, _preview_instance_ready.bind(generation))
 
 
 func _preview_instance_ready(job: AvatarInstanceJob, generation: int) -> void:
@@ -555,8 +550,9 @@ func _notification(what: int) -> void:
 
 
 func _build_collection_navigation() -> void:
-	for index in range(1, %CollectionFilter.item_count):
-		var collection: String = %CollectionFilter.get_item_text(index)
+	for collection in AvatarCatalog.collections():
+		if collection == "Custom":
+			continue
 		var button := Button.new()
 		button.text = collection
 		button.tooltip_text = collection
@@ -565,15 +561,15 @@ func _build_collection_navigation() -> void:
 		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		button.custom_minimum_size = Vector2(0, 38)
 		button.add_theme_font_size_override("font_size", 14)
-		button.pressed.connect(_choose_collection.bind(index))
+		button.pressed.connect(_choose_collection.bind(collection))
 		%Collections.add_child(button)
-		_collection_buttons.append(button)
+		_collection_buttons[collection] = button
 
 
-func _choose_collection(index: int) -> void:
+func _choose_collection(collection: String) -> void:
 	_custom_only = false
 	_favorites_only = false
-	%CollectionFilter.select(index)
+	_collection = collection
 	%AvatarSearch.text = ""
 	_filter_changed()
 
@@ -581,7 +577,7 @@ func _choose_collection(index: int) -> void:
 func _browse_all() -> void:
 	_custom_only = false
 	_favorites_only = false
-	%CollectionFilter.select(0)
+	_collection = ""
 	%AvatarSearch.text = ""
 	_filter_changed()
 
@@ -589,7 +585,7 @@ func _browse_all() -> void:
 func _browse_favorites() -> void:
 	_custom_only = false
 	_favorites_only = true
-	%CollectionFilter.select(0)
+	_collection = ""
 	%AvatarSearch.text = ""
 	_filter_changed()
 
@@ -671,7 +667,7 @@ func _make_avatar_card(entry: Dictionary) -> Button:
 	content.add_child(credits)
 	var artist := Label.new()
 	artist.name = "Artist"
-	artist.text = str(entry.get("creator", "SirRichard94 / Lyuma" if id == "godette" else ""))
+	artist.text = str(entry.get("creator", ""))
 	artist.tooltip_text = artist.text
 	artist.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	artist.clip_text = true
@@ -735,10 +731,6 @@ func _layout_browser() -> void:
 	_list.columns = clampi(int((available + 12.0) / 150.0), 2, 4)
 	if is_instance_valid(_import_button):
 		_import_button.custom_minimum_size.x = maxf(138, floorf((available - 12.0 * (_list.columns - 1)) / _list.columns))
-
-
-func _style_scrollbar(scroll: ScrollContainer) -> void:
-	_style_scrollbar_control(scroll.get_v_scroll_bar())
 
 
 func _style_scrollbar_control(bar: VScrollBar) -> void:
@@ -1011,7 +1003,7 @@ func _picker_canceled() -> void:
 func _browse_custom() -> void:
 	_custom_only = true
 	_favorites_only = false
-	%CollectionFilter.select(0)
+	_collection = ""
 	%AvatarSearch.text = ""
 	_filter_changed()
 

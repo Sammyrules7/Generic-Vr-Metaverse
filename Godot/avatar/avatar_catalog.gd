@@ -102,7 +102,5 @@ static func register_remote(entry: Dictionary) -> void:
 static func update_custom_metadata(id: String, metadata: Dictionary) -> void:
 	if not is_custom(id):
 		return
+	# Owned entries share this dictionary with _entries; remote entries live only here.
 	_by_id[id].merge(metadata, true)
-	for entry in _entries:
-		if entry.id == id:
-			entry.merge(metadata, true)

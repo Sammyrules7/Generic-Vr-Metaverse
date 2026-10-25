@@ -240,15 +240,10 @@ func _run() -> void:
 	check(card._loaded_count == 1 and card.get_node("%AvatarList").get_child_count() == 1, "Search must reset lazy results and filter the catalog")
 	check(card._request == null, "Filtering must not download avatars")
 	card.get_node("%AvatarSearch").text = ""
-	var filter: OptionButton = card.get_node("%CollectionFilter")
-	for index in filter.item_count:
-		if filter.get_item_text(index) == "100Avatars R3":
-			filter.select(index)
-	card._filter_changed()
+	card._collection_buttons["100Avatars R3"].pressed.emit()
 	check(card._filtered.size() == 100, "Collection filter did not include all R3 avatars")
 	check(card.get_node("%AvatarSearch").placeholder_text == "Search in 100Avatars R3" and card.get_node("%ResultCount").text == "100", "Search scope and count must track collection changes")
-	filter.select(0)
-	card._filter_changed()
+	card._browse_all()
 
 	check(card.get_node_or_null("%ResetAvatar") == null and card.get_node_or_null("%AutoRotate") == null, "Redundant Explorer/turntable buttons must be removed")
 	check(card.get_node("%FavoriteAvatar").icon != null, "Icons must use bundled SVGs rather than system-font glyphs")
@@ -335,9 +330,7 @@ func _run() -> void:
 	check(card.get_node("Content/Body/Gallery").get_global_rect().end.x < frame_rect.position.x, "Gallery and preview overlap")
 
 	# Reset returns to the bundled placeholder immediately.
-	for index in card.get_node("%CollectionFilter").item_count:
-		if card.get_node("%CollectionFilter").get_item_text(index) == "Bundled":
-			card._choose_collection(index)
+	card._collection_buttons["Bundled"].pressed.emit()
 	card.get_node("%AvatarList/AvatarExplorer").pressed.emit()
 	card.get_node("%Apply").pressed.emit()
 	check(PlayerProfile.avatar_id == "default" and card.get_node("%Apply").disabled, "Default reset did not apply the bundled avatar")
@@ -412,8 +405,7 @@ func _run() -> void:
 	card._browse_custom()
 	check(card.get_node("%ImportAvatar").get_parent() == card.get_node("%AvatarList"), "Upload must be a gallery tile, not a sidebar action")
 	check(card.get_node("%ImportAvatar").visible, "Import must be available on desktop home Custom tab")
-	for index in card.get_node("%CollectionFilter").item_count:
-		check(card.get_node("%CollectionFilter").get_item_text(index) != "Custom", "Custom must not appear among public collections")
+	check(not card._collection_buttons.has("Custom"), "Custom must not appear among public collections")
 	var web_client: bool = card._web_client
 	card._web_client = true
 	card._quest_browser = true

@@ -390,7 +390,7 @@ func _test_reach_limit() -> void:
 	var skeleton: Skeleton3D = driver.skeleton
 	var thigh: float = float(feet._thigh["left"]) * scale
 	var shin: float = float(feet._shin["left"]) * scale
-	var foot_length: float = float(feet._foot_length["left"]) * scale
+	var foot_length := skeleton.get_bone_global_rest(skeleton.find_bone("LeftFoot")).origin.distance_to(skeleton.get_bone_global_rest(skeleton.find_bone("LeftToes")).origin) * scale
 	var hip_world: Vector3 = records["left"]["hip"]
 	var ankle: Vector3 = records["left"]["ankle"]
 	var max_reach: float = (thigh + shin) * float(feet.REACH_MARGIN)

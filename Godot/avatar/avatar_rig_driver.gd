@@ -524,7 +524,7 @@ func _build_ground_feet() -> void:
 	helper.ground_mask = ground_mask
 	helper.enabled = ground_ik_enabled
 	helper.lower_body_tracked = lower_body_tracked
-	helper.configure(avatar_model, skeleton)
+	helper.configure(avatar_model, skeleton, _source_basis)
 	ground_feet = helper
 
 

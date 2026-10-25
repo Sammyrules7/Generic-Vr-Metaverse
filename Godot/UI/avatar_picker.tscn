@@ -100,12 +100,6 @@ theme_override_constants/margin_bottom = 8
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="CollectionFilter" type="OptionButton" parent="Content/Body/Sidebar"]
-unique_name_in_owner = true
-layout_mode = 2
-visible = false
-fit_to_longest_item = false
-
 [node name="Gallery" type="VBoxContainer" parent="Content/Body"]
 layout_mode = 2
 size_flags_horizontal = 3

@@ -1,6 +1,6 @@
 class_name AvatarLocalLibrary
 extends RefCounted
-## Private device storage. Paths are derived from hashes, never manifest input.
+## Owned upload storage; worn files can be shared P2P. Paths come only from hashes.
 const DIRECTORY := "user://avatars/custom"
 const MANIFEST := DIRECTORY + "/library.json"
 const MAX_FILES := 32

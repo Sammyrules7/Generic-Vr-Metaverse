@@ -27,9 +27,9 @@ const LEG_BONES := {
 }
 ## World layer 1 is the ordinary collision/ground layer in this project.
 const DEFAULT_GROUND_MASK := 1
-## A foot this close to its ground target is considered planted.
+## Animation lift above the rest ankle permitted when entering stance.
 const PLANT_HEIGHT := 0.02
-## A planted foot this far above the target has lifted for a step.
+## Animation lift above the rest ankle that releases an existing stance.
 const RELEASE_HEIGHT := 0.07
 ## Keep a little bend in the knee even at the end of the leg's reach.
 const REACH_MARGIN := 0.995
@@ -94,7 +94,6 @@ var _lower := {}
 var _foot := {}
 var _thigh := {}
 var _shin := {}
-var _foot_length := {}
 var _foot_up_local := {}
 var _foot_forward := {}
 var _ankle_world := {}
@@ -102,10 +101,11 @@ var _plant_ankle := {}
 var _exclude: Array[RID] = []
 var _owner_body: CharacterBody3D
 var _configured := false
-var _last_model_position := Vector3.ZERO
-var _have_model_position := false
-var _model_speed := 0.0
+var _last_body_position := Vector3.ZERO
+var _have_body_position := false
+var _body_speed := 0.0
 var _plant_locked := false
+var _axes := Basis.IDENTITY
 var _probe_up := 0.5
 var _probe_down := 1.2
 
@@ -114,7 +114,7 @@ func _ready() -> void:
 	set_physics_process(true)
 
 
-func configure(model: Node3D, humanoid: Skeleton3D) -> void:
+func configure(model: Node3D, humanoid: Skeleton3D, axes: Basis) -> void:
 	clear()
 	avatar_model = model
 	skeleton = humanoid
@@ -122,6 +122,7 @@ func configure(model: Node3D, humanoid: Skeleton3D) -> void:
 		return
 	if not avatar_model.is_inside_tree() or not skeleton.is_inside_tree():
 		return
+	_axes = axes
 	_read_rest_geometry()
 	_build_leg_ik()
 	_collect_exclude_rids()
@@ -160,15 +161,14 @@ func clear() -> void:
 	_foot.clear()
 	_thigh.clear()
 	_shin.clear()
-	_foot_length.clear()
 	_foot_up_local.clear()
 	_foot_forward.clear()
 	_ankle_world.clear()
 	_plant_ankle.clear()
 	_exclude.clear()
 	_owner_body = null
-	_have_model_position = false
-	_model_speed = 0.0
+	_have_body_position = false
+	_body_speed = 0.0
 	_plant_locked = false
 	_configured = false
 	skeleton = null
@@ -184,8 +184,8 @@ func reset() -> void:
 	target_gap.clear()
 	_ankle_world.clear()
 	_plant_ankle.clear()
-	_have_model_position = false
-	_model_speed = 0.0
+	_have_body_position = false
+	_body_speed = 0.0
 	_plant_locked = false
 
 
@@ -197,11 +197,8 @@ func _exit_tree() -> void:
 
 
 func _read_rest_geometry() -> void:
-	var up := _body_up()
-	var left := _body_left()
-	var fallback_forward := left.cross(up).normalized()
-	if fallback_forward.length_squared() < 1e-8:
-		fallback_forward = Vector3.FORWARD
+	var up := _axes.y
+	var fallback_forward := _axes.z
 	var mesh_lowest := _mesh_lowest(up)
 	for side in SIDES:
 		var names: Array = LEG_BONES[side]
@@ -234,7 +231,6 @@ func _read_rest_geometry() -> void:
 			var flat := toe_direction - up * toe_direction.dot(up)
 			if flat.length_squared() > 1e-8:
 				forward = flat.normalized()
-		_foot_length[side] = foot_length
 		_foot_forward[side] = forward
 		var rest_basis := foot_rest.basis.orthonormalized()
 		var up_local := rest_basis.inverse() * up
@@ -254,37 +250,6 @@ func _read_rest_geometry() -> void:
 		grounded[side] = false
 		reach_limited[side] = false
 		target_gap[side] = 0.0
-
-
-func _body_up() -> Vector3:
-	var hips := _rest_origin("Hips")
-	var chest := _rest_origin("Chest")
-	if chest.is_zero_approx():
-		chest = _rest_origin("UpperChest")
-	if chest.is_zero_approx():
-		chest = _rest_origin("Spine")
-	var up := chest - hips
-	if up.length_squared() < 1e-8:
-		up = _rest_origin("Head") - hips
-	if up.length_squared() < 1e-8:
-		return Vector3.UP
-	return up.normalized()
-
-
-func _body_left() -> Vector3:
-	var left := _rest_origin("LeftHand") - _rest_origin("RightHand")
-	if left.length_squared() < 1e-8:
-		left = _rest_origin("LeftUpperArm") - _rest_origin("RightUpperArm")
-	if left.length_squared() < 1e-8:
-		return Vector3.LEFT
-	return left.normalized()
-
-
-func _rest_origin(bone_name: String) -> Vector3:
-	var index := skeleton.find_bone(bone_name)
-	if index < 0:
-		return Vector3.ZERO
-	return skeleton.get_bone_global_rest(index).origin
 
 
 ## Lowest mesh point projected onto the skeleton's up axis. Skinned meshes keep
@@ -416,7 +381,7 @@ func solve(delta: float) -> void:
 		return
 	_update_motion(delta)
 	var scale := _world_scale()
-	var lock := _model_speed < MOVE_LOCK_SPEED
+	var lock := _body_speed < MOVE_LOCK_SPEED
 	var was_locked := _plant_locked
 	_plant_locked = lock
 	for side in SIDES:
@@ -523,13 +488,13 @@ func _update_motion(delta: float) -> void:
 		return
 	var body_root := avatar_model.get_parent() as Node3D
 	var position_now := body_root.global_position if body_root != null else avatar_model.global_position
-	if not _have_model_position:
-		_last_model_position = position_now
-		_have_model_position = true
+	if not _have_body_position:
+		_last_body_position = position_now
+		_have_body_position = true
 		return
-	var displacement := position_now - _last_model_position
+	var displacement := position_now - _last_body_position
 	var speed := Vector2(displacement.x, displacement.z).length() / delta
-	_last_model_position = position_now
+	_last_body_position = position_now
 	# A teleport is not locomotion; drop the smoothed speed instead of locking
 	# the feet to the old position.
 	if speed > 20.0:
@@ -537,7 +502,7 @@ func _update_motion(delta: float) -> void:
 		ground_hit.clear()
 		_plant_ankle.clear()
 		_deactivate_all()
-	_model_speed = lerpf(_model_speed, speed, 1.0 - exp(-10.0 * delta))
+	_body_speed = lerpf(_body_speed, speed, 1.0 - exp(-10.0 * delta))
 
 
 func _clamp_reach(hip: Vector3, target: Vector3, side: String, scale: float) -> Vector3:
