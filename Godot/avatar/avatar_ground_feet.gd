@@ -390,6 +390,12 @@ func _physics_process(_delta: float) -> void:
 		var ankle: Vector3 = _ankle_world[side]
 		var from := ankle + Vector3.UP * _probe_up
 		var to := ankle - Vector3.UP * _probe_down
+		# The unbent animation ankle can be underground when the head lowers.
+		# Start above the locomotion floor, not below it with the ankle.
+		var body_root := avatar_model.get_parent() as Node3D
+		if body_root != null:
+			from.y = maxf(from.y, body_root.global_position.y + _probe_up)
+			to.y = minf(to.y, body_root.global_position.y - _probe_down)
 		var query := PhysicsRayQueryParameters3D.create(from, to, ground_mask, _exclude)
 		query.collide_with_areas = false
 		query.collide_with_bodies = true
@@ -471,7 +477,8 @@ func _solve_side(side: String, scale: float, lock: bool, was_locked: bool) -> vo
 	if lock:
 		if not was_locked or not _plant_ankle.has(side):
 			_plant_ankle[side] = desired
-		var drift := ankle_world.distance_to(_plant_ankle[side])
+		var offset: Vector3 = ankle_world - _plant_ankle[side]
+		var drift := Vector2(offset.x, offset.z).length()
 		if drift > MAX_PLANT_DRIFT * scale:
 			_plant_ankle[side] = desired
 		desired = _plant_ankle[side]
@@ -514,12 +521,14 @@ func _deactivate_all() -> void:
 func _update_motion(delta: float) -> void:
 	if delta <= 0.0:
 		return
-	var position_now := avatar_model.global_position
+	var body_root := avatar_model.get_parent() as Node3D
+	var position_now := body_root.global_position if body_root != null else avatar_model.global_position
 	if not _have_model_position:
 		_last_model_position = position_now
 		_have_model_position = true
 		return
-	var speed := position_now.distance_to(_last_model_position) / delta
+	var displacement := position_now - _last_model_position
+	var speed := Vector2(displacement.x, displacement.z).length() / delta
 	_last_model_position = position_now
 	# A teleport is not locomotion; drop the smoothed speed instead of locking
 	# the feet to the old position.

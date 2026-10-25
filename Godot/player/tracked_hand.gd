@@ -14,10 +14,10 @@ func _ready() -> void:
 	var side := "Left" if hand == "left" else "Right"
 	var model := (load("res://player/hands/%sHandHumanoid.gltf" % side) as PackedScene).instantiate()
 	add_child(model)
-	PlatformXRInput.prepare_hand_model(model)
 	AvatarView.use_first_person_layer(model)
 	skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
 	for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		mesh.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC
 		var material := HandOutline.material_for(mesh, skeleton, side)
 		mesh.material_override = material
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

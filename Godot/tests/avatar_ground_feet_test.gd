@@ -56,6 +56,7 @@ func check(condition: bool, message: String) -> void:
 
 func run() -> void:
 	await _test_flat_ground()
+	await _test_deep_crouch()
 	await _test_bundled_avatar()
 	await _test_slope_ground()
 	await _test_no_ground()
@@ -570,4 +571,27 @@ func _test_walk_and_teleport() -> void:
 	var feet = rig.driver.ground_feet
 	for side in ["left", "right"]:
 		check(feet.foot_target[side].global_position.distance_to(rig.container.global_position) < 1.0, "Teleport must discard old foot locks")
+	scene_root.free()
+
+
+func _test_deep_crouch() -> void:
+	var scene_root := Node3D.new()
+	root.add_child(scene_root)
+	add_floor(scene_root)
+	var rig := build_rig(scene_root, build_model())
+	await settle(10)
+	var records := watch_feet(rig.driver)
+	await settle(2)
+	var planted: Vector3 = records.left.ankle
+	for height in [1.5, 1.3, 1.1, 0.95, 1.1, 1.4, 1.7]:
+		rig.head.position.y = height
+		await settle(6)
+		var feet = rig.driver.ground_feet
+		for side in ["left", "right"]:
+			check(feet.grounded.get(side, false) and feet.leg_ik[side].active, "Crouching must not release ground IK at eye height " + str(height))
+			var ankle: Vector3 = records[side].ankle
+			check(absf(ankle.y - float(feet.sole_offset[side])) < 0.015, "Crouched soles must stay on the floor")
+		check(Vector2(records.left.ankle.x - planted.x, records.left.ankle.z - planted.z).length() < 0.015, "Crouching must preserve the standing foot lock")
+		var look := rig.driver.avatar_model.find_child("LookOffset", true, false) as Node3D
+		check(look.global_position.distance_to(rig.head.global_position) < 0.002, "Crouch IK must preserve tracked eyes")
 	scene_root.free()

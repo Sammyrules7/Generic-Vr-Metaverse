@@ -123,6 +123,18 @@ func verify_skin_rest(driver: XRNode3D, snapshot: Dictionary) -> void:
 
 
 func run() -> void:
+	# Controller fallback uses the same wrist fade on its different bone layout.
+	for side in ["left", "right"]:
+		var controller_model: Node3D = load("res://addons/godot-xr-tools/hands/scenes/lowpoly/" + side + "_hand_low.tscn").instantiate()
+		var controller_origin := XROrigin3D.new()
+		root.add_child(controller_origin)
+		var controller := XRController3D.new()
+		controller_origin.add_child(controller)
+		controller.add_child(controller_model)
+		PlatformXRInput.prepare_hand_model(controller_model)
+		for mesh: MeshInstance3D in controller_model.find_children("*", "MeshInstance3D", true, false):
+			check(mesh.material_override.get_shader_parameter("wrist_fade") == 1.0, "Controller mesh must fade toward its wrist too")
+		controller_origin.free()
 	var original_scale := XRServer.world_scale
 	for side in ["left", "right"]:
 		XRServer.world_scale = 1.0
@@ -171,6 +183,13 @@ func run() -> void:
 		for material in driver._materials:
 			check("depth_test_disabled" in material.shader.code, "UI outline must remain visible over avatar hands")
 			check(material.get_shader_parameter("opacity") < 1.0, "Hand shader must fade smoothly")
+			check(material.get_shader_parameter("wrist_fade") == 1.0, "Tracked mesh must fade away toward the wrist")
+			var wrist: Vector3 = material.get_shader_parameter("wrist_origin")
+			var direction: Vector3 = material.get_shader_parameter("hand_forward")
+			var length: float = material.get_shader_parameter("hand_length")
+			var tips: PackedVector3Array = material.get_shader_parameter("fingertips")
+			check(length > 0.05 and absf(direction.length() - 1.0) < 0.001, "Wrist fade must use the mesh's authored hand axis")
+			check((tips[2] - wrist).dot(direction) / length > 0.95, "Fingertips must stay beyond the wrist fade")
 			check(material.get_shader_parameter("fingertips").size() == 5 and material.get_shader_parameter("fingertip_highlight") == 1.0, "Raw hand shader must highlight all five fingertips")
 
 		origin.set_meta("ui_hand_overlay_" + side, 0.0)

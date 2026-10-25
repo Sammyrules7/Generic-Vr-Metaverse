@@ -54,7 +54,9 @@ head-bone origin. Desktop locomotion blends procedural walking with CC0-derived
 idle motion. `AvatarGroundFeet` probes collision layer 1 on physics ticks and
 uses native two-bone leg IK plus foot rotation to match the floor. It estimates
 sole height from bind-pose mesh bounds (foot/toe proportions when unavailable),
-locks standing feet, and releases animation swings and airborne bodies. The
+locks standing feet, and releases animation swings and airborne bodies. Probes
+start above the locomotion floor even when crouching lowers the unsolved ankles
+underground; vertical head movement does not release standing foot locks. The
 owning player collider is excluded. No-ground, steep surfaces, missing legs,
 disabled IK and tracked lower-body input fall back to the animation pose.
 
