@@ -20,12 +20,7 @@ static func material_for(mesh: MeshInstance3D, skeleton: Skeleton3D = null, side
 		if wrist >= 0:
 			var origin := to_mesh * skeleton.get_bone_global_rest(wrist).origin
 			var forward := tips[2] - origin
-			material.set_shader_parameter("wrist_origin", origin)
-			material.set_shader_parameter("hand_forward", forward.normalized())
-			material.set_shader_parameter("hand_length", forward.length())
-			material.set_shader_parameter("wrist_fade", 1.0)
-		material.set_shader_parameter("fingertips", tips)
-		material.set_shader_parameter("fingertip_highlight", 1.0)
+			material.set_shader_parameter("has_masks", 1.0 if _bake_masks(mesh, origin, forward, tips) else 0.0)
 	return material
 
 static func set_appearance(material: ShaderMaterial, alpha: float, overlay: bool) -> void:
@@ -37,3 +32,33 @@ static func set_appearance(material: ShaderMaterial, alpha: float, overlay: bool
 		material.shader = shader
 	material.render_priority = 1 if overlay else 0
 	material.set_shader_parameter("opacity", clampf(alpha, 0.0, 1.0))
+
+
+static func _bake_masks(instance: MeshInstance3D, wrist: Vector3, forward: Vector3, tips: PackedVector3Array) -> bool:
+	var source := instance.mesh as ArrayMesh
+	if source == null or forward.length_squared() < 0.000001:
+		return false
+	var length := forward.length()
+	var axis := forward / length
+	var mesh := ArrayMesh.new()
+	mesh.resource_name = source.resource_name
+	mesh.blend_shape_mode = source.blend_shape_mode
+	for shape in source.get_blend_shape_count():
+		mesh.add_blend_shape(source.get_blend_shape_name(shape))
+	for surface in source.get_surface_count():
+		var arrays := source.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var colors := PackedColorArray()
+		colors.resize(vertices.size())
+		for i in vertices.size():
+			var along := (vertices[i] - wrist).dot(axis) / length
+			var nearest := INF
+			for tip in tips:
+				nearest = minf(nearest, vertices[i].distance_to(tip))
+			var tip := 1.0 - smoothstep(0.012, 0.035, nearest)
+			colors[i] = Color(maxf(smoothstep(0.03, 0.65, along), tip), tip, 0, 1)
+		arrays[Mesh.ARRAY_COLOR] = colors
+		mesh.add_surface_from_arrays(source.surface_get_primitive_type(surface), arrays, source.surface_get_blend_shape_arrays(surface), {}, source.surface_get_format(surface) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
+		mesh.surface_set_material(surface, source.surface_get_material(surface))
+	instance.mesh = mesh
+	return true

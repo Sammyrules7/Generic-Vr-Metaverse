@@ -133,7 +133,7 @@ func run() -> void:
 		controller.add_child(controller_model)
 		PlatformXRInput.prepare_hand_model(controller_model)
 		for mesh: MeshInstance3D in controller_model.find_children("*", "MeshInstance3D", true, false):
-			check(mesh.material_override.get_shader_parameter("wrist_fade") == 1.0, "Controller mesh must fade toward its wrist too")
+			check(mesh.material_override.get_shader_parameter("has_masks") == 1.0, "Controller mesh must fade toward its wrist too")
 		controller_origin.free()
 	var original_scale := XRServer.world_scale
 	for side in ["left", "right"]:
@@ -173,24 +173,28 @@ func run() -> void:
 		check(driver.visible and driver.modifier.active and driver._overlay_alpha > 0 and driver._overlay_alpha < 1, "UI hands must fade in with native joint tracking")
 		for mesh: MeshInstance3D in driver.find_children("*", "MeshInstance3D", true, false):
 			check(mesh.material_override in driver._materials, "Cached-import preparation must preserve the optical outline material")
-			var vertices: PackedVector3Array = mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-			var tips: PackedVector3Array = mesh.material_override.get_shader_parameter("fingertips")
-			for tip in tips:
+			var arrays := mesh.mesh.surface_get_arrays(0)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+			var to_mesh: Transform3D = mesh.global_transform.affine_inverse() * driver.skeleton.global_transform
+			var prefix := "Left" if side == "left" else "Right"
+			for name in ["Hand", "ThumbTip", "IndexTip", "MiddleTip", "RingTip", "LittleTip"]:
+				var point: Vector3 = to_mesh * driver.skeleton.get_bone_global_rest(driver.skeleton.find_bone(prefix + name)).origin
 				var nearest := INF
-				for vertex in vertices:
-					nearest = minf(nearest, vertex.distance_to(tip))
-				check(nearest < 0.025, "Fingertip highlight must overlap raw bind-pose geometry")
+				var vertex_index := 0
+				for i in vertices.size():
+					var distance := vertices[i].distance_to(point)
+					if distance < nearest:
+						nearest = distance
+						vertex_index = i
+				if name == "Hand":
+					check(colors[vertex_index].r < 0.08, "Actual wrist vertices must be invisible, not white")
+				else:
+					check(colors[vertex_index].r > 0.9 and colors[vertex_index].g > 0.5, "Actual fingertip vertices must stay visible and highlighted: " + name)
 		for material in driver._materials:
 			check("depth_test_disabled" in material.shader.code, "UI outline must remain visible over avatar hands")
 			check(material.get_shader_parameter("opacity") < 1.0, "Hand shader must fade smoothly")
-			check(material.get_shader_parameter("wrist_fade") == 1.0, "Tracked mesh must fade away toward the wrist")
-			var wrist: Vector3 = material.get_shader_parameter("wrist_origin")
-			var direction: Vector3 = material.get_shader_parameter("hand_forward")
-			var length: float = material.get_shader_parameter("hand_length")
-			var tips: PackedVector3Array = material.get_shader_parameter("fingertips")
-			check(length > 0.05 and absf(direction.length() - 1.0) < 0.001, "Wrist fade must use the mesh's authored hand axis")
-			check((tips[2] - wrist).dot(direction) / length > 0.95, "Fingertips must stay beyond the wrist fade")
-			check(material.get_shader_parameter("fingertips").size() == 5 and material.get_shader_parameter("fingertip_highlight") == 1.0, "Raw hand shader must highlight all five fingertips")
+			check(material.get_shader_parameter("has_masks") == 1.0, "Raw mesh must have baked fade masks")
 
 		origin.set_meta("ui_hand_overlay_" + side, 0.0)
 		driver._process(0.2)

@@ -6,11 +6,12 @@ provenance and the upstream license are in `hands/README.md` and `hands/LICENSE.
 Godot's native `XRHandModifier3D` updates the mesh from tracked joint poses.
 
 `HandOutline` replaces the skin material with a neutral translucent fill and a
-view-angle silhouette highlight. All five fingertips get a brighter fill and
+light silhouette contour with a darker inner contrast band. All five fingertips get a brighter fill and
 outline. The hand fades from fully visible fingers through the palm to an invisible
-wrist edge. These masks are measured against the authored rest-pose bones before
-skinning, so it follows finger deformation without tracking-space offsets or
-per-frame shader position uploads. The procedural joint shell has been removed.
+wrist edge. These masks are baked into a private mesh copy's vertex colors from
+the authored rest pose. They stay attached through skinning, translation and
+rotation; the shader never compares animated positions to bind-pose coordinates.
+Positions, normals, bone weights and skin binds are preserved. The procedural joint shell has been removed.
 
 With an avatar equipped, the raw mesh fades in only near UI. This overlay
 disables depth testing so the interaction hand stays readable over offset avatar
