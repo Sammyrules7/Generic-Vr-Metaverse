@@ -46,9 +46,13 @@ var _peak_frame_ms := 0.0
 var _last_frame_ms := 0.0
 # Optional injected trust store for isolated test environments; verification stays on.
 var tls_options: TLSOptions
+var render_profiler: AvatarRenderProfiler
 
 
 func _ready() -> void:
+	render_profiler = AvatarRenderProfiler.new()
+	render_profiler.name = "RenderProfiler"
+	add_child(render_profiler)
 	DirAccess.make_dir_recursive_absolute(CACHE_DIR)
 	for script in EXTENSIONS:
 		var extension: GLTFDocumentExtension = script.new()
@@ -471,6 +475,8 @@ func record_event(id: String, stage: String, detail := "", duration_ms := -1.0) 
 	if _events.size() > 64:
 		_events.pop_front()
 	_stages[id] = {"stage": stage, "at": Time.get_ticks_msec()}
+	if is_instance_valid(render_profiler):
+		render_profiler.activity = title + ": " + stage
 	if _stages.size() > 32:
 		_stages.erase(_stages.keys()[0])
 
@@ -484,6 +490,8 @@ func debug_report() -> String:
 		lines.append("None")
 	var xr := XRServer.primary_interface
 	lines.append("XR: %s | initialized: %s" % [xr.get_name() if xr != null else "None", xr.is_initialized() if xr != null else false])
+	var body := XRServer.get_tracker("/user/body_tracker") as XRBodyTracker
+	lines.append("Body tracker: %s | valid data: %s" % ["registered" if body != null else "none", body.has_tracking_data if body != null else false])
 	lines.append("\nStage times (last / maximum milliseconds):")
 	for phase in _phase_ms:
 		lines.append("%s: %s" % [phase, _phase_ms[phase]])
@@ -494,6 +502,8 @@ func debug_report() -> String:
 
 
 func reset_diagnostics() -> void:
+	if is_instance_valid(render_profiler):
+		render_profiler.reset_capture()
 	_events.clear()
 	_phase_ms.clear()
 	_peak_frame_ms = 0.0

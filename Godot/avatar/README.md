@@ -277,3 +277,59 @@ Quest Browser uploads are disabled only during immersive WebXR, with an
 in rooms/immersive sessions. Local UI (panel, pointer, names and progress) uses
 visual layer 17, excluded from all reflection passes. Nameplate and picker loading
 bars use rounded pills: bytes fill the bar, preparation bounces a short segment.
+
+
+## Capturing remaining render hitches
+
+Open Debug, choose **Capture render hitches**, then close the debug panel and
+reproduce one avatar selection/wear/mirror appearance. The capture stops after
+30 seconds; reopen Debug and use Copy report. Reset clears both import and
+render diagnostics. The panel itself redraws text, so keep it closed during the
+measurement. Repeat with the same cached avatar to compare cold and warm draws.
+
+The capture uses unclamped monotonic frame gaps, rendering submission wall time,
+activity tags, bounded hitch history, per-viewport sampled CPU/GPU timings where
+supported, and RenderingDevice pipeline deltas. Unfocused/resume gaps are ignored.
+Zero/unavailable GPU values never mean that GPU cost is zero. Submission timing
+is CPU wall time, not GPU completion; per-viewport timing is sampled once/second.
+
+On web, opt-in reversible wrappers additionally time existing compile/link/status,
+shader binding, uniform lookup, texture upload and buffer upload calls in the
+browser's main WebGL context. They never inspect shader sources or upload data,
+call `finish`, force compilation, or read pixels. Worker-owned contexts may not
+be observed; zero calls there are inconclusive. Slow call timestamps share the
+engine clock and can be correlated with frame gaps, not used as proof of cause.
+Wrappers are removed when capture stops. No data is sent anywhere.
+
+[Godot's pipeline compilation guide](https://docs.godotengine.org/en/stable/tutorials/performance/pipeline_compilations.html)
+explicitly excludes Compatibility/OpenGL ES/WebGL from ubershaders, pipeline
+precompilation and shader baking. For those renderers, warming requires actually
+drawing the relevant meshes/materials during loading. The picker already draws
+the real model before Wear, but XR multiview, lighting/shadows, skinning and
+viewport features can require other variants. Measure the outstanding variant
+before adding more warm-up passes: an off-screen mono preview cannot guarantee
+that an XR multiview variant is warm, and a synchronous GLES compile still stalls
+if merely moved into a hidden viewport during gameplay.
+
+Native RenderingDevice builds can use pipeline counters and precompilation.
+Shader baking is enabled in the native export presets, but the documented baker
+needs GPU access and does not run in the headless CI export path. Different MSAA
+levels in preview/main/mirror viewports can also create variants on those APIs;
+keep the reported configuration in mind when comparing renderers.
+
+## Body-estimation follow-up
+
+Native Meta OpenXR provides body skeleton data through the vendor plugin and
+`XRBodyTracker`, including optional inferred lower-body joints. Leg estimates
+are not independently measured leg trackers. That path needs extension settings,
+manifest support, valid-joint gating, retargeting and hardware testing; it is not
+wired to this avatar rig yet.
+
+The [WebXR body-tracking draft](https://immersive-web.github.io/body-tracking/)
+exposes `XRFrame.body` behind the optional `body-tracking` session feature. Godot's
+current WebXR glue does not consume it. This project's existing WebXR JS patch
+could bridge poses during the live XR frame, using the same reference space,
+without a C++ fork. That bridge, consent flow, tracking-loss behavior and pose
+replication still require implementation and Quest Browser validation. Debug
+reports whether an `XRBodyTracker` currently exists and has data; standing
+animations remain the fallback independently of either tracking API.

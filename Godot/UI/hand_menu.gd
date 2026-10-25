@@ -47,6 +47,7 @@ var _surface_body: StaticBody3D
 
 func _ready() -> void:
 	super._ready()
+	$Viewport.add_to_group("avatar_render_viewports")
 	for side in ["left", "right"]:
 		var contact := HandContact.new()
 		contact.pointer = Node3D.new()

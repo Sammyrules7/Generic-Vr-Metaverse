@@ -167,6 +167,7 @@ func _process(_delta: float) -> void:
 	var close := distance < height * (0.3 if _detail_close else 0.2)
 	if close != _detail_close:
 		_detail_close = close
+		get_tree().call_group("avatar_render_profilers", "note_activity", "mirror: close detail" if close else "mirror: distant capture")
 		_resize_viewport()
 	_target_viewport().render_target_update_mode = SubViewport.UPDATE_ALWAYS if _detail_close else SubViewport.UPDATE_DISABLED
 	if _right_viewport != null:
@@ -401,6 +402,7 @@ static func _active_xr_interface() -> XRInterface:
 
 
 static func _full_resolution(viewport: SubViewport) -> void:
+	viewport.add_to_group("avatar_render_viewports")
 	viewport.canvas_cull_mask = 0
 	viewport.vrs_mode = Viewport.VRS_DISABLED
 	viewport.scaling_3d_scale = 1.0

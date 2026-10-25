@@ -14,6 +14,13 @@ extends Node3D
 ## The camera is lined up with the eyes, not with the head bone origin: VRM
 ## stores the eye position in a LookOffset node under the head attachment.
 ##
+## Desktop standing and walking motion is procedural. A small CC0-derived idle
+## track adds organic weight shift, knee softness and arm sway. It is retargeted
+## as motion around each track's own mean, so an avatar keeps its own rest
+## stance, bone directions and proportions. Untracked VR applies only the leg
+## part of the same motion; head, neck, arms and hands never receive
+## prerecorded motion, and tracked head and hand targets always remain
+## authoritative.
 const PROCESS_PRIORITY := 10
 ## The skeleton must consume the targets of the frame the driver just wrote.
 const SKELETON_PRIORITY := 20
@@ -32,9 +39,51 @@ const ORIGINAL_LAYERS_META := "avatar_rig_original_layers"
 ## Desktop hands hang slightly short of full stretch so the elbow keeps a bend.
 const DESKTOP_REACH := 0.95
 const VR_BODY_BACK_OFFSET := 0.10
+## Restrained lower-body motion in VR keeps the feet close to their floor pose.
+const VR_IDLE_SCALE := 0.55
 const ARM_BONES := {
 	"left": ["LeftUpperArm", "LeftLowerArm", "LeftHand"],
 	"right": ["RightUpperArm", "RightLowerArm", "RightHand"],
+}
+const IDLE_CLIP_PATH := "res://avatar/animations/quaternius_universal_idle_loop.json"
+const IDLE_CLIP_SCRIPT := "res://avatar/animations/avatar_idle_clip.gd"
+## Rest pose rotations the driver owns. Head, neck, arms and fingers are not
+## included: tracked targets, IK and the wrist modifier own those.
+const CONTROLLED_BONES := [
+	"Hips", "Spine", "Chest", "UpperChest",
+	"LeftShoulder", "RightShoulder",
+	"LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
+	"RightUpperLeg", "RightLowerLeg", "RightFoot",
+]
+## VR only animates the legs. Their ancestors stay at rest, so the eye/head
+## anchor remains exact for the tracked head. Shoulders stay at rest too, so
+## tracked arm roots do not drift.
+const VR_IDLE_BONES := [
+	"LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
+	"RightUpperLeg", "RightLowerLeg", "RightFoot",
+]
+## Top-down order matters: each aim uses the parent poses already applied.
+const CLIP_TRACK_ORDER := [
+	"Hips", "Spine", "Chest", "UpperChest",
+	"LeftShoulder", "RightShoulder",
+	"LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
+	"RightUpperLeg", "RightLowerLeg", "RightFoot",
+]
+## Preferred child whose direction defines each source track. The first bone
+## that exists in the imported skeleton wins, so incomplete VRMs skip cleanly.
+const CLIP_CHILDREN := {
+	"Hips": ["Spine", "Chest", "Neck"],
+	"Spine": ["Chest", "UpperChest", "Neck"],
+	"Chest": ["UpperChest", "Neck"],
+	"UpperChest": ["Neck"],
+	"LeftShoulder": ["LeftUpperArm"],
+	"RightShoulder": ["RightUpperArm"],
+	"LeftUpperLeg": ["LeftLowerLeg", "LeftFoot"],
+	"LeftLowerLeg": ["LeftFoot", "LeftToes"],
+	"LeftFoot": ["LeftToes"],
+	"RightUpperLeg": ["RightLowerLeg", "RightFoot"],
+	"RightLowerLeg": ["RightFoot", "RightToes"],
+	"RightFoot": ["RightToes"],
 }
 
 var avatar_model: Node3D
@@ -44,6 +93,10 @@ var left_anchor: Node3D
 var right_anchor: Node3D
 var is_local := false
 var vr_mode := false
+## Future full-body providers set this before wearing the avatar. This driver
+## deliberately does not read XRBodyTracker; an unwired tracker must not turn
+## into a hidden dependency.
+var lower_body_tracked := false
 ## Native IK modifiers keyed by "left" and "right".
 var arm_ik := {}
 ## Proxy nodes the IK modifiers aim at, keyed by "left" and "right".
@@ -60,6 +113,7 @@ var _eye_offset := Vector3.ZERO
 var _head_rest_basis_model := Basis.IDENTITY
 var _forward_model := Vector3.BACK
 var _model_to_space := Basis.IDENTITY
+var _source_basis := Basis.IDENTITY
 var _desktop_target := {}
 var _original_layers := {}
 var _original_model: Node3D
@@ -73,6 +127,13 @@ var _motion_initialized := false
 var _motion_velocity := Vector3.ZERO
 var _stride_phase := 0.0
 var _idle_time := 0.0
+var _idle_clip_time := 0.0
+var _idle_phase := 0.0
+var _clip_targets: Array[Dictionary] = []
+var _arm_lengths := {}
+var _idle_clip: RefCounted
+static var _shared_idle_clip: RefCounted
+static var _idle_clip_warned := false
 
 
 func _ready() -> void:
@@ -125,6 +186,9 @@ func set_control_mode(use_vr: bool) -> void:
 	_reset_animation_pose()
 	_motion_initialized = false
 	_motion_velocity = Vector3.ZERO
+	_stride_phase = 0.0
+	_idle_time = 0.0
+	_idle_clip_time = 0.0
 	vr_mode = use_vr
 	_apply_mesh_layers()
 	_apply_desktop_targets()
@@ -140,7 +204,13 @@ func restore_original_layers() -> void:
 func _process(delta: float) -> void:
 	if not _configured:
 		return
-	_animate_desktop(delta)
+	if vr_mode:
+		# A future body solver can claim the lower body. Until then this is the
+		# untracked path: animate only legs and feet, never hips, head or arms.
+		if not lower_body_tracked:
+			_animate_vr_idle(delta)
+	else:
+		_animate_desktop(delta)
 	_update_body_pose()
 	_update_hand_targets()
 
@@ -247,6 +317,7 @@ func _read_rest_geometry() -> void:
 	var z_model := -_forward_model
 	var x_model := up_model.cross(z_model).normalized()
 	_model_to_space = Basis(x_model, up_model, z_model).inverse()
+	_source_basis = _character_basis()
 
 
 func _eye_offset_model() -> Vector3:
@@ -282,6 +353,18 @@ func _body_left_skeleton() -> Vector3:
 	if left.length_squared() < 1e-8:
 		return Vector3.LEFT
 	return left.normalized()
+
+
+## Character-space axes (x = left, y = up, z = forward) expressed in skeleton
+## space. The CC0 tracks are authored in the same convention.
+func _character_basis() -> Basis:
+	var up := _body_up_skeleton()
+	var left := _body_left_skeleton()
+	left = (left - up * left.dot(up)).normalized()
+	if left.length_squared() < 1e-8:
+		left = Vector3.LEFT
+	var forward := left.cross(up).normalized()
+	return Basis(left, up, forward)
 
 
 # Arms
@@ -414,33 +497,145 @@ static func _rotation_from_to(from: Vector3, to: Vector3) -> Quaternion:
 	return Quaternion(axis.normalized(), a.angle_to(b))
 
 
-# Desktop locomotion is derived from replicated body movement, so observers and
-# mirrors animate without new RPCs. Tracked VR poses never receive this motion.
+# Animation
+
+
+## Desktop locomotion is derived from replicated body movement, so observers and
+## mirrors animate without new RPCs. Tracked VR poses never receive this motion.
 func _capture_animation_pose() -> void:
 	_animation_bones.clear()
 	_motion_initialized = false
 	_motion_velocity = Vector3.ZERO
 	_stride_phase = 0.0
 	_idle_time = 0.0
-	for bone_name in ["Spine", "Chest", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot"]:
+	_idle_clip_time = 0.0
+	for bone_name in CONTROLLED_BONES:
 		var index := skeleton.find_bone(bone_name)
 		if index >= 0:
 			_animation_bones[bone_name] = skeleton.get_bone_pose_rotation(index)
+	_arm_lengths.clear()
+	for side in ARM_BONES:
+		var names: Array = ARM_BONES[side]
+		var upper := skeleton.find_bone(names[0])
+		var hand := skeleton.find_bone(names[2])
+		if upper >= 0 and hand >= 0:
+			_arm_lengths[side] = skeleton.get_bone_global_rest(upper).origin.distance_to(skeleton.get_bone_global_rest(hand).origin)
+	_idle_phase = fmod(float(get_instance_id()), 997.0) * 0.0063
+	_load_idle_clip()
+	_build_clip_targets()
+
+
+func _load_idle_clip() -> void:
+	if _shared_idle_clip == null and not _idle_clip_warned:
+		var script := load(IDLE_CLIP_SCRIPT)
+		if script != null:
+			var clip: RefCounted = script.new()
+			if clip.load_file(IDLE_CLIP_PATH):
+				_shared_idle_clip = clip
+			else:
+				_idle_clip_warned = true
+				push_warning("AvatarRigDriver: idle clip unavailable (" + str(clip.error) + "); using procedural idle")
+		else:
+			_idle_clip_warned = true
+			push_warning("AvatarRigDriver: idle clip helper unavailable; using procedural idle")
+	_idle_clip = _shared_idle_clip
+
+
+func _build_clip_targets() -> void:
+	_clip_targets.clear()
+	for track_name in CLIP_TRACK_ORDER:
+		var bone := skeleton.find_bone(track_name)
+		if bone < 0:
+			continue
+		var child := -1
+		for candidate in CLIP_CHILDREN.get(track_name, []):
+			child = skeleton.find_bone(candidate)
+			if child >= 0:
+				break
+		if child < 0:
+			continue
+		_clip_targets.append({
+			"track": StringName(track_name),
+			"bone_name": track_name,
+			"bone": bone,
+			"child": child,
+		})
 
 
 func _reset_animation_pose() -> void:
 	if not is_instance_valid(skeleton):
 		return
 	for bone_name in _animation_bones:
-		skeleton.set_bone_pose_rotation(skeleton.find_bone(bone_name), _animation_bones[bone_name])
+		var index := skeleton.find_bone(bone_name)
+		if index >= 0:
+			skeleton.set_bone_pose_rotation(index, _animation_bones[bone_name])
 
 
-func _animate_bone(bone_name: String, axis: Vector3, angle: float) -> void:
+## Rotate a captured rest pose around a skeleton-space axis. This preserves the
+## avatar's authored bone roll instead of adopting the source rig's local axes.
+func _rest_rotation_with_axis(bone_name: String, axis: Vector3, angle: float) -> Quaternion:
 	if not _animation_bones.has(bone_name):
-		return
+		return Quaternion.IDENTITY
+	var rest: Quaternion = _animation_bones[bone_name]
+	if absf(angle) < 1e-6:
+		return rest
 	var index := skeleton.find_bone(bone_name)
+	if index < 0:
+		return rest
 	var local_axis := skeleton.get_bone_global_rest(index).basis.inverse() * axis
-	skeleton.set_bone_pose_rotation(index, _animation_bones[bone_name] * Quaternion(local_axis.normalized(), angle))
+	if local_axis.length_squared() < 1e-10:
+		return rest
+	return (rest * Quaternion(local_axis.normalized(), angle)).normalized()
+
+
+func _rotate_pose(bone_name: String, pose: Quaternion, axis: Vector3, angle: float) -> Quaternion:
+	if absf(angle) < 1e-6:
+		return pose
+	var index := skeleton.find_bone(bone_name)
+	if index < 0:
+		return pose
+	var local_axis := skeleton.get_bone_global_rest(index).basis.inverse() * axis
+	if local_axis.length_squared() < 1e-10:
+		return pose
+	return (pose * Quaternion(local_axis.normalized(), angle)).normalized()
+
+
+## Skeleton-space transform of a bone using the poses currently set. The engine's
+## cached globals are one frame behind during _process, and the IK modifiers have
+## not run yet, so the animation code reads its own forward kinematics.
+func _pose_global(index: int) -> Transform3D:
+	if index < 0:
+		return Transform3D.IDENTITY
+	var local := Transform3D(Basis(skeleton.get_bone_pose_rotation(index)), skeleton.get_bone_pose_position(index))
+	var parent := skeleton.get_bone_parent(index)
+	if parent < 0:
+		return local
+	return _pose_global(parent) * local
+
+
+func _rest_direction(bone: int, child: int) -> Vector3:
+	var direction := skeleton.get_bone_global_rest(child).origin - skeleton.get_bone_global_rest(bone).origin
+	if direction.length_squared() < 1e-10:
+		return Vector3.UP
+	return direction.normalized()
+
+
+## Aim a bone at a skeleton-space direction while preserving its roll.
+func _aim_bone(bone: int, child: int, desired: Vector3) -> void:
+	if desired.length_squared() < 1e-10:
+		return
+	var bone_pose := _pose_global(bone)
+	var child_pose := _pose_global(child)
+	var current := child_pose.origin - bone_pose.origin
+	if current.length_squared() < 1e-10:
+		return
+	var swing := _rotation_from_to(current.normalized(), desired.normalized())
+	var global_rotation := (swing * bone_pose.basis.get_rotation_quaternion()).normalized()
+	var parent := skeleton.get_bone_parent(bone)
+	var parent_rotation := Quaternion.IDENTITY
+	if parent >= 0:
+		parent_rotation = _pose_global(parent).basis.get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(bone, (parent_rotation.inverse() * global_rotation).normalized())
 
 
 func _animate_desktop(delta: float) -> void:
@@ -461,32 +656,195 @@ func _animate_desktop(delta: float) -> void:
 	var speed := minf(_motion_velocity.length(), 7.0)
 	var weight := clampf(speed / 2.5, 0.0, 1.0)
 	_idle_time += delta
+	_idle_clip_time += delta
 	_stride_phase = fmod(_stride_phase + speed * delta * TAU / 2.0, TAU)
-	var up := _body_up_skeleton()
-	var left := _body_left_skeleton()
-	var forward := left.cross(up).normalized()
+	var up := _source_basis.y
+	var left := _source_basis.x
+	var forward := _source_basis.z
 	var skeleton_world := skeleton.global_basis.orthonormalized()
 	var direction := skeleton_world.inverse() * _motion_velocity.normalized() if speed > 0.01 else forward
 	var forward_weight := direction.dot(forward)
 	var side_weight := direction.dot(left)
 	var breath := sin(_idle_time * 2.2) * 0.012 * (1.0 - weight)
-	_animate_bone("Spine", left, breath)
-	_animate_bone("Chest", up, sin(_stride_phase) * weight * 0.035)
+	var walk_rotations := _build_walk_rotations(weight, up, left, forward, forward_weight, side_weight, breath)
+	_apply_idle_pose(walk_rotations, weight, 1.0, CONTROLLED_BONES)
+	if skeleton != null:
+		skeleton.force_update_all_bone_transforms()
+	for side in ["left", "right"]:
+		if not _desktop_target.has(side) or not hand_target.has(side):
+			continue
+		var cycle := sin(_stride_phase + (0.0 if side == "left" else PI))
+		var idle_target := _idle_hand_target(side)
+		var walk_target: Transform3D = _desktop_target[side]
+		var target := Transform3D(Basis.IDENTITY, idle_target.origin.lerp(walk_target.origin, weight))
+		target.origin += forward * (-cycle * weight * 0.16) + up * (absf(cycle) * weight * 0.025 + breath * 0.2)
+		hand_target[side].transform = target
+
+
+func _build_walk_rotations(weight: float, up: Vector3, left: Vector3, forward: Vector3, forward_weight: float, side_weight: float, breath: float) -> Dictionary:
+	var rotations := {}
+	for bone_name in _animation_bones:
+		rotations[bone_name] = _animation_bones[bone_name]
+	if _animation_bones.has("Spine"):
+		rotations["Spine"] = _rest_rotation_with_axis("Spine", left, breath)
+	if _animation_bones.has("Chest"):
+		rotations["Chest"] = _rest_rotation_with_axis("Chest", up, sin(_stride_phase) * weight * 0.035)
 	for side in ["left", "right"]:
 		var cycle := sin(_stride_phase + (0.0 if side == "left" else PI))
 		var prefix := "Left" if side == "left" else "Right"
 		var upper_name := prefix + "UpperLeg"
-		_animate_bone(upper_name, left, -cycle * weight * 0.5 * forward_weight)
+		var lower_name := prefix + "LowerLeg"
+		var foot_name := prefix + "Foot"
 		if _animation_bones.has(upper_name):
+			var upper_rotation := _rest_rotation_with_axis(upper_name, left, -cycle * weight * 0.5 * forward_weight)
 			var upper := skeleton.find_bone(upper_name)
-			var local_forward := skeleton.get_bone_global_rest(upper).basis.inverse() * forward
-			skeleton.set_bone_pose_rotation(upper, skeleton.get_bone_pose_rotation(upper) * Quaternion(local_forward.normalized(), cycle * weight * side_weight * 0.3))
-		_animate_bone(prefix + "LowerLeg", left, maxf(0.0, cycle) * weight * 0.65)
-		_animate_bone(prefix + "Foot", left, -maxf(0.0, cycle) * weight * 0.15)
-		if _desktop_target.has(side):
-			var target: Transform3D = _desktop_target[side]
-			target.origin += forward * (-cycle * weight * 0.16) + up * (absf(cycle) * weight * 0.025 + breath * 0.2)
-			hand_target[side].transform = target
+			if upper >= 0:
+				var local_forward := skeleton.get_bone_global_rest(upper).basis.inverse() * forward
+				upper_rotation = (upper_rotation * Quaternion(local_forward.normalized(), cycle * weight * side_weight * 0.3)).normalized()
+			rotations[upper_name] = upper_rotation
+		if _animation_bones.has(lower_name):
+			rotations[lower_name] = _rest_rotation_with_axis(lower_name, left, maxf(0.0, cycle) * weight * 0.65)
+		if _animation_bones.has(foot_name):
+			rotations[foot_name] = _rest_rotation_with_axis(foot_name, left, -maxf(0.0, cycle) * weight * 0.15)
+	return rotations
+
+
+## Restrained standing motion for an untracked VR body without a known pose.
+## Head, neck, arms and hands are never touched here.
+func _animate_vr_idle(delta: float) -> void:
+	if delta <= 0.0 or skeleton == null:
+		return
+	_idle_time += delta
+	_idle_clip_time += delta
+	var rest_rotations := {}
+	for bone_name in VR_IDLE_BONES:
+		if _animation_bones.has(bone_name):
+			rest_rotations[bone_name] = _animation_bones[bone_name]
+	_apply_idle_pose(rest_rotations, 0.0, VR_IDLE_SCALE, VR_IDLE_BONES)
+	skeleton.force_update_all_bone_transforms()
+
+
+func _apply_idle_pose(walk_rotations: Dictionary, walk_weight: float, idle_scale: float, active_bones: Array) -> void:
+	if skeleton == null:
+		return
+	# Start from rest so clip aim sees a clean parent chain.
+	for bone_name in active_bones:
+		if not _animation_bones.has(bone_name):
+			continue
+		var index := skeleton.find_bone(bone_name)
+		if index >= 0:
+			skeleton.set_bone_pose_rotation(index, _animation_bones[bone_name])
+	var idle_rotations := {}
+	for bone_name in active_bones:
+		if _animation_bones.has(bone_name):
+			idle_rotations[bone_name] = _animation_bones[bone_name]
+	if _idle_clip != null:
+		_apply_clip_motion(idle_rotations, active_bones)
+	else:
+		_apply_procedural_idle(idle_rotations, active_bones)
+	_apply_idle_overlay(idle_rotations, active_bones, idle_scale)
+	for bone_name in active_bones:
+		if not _animation_bones.has(bone_name):
+			continue
+		var index := skeleton.find_bone(bone_name)
+		if index < 0:
+			continue
+		var rest: Quaternion = _animation_bones[bone_name]
+		var idle: Quaternion = idle_rotations.get(bone_name, rest)
+		if idle_scale < 1.0:
+			idle = rest.slerp(idle, idle_scale)
+		var walk: Quaternion = walk_rotations.get(bone_name, rest)
+		skeleton.set_bone_pose_rotation(index, idle.slerp(walk, walk_weight))
+
+
+## Convert the source clip's motion around its own mean into a swing relative to
+## this VRM's rest directions. Static stance, proportions and bone roll stay local.
+func _apply_clip_motion(idle_rotations: Dictionary, active_bones: Array) -> void:
+	var basis := _source_basis
+	var inverse := basis.inverse()
+	for entry in _clip_targets:
+		var bone_name: String = entry["bone_name"]
+		if not active_bones.has(bone_name):
+			continue
+		var track: StringName = entry["track"]
+		if not _idle_clip.has_track(track):
+			continue
+		var mean: Vector3 = _idle_clip.mean_direction(track)
+		var direction: Vector3 = _idle_clip.sample_direction(track, _idle_clip_time)
+		var motion := _rotation_from_to(mean, direction)
+		var global_motion := (basis * Basis(motion) * inverse).get_rotation_quaternion()
+		var rest_direction := _rest_direction(entry["bone"], entry["child"])
+		var desired := global_motion * rest_direction
+		_aim_bone(entry["bone"], entry["child"], desired)
+		idle_rotations[bone_name] = skeleton.get_bone_pose_rotation(entry["bone"])
+
+
+## Layered fallback for a missing/corrupt clip and for incomplete rigs. It uses
+## incommensurate periods so standing avatars do not breathe in lockstep.
+func _apply_procedural_idle(idle_rotations: Dictionary, active_bones: Array) -> void:
+	var up := _source_basis.y
+	var left := _source_basis.x
+	var forward := _source_basis.z
+	var shift := sin(_idle_time * 0.41 + _idle_phase)
+	var breath := sin(_idle_time * 1.55 + _idle_phase * 0.37)
+	var slow := sin(_idle_time * 0.19 + _idle_phase * 1.3)
+	if idle_rotations.has("Hips"):
+		idle_rotations["Hips"] = _rotate_pose("Hips", idle_rotations["Hips"], forward, shift * 0.010)
+	if idle_rotations.has("Spine"):
+		var spine: Quaternion = _rotate_pose("Spine", idle_rotations["Spine"], left, shift * 0.015)
+		idle_rotations["Spine"] = _rotate_pose("Spine", spine, up, slow * 0.006)
+	if idle_rotations.has("Chest"):
+		var chest: Quaternion = _rotate_pose("Chest", idle_rotations["Chest"], left, -shift * 0.010)
+		idle_rotations["Chest"] = _rotate_pose("Chest", chest, up, breath * 0.004)
+	if idle_rotations.has("UpperChest"):
+		idle_rotations["UpperChest"] = _rotate_pose("UpperChest", idle_rotations["UpperChest"], left, shift * 0.007)
+	for side in ["Left", "Right"]:
+		var side_sign := 1.0 if side == "Left" else -1.0
+		var upper_name: String = side + "UpperLeg"
+		var lower_name: String = side + "LowerLeg"
+		var foot_name: String = side + "Foot"
+		if idle_rotations.has(upper_name):
+			idle_rotations[upper_name] = _rotate_pose(upper_name, idle_rotations[upper_name], left, shift * 0.006 * side_sign)
+		if idle_rotations.has(lower_name):
+			idle_rotations[lower_name] = _rotate_pose(lower_name, idle_rotations[lower_name], left, 0.010 + maxf(0.0, shift) * 0.008)
+		if idle_rotations.has(foot_name):
+			idle_rotations[foot_name] = _rotate_pose(foot_name, idle_rotations[foot_name], left, -0.006)
+
+
+## A slow second layer keeps the 2.5 s clip from reading as a mechanical loop.
+func _apply_idle_overlay(idle_rotations: Dictionary, active_bones: Array, idle_scale: float) -> void:
+	var up := _source_basis.y
+	var left := _source_basis.x
+	var sway := sin(_idle_time * 0.29 + _idle_phase) * 0.008 * idle_scale
+	var breathe := sin(_idle_time * 1.55 + _idle_phase * 0.7) * 0.005 * idle_scale
+	if active_bones.has("Spine") and idle_rotations.has("Spine"):
+		var spine: Quaternion = _rotate_pose("Spine", idle_rotations["Spine"], left, sway)
+		idle_rotations["Spine"] = _rotate_pose("Spine", spine, up, breathe * 0.5)
+	if active_bones.has("Chest") and idle_rotations.has("Chest"):
+		idle_rotations["Chest"] = _rotate_pose("Chest", idle_rotations["Chest"], left, -sway * 0.6)
+
+
+func _idle_hand_target(side: String) -> Transform3D:
+	var prefix := "Left" if side == "left" else "Right"
+	var upper := skeleton.find_bone(prefix + "UpperArm")
+	var hand := skeleton.find_bone(prefix + "Hand")
+	var swing := sin(_idle_time * 0.29 + _idle_phase + (0.0 if side == "left" else 1.9))
+	var breath := sin(_idle_time * 1.55 + _idle_phase * 0.7)
+	if _idle_clip != null and upper >= 0 and hand >= 0 and _idle_clip.has_wrist(side):
+		var origin := _pose_global(upper).origin
+		var offset: Vector3 = _idle_clip.sample_wrist(side, _idle_clip_time) * float(_arm_lengths.get(side, 0.0))
+		var target := Transform3D(Basis.IDENTITY, origin + _source_basis * offset)
+		target.origin += _source_basis.z * (swing * 0.012) + _source_basis.y * (breath * 0.006)
+		# Like the desktop rest target, stay short of full stretch so the elbow
+		# keeps a bend and the IK does not snap to a straight arm.
+		var reach := float(_arm_lengths.get(side, 0.0)) * DESKTOP_REACH
+		var from_shoulder := target.origin - origin
+		if reach > 0.0 and from_shoulder.length() > reach:
+			target.origin = origin + from_shoulder.normalized() * reach
+		return target
+	var fallback: Transform3D = _desktop_target.get(side, Transform3D.IDENTITY)
+	fallback.origin += _source_basis.z * (swing * 0.015) + _source_basis.y * (breath * 0.008)
+	return fallback
 
 
 # Body placement

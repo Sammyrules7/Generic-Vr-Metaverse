@@ -34,7 +34,7 @@ run_godot() {
   fi
 }
 
-for suite in movement tracked_hand hand_menu touch_approach avatar_custom avatar_transfer avatar_loading avatar_container avatar_rig avatar_springs mirror voice_codec voice_audience murder_rules murder_presentation murder_session prairie_weather; do
+for suite in movement tracked_hand hand_menu touch_approach avatar_custom avatar_transfer avatar_render_profiler avatar_loading avatar_container avatar_rig avatar_springs mirror voice_codec voice_audience murder_rules murder_presentation murder_session prairie_weather; do
   run_godot --script "res://tests/${suite}_test.gd"
 done
 

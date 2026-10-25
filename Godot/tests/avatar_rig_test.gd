@@ -48,7 +48,11 @@ func run() -> void:
 	await _test_synthetic_fixture()
 	await _test_avatar_fingers()
 	_test_eye_alignment()
+	_test_idle_clip_data()
 	_test_desktop_animation()
+	_test_rest_bases()
+	_test_procedural_fallback()
+	await _test_vr_lower_body_idle()
 	await _test_bundled_vrm()
 	print("AVATAR_RIG_TEST failures=", failures)
 	quit(1 if failures else 0)
@@ -201,13 +205,14 @@ func _test_synthetic_fixture() -> void:
 	if look != null:
 		check(look.global_position.distance_to(Vector3(0, 1.7, 0)) < 0.001,
 			"Eyes must sit on the head anchor, got " + str(look.global_position))
-	# A neutral anchor must leave the imported head pose alone: the model may
-	# be authored facing any way, the head must not be counter rotated.
-	var rest_rotation: Quaternion = driver.skeleton.get_bone_rest(head_bone).basis.get_rotation_quaternion()
-	var neutral_delta: float = driver.skeleton.get_bone_pose_rotation(head_bone).angle_to(rest_rotation)
-	check(neutral_delta < 0.01,
-		"Neutral anchor must not rotate the head, delta " + str(rad_to_deg(neutral_delta)) + " degrees")
+	# A neutral anchor must leave the head's world orientation alone. The torso
+	# now idles, so the head counter-rotates in local space to cancel it; that
+	# compensation must not turn the head away from the camera.
+	var rest_head_global: Quaternion = driver.skeleton.get_bone_global_rest(head_bone).basis.get_rotation_quaternion()
 	var neutral_head: Quaternion = driver.skeleton.get_bone_global_pose(head_bone).basis.get_rotation_quaternion()
+	var neutral_delta: float = neutral_head.angle_to(rest_head_global)
+	check(neutral_delta < deg_to_rad(1.0),
+		"Neutral anchor must not rotate the head, delta " + str(rad_to_deg(neutral_delta)) + " degrees")
 
 	# Moving the head anchor moves the body with it.
 	head.transform = Transform3D(Basis.IDENTITY, Vector3(0.3, 1.5, -0.2))
@@ -388,10 +393,39 @@ func _test_desktop_animation() -> void:
 	var container: Node3D = rig.container
 	var skeleton: Skeleton3D = driver.skeleton
 	driver.set_process(false)
+	check(driver._idle_clip != null, "Desktop rig must load the CC0 idle tracks")
 	driver._process(1.0 / 60.0)
 	var spine := skeleton.find_bone("Spine")
-	check(not skeleton.get_bone_pose_rotation(spine).is_equal_approx(Quaternion.IDENTITY), "Desktop idle must animate the torso")
 	var leg := skeleton.find_bone("LeftUpperLeg")
+	var idle_start: Quaternion = skeleton.get_bone_pose_rotation(spine)
+	var idle_variation := 0.0
+	var max_hand_reach := {"left": 0.0, "right": 0.0}
+	var idle_hand_start := {
+		"left": driver.hand_target.left.transform.origin,
+		"right": driver.hand_target.right.transform.origin,
+	}
+	var idle_hand_swing := 0.0
+	for frame in 90:
+		driver._process(1.0 / 60.0)
+		idle_variation = maxf(idle_variation, skeleton.get_bone_pose_rotation(spine).angle_to(idle_start))
+		for side in ["left", "right"]:
+			var upper := skeleton.find_bone("LeftUpperArm" if side == "left" else "RightUpperArm")
+			var reach: float = driver.hand_target[side].transform.origin.distance_to(driver._pose_global(upper).origin)
+			max_hand_reach[side] = maxf(max_hand_reach[side], reach)
+			idle_hand_swing = maxf(idle_hand_swing,
+				driver.hand_target[side].transform.origin.distance_to(idle_hand_start[side]))
+	for side in ["left", "right"]:
+		var arm_length: float = driver._arm_lengths[side]
+		check(max_hand_reach[side] <= arm_length * driver.DESKTOP_REACH + 0.001,
+			"Idle wrist target must stay short of full stretch (" + side + ")")
+	check(idle_hand_swing > 0.002 and idle_hand_swing < 0.12,
+		"Idle hands must sway subtly, got " + str(idle_hand_swing))
+	check(idle_variation > deg_to_rad(0.1), "Desktop idle must keep varying over the loop")
+	var rest_spine: Quaternion = driver._animation_bones["Spine"]
+	check(skeleton.get_bone_pose_rotation(spine).angle_to(rest_spine) < deg_to_rad(8.0),
+		"Idle torso must stay close to this avatar's rest stance")
+	var idle_leg_angle: float = skeleton.get_bone_pose_rotation(leg).angle_to(driver._animation_bones["LeftUpperLeg"])
+	check(idle_leg_angle < deg_to_rad(8.0), "Idle legs must stay restrained")
 	var maximum_leg_angle := 0.0
 	var maximum_hand_swing := 0.0
 	for frame in 60:
@@ -403,16 +437,121 @@ func _test_desktop_animation() -> void:
 	check(maximum_hand_swing > 0.05, "Desktop walking must swing the hands")
 	for frame in 120:
 		driver._process(1.0 / 60.0)
-	check(skeleton.get_bone_pose_rotation(leg).get_angle() < 0.01, "Stopping must blend the legs back to idle")
+	var stopped_leg_angle: float = skeleton.get_bone_pose_rotation(leg).angle_to(driver._animation_bones["LeftUpperLeg"])
+	check(stopped_leg_angle < deg_to_rad(8.0),
+		"Stopping must blend the legs back to the restrained idle, got " + str(rad_to_deg(stopped_leg_angle)))
 	container.position.x += 100.0
 	driver._process(1.0 / 60.0)
 	check(driver._motion_velocity.is_zero_approx(), "Teleporting must reset locomotion velocity")
-	driver.set_control_mode(true)
-	container.position.z += 0.1
-	driver._process(1.0 / 60.0)
-	check(skeleton.get_bone_pose_rotation(spine).is_equal_approx(Quaternion.IDENTITY) and skeleton.get_bone_pose_rotation(leg).is_equal_approx(Quaternion.IDENTITY), "VR must clear desktop bone animation")
-	check(driver.hand_target.left.global_position.is_equal_approx(rig.left.global_position), "VR must keep tracked hand targets after desktop animation")
 	container.free()
+
+
+func _test_idle_clip_data() -> void:
+	var script := load("res://avatar/animations/avatar_idle_clip.gd")
+	check(script != null, "Idle clip helper must be present")
+	if script == null:
+		return
+	var clip = script.new()
+	check(clip.load_file(), "Idle clip data must load: " + str(clip.error))
+	check(clip.duration > 1.0 and clip.sample_count > 30, "Idle clip must span a usable loop")
+	for bone_name in ["Hips", "Spine", "Chest", "UpperChest", "LeftUpperLeg", "RightUpperLeg", "LeftFoot"]:
+		check(clip.has_track(StringName(bone_name)), "Idle clip is missing " + bone_name)
+	check(clip.has_wrist("left") and clip.has_wrist("right"), "Idle clip is missing wrist offsets")
+	var frames: Array = clip.tracks[StringName("Hips")]["frames"]
+	var moved := 0.0
+	for index in range(1, frames.size()):
+		moved = maxf(moved, absf(frames[index].angle_to(frames[0])))
+	check(moved > deg_to_rad(0.2), "Idle clip must contain real motion")
+	check(absf(clip.sample_wrist("left", 0.0).length() - 1.0) < 0.15, "Wrist offsets must be arm-length normalized")
+	check(String(clip.source.get("license", "")) == "CC0-1.0", "Idle clip provenance must record its CC0 license")
+
+
+func _test_rest_bases() -> void:
+	var model := build_fixture_model()
+	var skeleton := model.get_node("GeneralSkeleton") as Skeleton3D
+	for bone_name in ["Spine", "Chest", "LeftUpperLeg", "RightUpperLeg"]:
+		var bone := skeleton.find_bone(bone_name)
+		var rest := skeleton.get_bone_rest(bone)
+		rest.basis = rest.basis * Basis(Vector3.FORWARD, 0.35)
+		skeleton.set_bone_rest(bone, rest)
+	skeleton.reset_bone_poses()
+	var rig := build_rig(model, true, false)
+	var driver = rig.driver
+	driver.set_process(false)
+	for frame in 60:
+		driver._process(1.0 / 60.0)
+	for bone_name in ["Spine", "Chest", "LeftUpperLeg", "RightUpperLeg"]:
+		var bone := skeleton.find_bone(bone_name)
+		var rest_pose: Quaternion = skeleton.get_bone_rest(bone).basis.get_rotation_quaternion()
+		var delta: float = skeleton.get_bone_pose_rotation(bone).angle_to(rest_pose)
+		check(delta < deg_to_rad(8.0),
+			"Clip must add motion around a rotated rest base, not replace it (" + bone_name + " " + str(rad_to_deg(delta)) + " degrees)")
+	rig.container.free()
+
+
+func _test_procedural_fallback() -> void:
+	var rig := build_rig(build_fixture_model(), false, false)
+	var driver = rig.driver
+	var skeleton: Skeleton3D = driver.skeleton
+	driver.set_process(false)
+	driver._idle_clip = null
+	driver._process(1.0 / 60.0)
+	var spine := skeleton.find_bone("Spine")
+	var leg := skeleton.find_bone("LeftUpperLeg")
+	var start: Quaternion = skeleton.get_bone_pose_rotation(spine)
+	var variation := 0.0
+	# Five seconds of the slow sway, so the check cannot land near a turnaround
+	# of the desynchronized idle phase.
+	for frame in 300:
+		driver._process(1.0 / 60.0)
+		variation = maxf(variation, skeleton.get_bone_pose_rotation(spine).angle_to(start))
+	check(variation > deg_to_rad(0.1), "Procedural fallback must still animate standing")
+	var leg_delta: float = skeleton.get_bone_pose_rotation(leg).angle_to(driver._animation_bones["LeftUpperLeg"])
+	check(leg_delta < deg_to_rad(8.0), "Procedural fallback legs must stay restrained")
+	rig.container.free()
+
+
+func _test_vr_lower_body_idle() -> void:
+	var rig := build_rig(build_fixture_model(), true, true)
+	var driver = rig.driver
+	var skeleton: Skeleton3D = driver.skeleton
+	var head: Node3D = rig.head
+	var look := rig.model.find_child("LookOffset", true, false) as Node3D
+	driver.set_process(false)
+	var foot := skeleton.find_bone("LeftFoot")
+	var leg := skeleton.find_bone("LeftUpperLeg")
+	var foot_start := Vector3.ZERO
+	var max_eye_error := 0.0
+	var max_foot_drift := 0.0
+	var max_leg_angle := 0.0
+	for frame in 120:
+		driver._process(1.0 / 60.0)
+		await process_frame
+		if look != null:
+			max_eye_error = maxf(max_eye_error, look.global_position.distance_to(head.global_position))
+		var foot_position: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(foot).origin
+		if frame == 0:
+			foot_start = foot_position
+		else:
+			max_foot_drift = maxf(max_foot_drift, foot_position.distance_to(foot_start))
+		max_leg_angle = maxf(max_leg_angle,
+			skeleton.get_bone_pose_rotation(leg).angle_to(driver._animation_bones["LeftUpperLeg"]))
+	check(max_eye_error < 0.002, "VR lower-body idle must not move the tracked eye anchor, got " + str(max_eye_error))
+	check(max_leg_angle > deg_to_rad(0.1), "Untracked VR legs must receive restrained idle motion")
+	check(max_leg_angle < deg_to_rad(8.0), "VR leg idle must stay restrained, got " + str(rad_to_deg(max_leg_angle)))
+	check(max_foot_drift < 0.08, "VR idle feet must stay reasonably planted, drifted " + str(max_foot_drift))
+	var spine := skeleton.find_bone("Spine")
+	check(skeleton.get_bone_pose_rotation(spine).is_equal_approx(driver._animation_bones["Spine"]),
+		"VR fallback must not animate the spine")
+	check(driver.hand_target.left.global_position.distance_to(rig.left.global_position) < 0.001,
+		"VR fallback must keep tracked hand targets authoritative")
+	driver.lower_body_tracked = true
+	driver.set_control_mode(true)
+	driver._process(1.0 / 60.0)
+	await process_frame
+	check(skeleton.get_bone_pose_rotation(skeleton.find_bone("LeftUpperLeg")).is_equal_approx(driver._animation_bones["LeftUpperLeg"]),
+		"A wired lower body must be left untouched by the fallback")
+	rig.container.free()
 
 
 func _test_eye_alignment() -> void:

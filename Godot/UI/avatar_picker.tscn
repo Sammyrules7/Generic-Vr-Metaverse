@@ -254,6 +254,7 @@ expand_mode = 1
 stretch_mode = 5
 
 [node name="PreviewViewport" type="SubViewport" parent="Content/Body/PreviewPane/PreviewContent/PreviewFrame/Preview"]
+unique_name_in_owner = true
 gui_disable_input = true
 own_world_3d = true
 transparent_bg = true

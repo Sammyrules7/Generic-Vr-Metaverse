@@ -65,6 +65,7 @@ var _fallback_preview: Node3D
 
 
 func _ready() -> void:
+	%PreviewViewport.add_to_group("avatar_render_viewports")
 	_scroll.get_v_scroll_bar().share(%AvatarScrollbar)
 	%CollectionScroll.get_v_scroll_bar().share(%CollectionScrollbar)
 	%CollectionScroll.get_v_scroll_bar().changed.connect(_collection_scroll_spacing)

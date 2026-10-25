@@ -149,6 +149,7 @@ jobs:
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/touch_approach_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_custom_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_transfer_test.gd
+          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_render_profiler_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
 
       - name: Configure main signaling backend
@@ -175,7 +176,7 @@ jobs:
           godot --headless --verbose --path "$PROJECT_PATH" --export-release "Web - Preview" "$EXPORT_DIR/index.html"
           node scripts/patch_webxr.mjs "$EXPORT_DIR/index.js"
           node --check "$EXPORT_DIR/index.js"
-          WEBXR_EXPORTED_JS="$EXPORT_DIR/index.js" node --test scripts/tests/webxr_runtime.test.mjs
+          WEBXR_EXPORTED_JS="$EXPORT_DIR/index.js" node --test scripts/tests/webxr_runtime.test.mjs scripts/tests/avatar_webgl_capture.test.mjs
           find "$EXPORT_DIR" -maxdepth 1 -type f -printf '%s %f\n' | sort -nr
 
       # Publishing runs inline in the same job so the exported client never

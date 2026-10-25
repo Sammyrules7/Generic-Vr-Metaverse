@@ -2,6 +2,7 @@ extends PanelContainer
 signal closed
 var _report: RichTextLabel
 var _done: Button
+var _capture: Button
 var _elapsed := 0.0
 func _ready() -> void:
 	custom_minimum_size = Vector2(800, 600)
@@ -30,6 +31,16 @@ func _ready() -> void:
 	copy.text = "Copy report"
 	copy.pressed.connect(func(): DisplayServer.clipboard_set(report()))
 	actions.add_child(copy)
+	_capture = Button.new()
+	_capture.text = "Capture render hitches"
+	_capture.pressed.connect(func():
+		if AvatarService.render_profiler.active:
+			AvatarService.render_profiler.stop_capture()
+		else:
+			AvatarService.render_profiler.start_capture()
+		refresh()
+	)
+	actions.add_child(_capture)
 	_done = Button.new()
 	_done.text = "Done"
 	_done.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -44,6 +55,7 @@ func _process(delta: float) -> void:
 		_elapsed = 0
 		refresh()
 func refresh() -> void:
+	_capture.text = "Stop capture" if AvatarService.render_profiler.active else "Capture render hitches"
 	_report.text = report()
 func focus_entry() -> void:
 	refresh()
@@ -54,7 +66,7 @@ func report() -> String:
 	var mirrors: Array[String] = []
 	for mirror in get_tree().get_nodes_in_group("planar_mirrors"):
 		mirrors.append(mirror.debug_report())
-	return "\n".join(mirrors) + "\n\n" + AvatarService.debug_report() + "\n\n" + (replication.avatar_transfer.debug_report() if replication != null and replication.avatar_transfer != null else "P2P unavailable") + "\n\nNetwork peers: %d\nReceived avatar IDs: %s" % [peer_count, replication._avatar_by_peer if replication != null else {}]
+	return AvatarService.render_profiler.report() + "\n\n" + "\n".join(mirrors) + "\n\n" + AvatarService.debug_report() + "\n\n" + (replication.avatar_transfer.debug_report() if replication != null and replication.avatar_transfer != null else "P2P unavailable") + "\n\nNetwork peers: %d\nReceived avatar IDs: %s" % [peer_count, replication._avatar_by_peer if replication != null else {}]
 
 
 func handle_stick(stick: Vector2, delta: float) -> void:
