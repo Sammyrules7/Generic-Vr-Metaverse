@@ -143,6 +143,10 @@ func _process(_delta: float) -> void:
 				else:
 					_complete(id, null, job.error)
 				continue
+			if AvatarCatalog.is_custom(id) and not job.metadata.is_empty():
+				AvatarCatalog.update_custom_metadata(id, job.metadata)
+				if AvatarCatalog.is_owned(id):
+					AvatarLocalLibrary.save_entries(AvatarCatalog.entries())
 			if not job.from_cache:
 				_prune_disk_cache()
 			# Hover requests warm the verified disk cache without importing scenes.
@@ -273,6 +277,7 @@ func _verify(id: String, bytes: PackedByteArray, path: String, from_cache: bool)
 	var job := AvatarAssetJob.new()
 	job.bytes = bytes
 	job.expected_hash = definition.get("sha256", "")
+	job.extract_credits = AvatarCatalog.is_custom(id) and not definition.has("metadata_version")
 	job.expected_size = int(definition.get("size_bytes", 0))
 	job.path = path
 	job.from_cache = from_cache
@@ -441,7 +446,8 @@ func _import_local(job: AvatarCustomJob) -> Dictionary:
 		_custom_busy = false
 		record_event("custom", "import failed", job.error)
 		return {"error": job.error}
-	AvatarCatalog.register_local(AvatarLocalLibrary.entry(job.id, job.title, job.bytes.size()))
+	AvatarCatalog.register_local(AvatarLocalLibrary.entry(job.id, job.title, job.bytes.size(), job.metadata))
+	AvatarCatalog.update_custom_metadata(job.id, job.metadata)
 	var request := acquire(job.id)
 	if not request.finished:
 		await request.completed
@@ -558,7 +564,9 @@ func _import_received(job: AvatarCustomJob, title: String) -> Dictionary:
 		await _remote_job(job, job.store)
 		if not job.error.is_empty():
 			return {"error": job.error}
-		AvatarCatalog.register_remote({"id": job.id, "title": title if not title.is_empty() else "Remote avatar", "remote_custom": true, "local_path": REMOTE_CACHE_DIR + "/" + job.id + ".vrm", "sha256": job.id, "size_bytes": job.bytes.size(), "url": ""})
+		var entry := {"id": job.id, "title": title if not title.is_empty() else "Remote avatar", "remote_custom": true, "local_path": REMOTE_CACHE_DIR + "/" + job.id + ".vrm", "sha256": job.id, "size_bytes": job.bytes.size(), "url": ""}
+		entry.merge(job.metadata, true)
+		AvatarCatalog.register_remote(entry)
 	var request := acquire(job.id)
 	if not request.finished:
 		await request.completed

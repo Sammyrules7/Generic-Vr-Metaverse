@@ -281,7 +281,7 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
 	var license := str(entry.get("license", ""))
-	%Attribution.text = "P2P avatar" if AvatarCatalog.is_owned(id) else license
+	%Attribution.text = license
 	%Attribution.tooltip_text = str(entry.get("attribution", license))
 	if with_preview:
 		_show_preview(id)
@@ -332,6 +332,16 @@ func _process_result(request: AvatarLoadRequest, _id: String, generation: int) -
 		# A stale or released lease must not touch the current preview.
 		return
 	%DownloadProgress.hide()
+	var entry := AvatarCatalog.definition(_id)
+	%SelectedTitle.text = str(entry.get("title", _id))
+	%SelectedTitle.tooltip_text = %SelectedTitle.text
+	%Attribution.text = str(entry.get("license", ""))
+	%Attribution.tooltip_text = str(entry.get("attribution", ""))
+	if _buttons.has(_id):
+		var artist := _buttons[_id].get_node_or_null("Card/Credits/Artist") as Label
+		if artist != null:
+			artist.text = str(entry.get("creator", "SirRichard94 / Lyuma" if _id == "godette" else ""))
+			artist.tooltip_text = artist.text
 	var error := request.error
 	var scene := request.scene
 	_release_request()

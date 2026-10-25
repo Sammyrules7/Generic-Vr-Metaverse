@@ -63,6 +63,7 @@ func run() -> void:
 	service._lru.erase(id)
 	check(await until(func(): return ready_count == 1), "Transferred VRM was not verified/imported: " + str(errors))
 	check(receiver.received_bytes_total == bytes.size() and receiver.completed_transfers == 1, "Transfer lost or duplicated bytes")
+	check(AvatarCatalog.definition(id).get("creator", "") == owned.get("creator", "") and AvatarCatalog.definition(id).get("attribution", "") == owned.get("attribution", ""), "P2P import discarded embedded attribution")
 	check(AvatarCatalog.definition(id).get("remote_custom", false), "Received content must be marked remote")
 	check(not AvatarCatalog.search("", "Custom").any(func(entry): return entry.id == id), "Received content must not enter the custom picker")
 	check(AvatarCatalog.replication_id(id) == "default", "Received avatars must not be advertised as owned")

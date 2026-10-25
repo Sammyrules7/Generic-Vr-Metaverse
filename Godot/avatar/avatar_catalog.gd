@@ -97,3 +97,12 @@ static func register_remote(entry: Dictionary) -> void:
 		# Received assets are resolvable for rendering but never browseable,
 		# favoriteable or selectable as one's own avatar.
 		_by_id[entry.id] = entry.duplicate(true)
+
+
+static func update_custom_metadata(id: String, metadata: Dictionary) -> void:
+	if not is_custom(id):
+		return
+	_by_id[id].merge(metadata, true)
+	for entry in _entries:
+		if entry.id == id:
+			entry.merge(metadata, true)

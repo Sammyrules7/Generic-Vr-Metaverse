@@ -14,6 +14,7 @@ var storage_directory := AvatarLocalLibrary.DIRECTORY
 var error := ""
 var id := ""
 var title := ""
+var metadata := {}
 var task_id := -1
 var json: Dictionary = {}
 var _binary := PackedByteArray()
@@ -79,9 +80,11 @@ func run() -> void:
 	if not expected_hash.is_empty() and id != expected_hash:
 		error = "Received avatar failed its SHA-256 integrity check"
 		return
+	metadata = extract_metadata(json)
 	title = filename.get_file().get_basename().strip_edges().left(80)
 	if title.is_empty():
 		title = "Custom avatar"
+	title = str(metadata.get("title", title))
 
 func _walk(value: Variant, depth: int) -> bool:
 	if depth > 48:
@@ -356,3 +359,58 @@ static func _integer(value: Variant) -> int:
 	if not (value is int or value is float) or not is_finite(float(value)) or absf(float(value)) > 1099511627776.0 or floor(float(value)) != float(value):
 		return -1
 	return int(value)
+
+
+## Plain display text only. Metadata is descriptive, never executable or fetched.
+static func _text(value: Variant, limit := 1024) -> String:
+	return value.strip_edges().left(limit) if value is String else ""
+
+static func extract_metadata(document: Dictionary) -> Dictionary:
+	var extensions: Variant = document.get("extensions", {})
+	if not extensions is Dictionary:
+		return {}
+	var modern: bool = extensions.has("VRMC_vrm")
+	var vrm: Variant = extensions.get("VRMC_vrm" if modern else "VRM", {})
+	if not vrm is Dictionary or not vrm.get("meta", {}) is Dictionary:
+		return {}
+	var meta: Dictionary = vrm.get("meta", {})
+	var result := {"metadata_version": 1}
+	var name := _text(meta.get("name" if modern else "title", ""), 80)
+	if not name.is_empty():
+		result["title"] = name
+	var authors: Array[String] = []
+	var source: Variant = meta.get("authors", []) if modern else [meta.get("author", "")]
+	if source is Array:
+		for author in source.slice(0, 16):
+			var text := _text(author, 160)
+			if not text.is_empty():
+				authors.append(text)
+	result["creator"] = ", ".join(authors)
+	var license_name := _text(meta.get("licenseName", ""), 128)
+	var license_url := _text(meta.get("licenseUrl", ""))
+	if modern:
+		license_name = "" if license_url.is_empty() else "VRM 1.0" if license_url == "https://vrm.dev/licenses/1.0/" else "Custom license"
+	elif license_name.begins_with("CC_"):
+		license_name = license_name.replace("_", "-")
+	result["license"] = license_name if not license_name.is_empty() else "License unspecified"
+	var credits: Array[String] = []
+	if not result.creator.is_empty():
+		credits.append(result.creator)
+	credits.append(result.license)
+	for key in ["copyrightInformation", "thirdPartyLicenses", "contactInformation", "reference", "otherPermissionUrl", "licenseUrl", "otherLicenseUrl"]:
+		var text := _text(meta.get(key, ""), 8192 if key == "thirdPartyLicenses" else 2048)
+		if not text.is_empty():
+			result[key] = text
+			credits.append(text)
+	var references: Variant = meta.get("references", [])
+	if references is Array:
+		var links: Array[String] = []
+		for reference in references.slice(0, 16):
+			var text := _text(reference)
+			if not text.is_empty():
+				links.append(text)
+		if not links.is_empty():
+			result["references"] = links
+			credits.append("\n".join(links))
+	result["attribution"] = "\n".join(credits)
+	return result

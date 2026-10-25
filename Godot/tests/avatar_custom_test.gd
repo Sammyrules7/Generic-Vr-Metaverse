@@ -27,6 +27,16 @@ func reject(bytes: PackedByteArray, message: String) -> void:
 	check(not job.error.is_empty(), message)
 func run() -> void:
 	var bytes := FileAccess.get_file_as_bytes("res://avatar/godette.vrm")
+	var legacy := AvatarCustomJob.extract_metadata({"extensions": {"VRM": {"meta": {"title": "Legacy model", "author": "Artist A", "licenseName": "CC_BY", "otherLicenseUrl": "https://example.com/license", "reference": "Original model"}}}})
+	check(legacy.title == "Legacy model" and legacy.creator == "Artist A" and legacy.license == "CC-BY", "Legacy VRM credits were not extracted")
+	check("https://example.com/license" in legacy.attribution and "Original model" in legacy.attribution, "Legacy license links/references were lost")
+	var modern := AvatarCustomJob.extract_metadata({"extensions": {"VRMC_vrm": {"meta": {"name": "Modern model", "authors": ["Artist A", "Artist B"], "licenseUrl": "https://vrm.dev/licenses/1.0/", "copyrightInformation": "Copyright artist", "thirdPartyLicenses": "Additional credits", "references": ["https://example.com/source"]}}}})
+	check(modern.title == "Modern model" and modern.creator == "Artist A, Artist B" and modern.license == "VRM 1.0", "VRM 1.0 credits were not extracted")
+	check("Copyright artist" in modern.attribution and "Additional credits" in modern.attribution and "https://example.com/source" in modern.attribution, "VRM 1.0 attribution was lost")
+	var missing := AvatarCustomJob.extract_metadata({"extensions": {"VRM": {}}})
+	check(missing.license == "License unspecified" and missing.creator == "" and not missing.has("title"), "Missing credits must not invent a license or replace filename")
+	var malformed := AvatarCustomJob.extract_metadata({"extensions": {"VRMC_vrm": {"meta": {"name": 4, "authors": [4, {}, "Valid author"], "licenseUrl": []}}}})
+	check(malformed.creator == "Valid author" and not malformed.has("title"), "Malformed optional credits should be ignored")
 	var service := root.get_node("AvatarService")
 	var manifest_existed := FileAccess.file_exists(AvatarLocalLibrary.MANIFEST)
 	var manifest_backup := FileAccess.get_file_as_bytes(AvatarLocalLibrary.MANIFEST) if manifest_existed else PackedByteArray()
@@ -40,6 +50,29 @@ func run() -> void:
 	check(AvatarCatalog.is_custom(id) and AvatarCatalog.replication_id(id) == id, "Owned custom avatars must announce their content hash")
 	check(AvatarCatalog.replication_id("godette") == "godette", "Public replication must stay intact")
 	check(AvatarLocalLibrary.load_entries().any(func(item): return item.id == id), "Imported avatar did not persist")
+	var saved := AvatarCatalog.definition(id)
+	check(saved.get("creator", "") != "" and saved.get("license", "") != "Local", "Custom import discarded embedded credits")
+	var restored := AvatarLocalLibrary.load_entries().filter(func(item): return item.id == id)
+	check(not restored.is_empty() and restored[0].attribution == saved.attribution and restored[0].creator == saved.creator, "Credits did not survive library reload")
+	var asset := AvatarAssetJob.new()
+	asset.bytes = bytes
+	asset.expected_hash = id
+	asset.extract_credits = true
+	asset.run()
+	check(asset.error.is_empty() and asset.metadata.get("creator", "") == saved.creator, "Worker cache read did not backfill legacy credits")
+	check(AvatarLocalLibrary.entry(id, "Fallback", 1, {"local_path": "bad", "id": "bad"}).local_path == AvatarLocalLibrary.path_for(id), "Metadata must not override storage identity")
+	# Simulate a library created before attribution was persisted.
+	AvatarCatalog.unregister_local(id)
+	AvatarCatalog.register_local(AvatarLocalLibrary.entry(id, "Old filename", bytes.size()))
+	service._cache.erase(id)
+	service._lru.erase(id)
+	var migrated_request: AvatarLoadRequest = service.acquire(id)
+	if not migrated_request.finished:
+		await migrated_request.completed
+	check(migrated_request.error.is_empty() and AvatarCatalog.definition(id).get("creator", "") == saved.creator, "Existing custom library did not backfill credits")
+	migrated_request.release()
+	var migrated_entries := AvatarLocalLibrary.load_entries().filter(func(item): return item.id == id)
+	check(not migrated_entries.is_empty() and migrated_entries[0].attribution == saved.attribution, "Backfilled credits were not persisted")
 	var entries_before := AvatarCatalog.search("", "Custom").size()
 	var duplicate: Dictionary = await service.import_local_bytes("Duplicate.vrm", bytes)
 	check(duplicate.get("id", "") == id and AvatarCatalog.search("", "Custom").size() == entries_before, "Identical content must deduplicate")
