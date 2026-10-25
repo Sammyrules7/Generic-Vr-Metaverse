@@ -56,6 +56,8 @@ func set_local_player(player: NetworkPlayer) -> void:
 
 
 func _peer_connected(peer_id: int) -> void:
+	if _desired_avatar_by_peer.has(peer_id):
+		_receive_avatar(peer_id, _desired_avatar_by_peer[peer_id])
 	if local_player != null:
 		spawn_player.rpc_id(peer_id, local_player.use_vr, local_player.global_transform, PlayerProfile.display_name, AvatarCatalog.replication_id(_local_avatar_id))
 		# Also used after a world reload: the peer may already be connected, so we
@@ -101,6 +103,7 @@ func announce_avatar(id: String) -> void:
 func _receive_avatar(peer_id: int, id: String) -> void:
 	_desired_avatar_by_peer[peer_id] = id.left(64)
 	if AvatarLocalLibrary.valid_id(id):
+		AvatarService.record_event(id, "remote custom announcement", "peer %d | available %s" % [peer_id, AvatarService.remote_available(id)])
 		if AvatarService.remote_available(id):
 			if avatar_transfer != null:
 				avatar_transfer.cancel_receive(peer_id)
@@ -206,3 +209,24 @@ func sync_player(body_pose: Transform3D, head_pose: Transform3D, left_pose: Tran
 	# Reject NaN/Inf before they can contaminate scene transforms.
 	if body_pose.is_finite() and head_pose.is_finite() and left_pose.is_finite() and right_pose.is_finite():
 		pose_received.emit(multiplayer.get_remote_sender_id(), body_pose, head_pose, left_pose, right_pose)
+
+
+func replay_avatar(peer_id: int) -> void:
+	if _avatar_by_peer.has(peer_id):
+		avatar_received.emit(peer_id, _avatar_by_peer[peer_id])
+
+
+func avatar_progress(peer_id: int) -> Dictionary:
+	var transfer := avatar_transfer.progress(peer_id) if avatar_transfer != null else {}
+	if not transfer.is_empty():
+		return transfer
+	var id: String = _desired_avatar_by_peer.get(peer_id, "")
+	var loading := AvatarService.download_progress(id)
+	if not loading.is_empty():
+		loading["active"] = true
+	return loading
+
+
+func clear_remote_avatars() -> void:
+	for peer_id in _desired_avatar_by_peer.keys():
+		forget_avatar(peer_id)

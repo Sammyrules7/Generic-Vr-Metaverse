@@ -35,8 +35,11 @@ fix in `1.0/VRMC_materials_mtoon.gd` records existing ShaderMaterials in the
 replacement map, preventing spurious missing-replacement errors with the
 Godette sample. Preserve the included upstream licenses when updating.
 
-HTTP is asynchronous. Pure file verification and caching use WorkerThreadPool;
-scene generation stays on the main thread, at most one avatar import per frame.
+HTTP is asynchronous. File verification, caching, texture decoding, glTF resource
+parsing and mesh-array preparation use WorkerThreadPool. Resource parsing is
+serialized to avoid sharing importer extension state across concurrent imports.
+Scene generation, GPU-facing setup and attachment stay on the main thread,
+with preparation stages separated across frames.
 There is a synchronous verification fallback for non-threaded web exports.
 This does not promise hitch-free imports: GPU upload and shader compilation need
 measurement on each target renderer.
@@ -255,3 +258,14 @@ transport and resource validation, not a sandbox against importer bugs. Protocol
 checks run via `avatar_transfer_test.gd`; the multiplayer integration suite also
 forces real fixture bytes through WebRTC channel 2 while testing voice and swaps.
 All peers must use a build with the new channel/RPC layout.
+
+Remote avatar nameplates show byte download progress followed by animated segments
+while verifying/importing/equipping. Transfer requests are repeated while awaiting
+an offer; transient failures retry three times with backoff. The send window is 48 KiB,
+below Godot WebRTCJS's default 64 KiB receive queue, including RPC overhead.
+Cumulative byte acknowledgements preserve the valid prefix; stalled sends resume
+from it after five seconds, tolerating duplicate and out-of-order byte ranges.
+Idle timeouts allow two minutes for throttled/background browser tabs, with a
+fifteen-minute total lifetime. Saved avatar identity
+is replayed when a remote player is created after its announcement. Diagnostics
+include the owner's equipped ID, ownership and connected peers.

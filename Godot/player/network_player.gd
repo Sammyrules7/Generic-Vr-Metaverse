@@ -10,6 +10,9 @@ const VR_CONTROLS = preload("res://player/vr_controls.tscn")
 
 var use_vr := false
 var controls: PlayerControls
+var avatar_replication: PlayerReplication
+var _avatar_progress: MeshInstance3D
+var _avatar_progress_material: ShaderMaterial
 @onready var motor: CharacterMotor = $Motor
 
 
@@ -65,3 +68,29 @@ func set_display_name(display_name: String) -> void:
 		add_child(label)
 	label.text = display_name if not display_name.is_empty() else "Explorer"
 	label.visible = not is_multiplayer_authority()
+
+
+func _process(_delta: float) -> void:
+	if avatar_replication == null or is_multiplayer_authority():
+		return
+	var progress := avatar_replication.avatar_progress(get_multiplayer_authority())
+	var pending := not progress.is_empty() or $Avatar._request != null
+	if _avatar_progress == null and pending:
+		_avatar_progress = MeshInstance3D.new()
+		_avatar_progress.name = "AvatarProgress"
+		_avatar_progress.position.y = 2.02
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.65, 0.025)
+		_avatar_progress.mesh = quad
+		_avatar_progress.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_avatar_progress_material = ShaderMaterial.new()
+		_avatar_progress_material.shader = preload("res://avatar/avatar_progress.gdshader")
+		_avatar_progress.material_override = _avatar_progress_material
+		add_child(_avatar_progress)
+	if _avatar_progress == null:
+		return
+	_avatar_progress.visible = pending
+	if pending:
+		var total := int(progress.get("total", 0))
+		var measurable: bool = total > 0 and not progress.get("preparing", false)
+		_avatar_progress_material.set_shader_parameter("fraction", float(progress.get("downloaded", 0)) / total if measurable else -1.0)

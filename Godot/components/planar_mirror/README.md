@@ -14,9 +14,12 @@ flip or warp the reflection when turning.
 Desktop uses one reflection pass. OpenXR/WebXR use distinct eye positions from
 XRInterface and two ordinary SubViewports; the shader selects the matching
 texture using VIEW_INDEX. The XR origin transform is applied exactly once.
-All views use `max_viewport_size` (default 2048x2048), independently of the
-browser/desktop window size. Targets match the glass aspect ratio and fit that
-quality limit. Reflection viewports explicitly disable VRS, reduced 3D render
+All views use `max_viewport_size` (default 2048x2048) as their base size,
+independently of the browser/desktop window size. Close oblique views increase
+the capture in coarse tiers to compensate for the wider glass span: at most
+4096 on desktop or 3072 per eye in XR. A two-second hold avoids immediately
+dropping quality or reallocating textures as a head turn reverses. Targets
+retain the glass aspect ratio. Reflection viewports explicitly disable VRS, reduced 3D render
 scale and screen-space AA; sampling uses the full-resolution texture level. Each visible stereo mirror
 requires two scene passes, so profile on the target headset.
 
@@ -39,11 +42,11 @@ tests and export success do not validate driver shader compilation.
 
 Close-up quality follows the visible portion of the mirror, independently per
 eye. The glass polygon is clipped against each source eye frustum; a padded UV
-rectangle concentrates the fixed pixel budget there. The camera frustum fits
+rectangle concentrates the pixel budget there. The camera frustum fits
 that region and the shader remaps full-glass UVs into it. This avoids spending
 most pixels on off-screen edges when looking closely at the center. Equal
-normalized crop extents preserve the original glass/target aspect and avoid
-reallocating textures on head motion. The reflected camera retains its fixed,
+normalized crop extents preserve the original glass/target aspect. Capture size
+changes only when crossing a compensation tier, with delayed reductions. The reflected camera retains its fixed,
 proper-handed basis; crop/UV mapping tests verify alignment while turning.
 
 There is no project-controlled inverted foveation map. Headset compositor

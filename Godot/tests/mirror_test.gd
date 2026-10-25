@@ -124,6 +124,19 @@ func _test_scene() -> void:
 		var point := glass.global_transform * Vector3(0.05, 0, 0.05)
 		var sample_uv := (Vector2(0.525, 0.475) - crop.position) / crop.size
 		check((reflected_camera.unproject_position(point) / Vector2(viewport.size)).distance_to(sample_uv) < 0.0001, "Cropped shader UVs must match the reflected camera even when turning")
+	# Close oblique views need more texels as their visible glass span grows.
+	camera.rotation.y = 0.0
+	mirror._turn_scale = 1.0
+	mirror._quality_hold_until = 0
+	mirror._process(0.016)
+	var straight_size: Vector2i = viewport.size
+	camera.rotation.y = 0.85
+	mirror._process(0.016)
+	check(viewport.size.x > straight_size.x, "Turning close to the mirror must compensate for diluted texel density")
+	var turn_size: Vector2i = viewport.size
+	camera.rotation.y = 0.0
+	mirror._process(0.016)
+	check(viewport.size == turn_size, "Mirror quality must not immediately drop on the next head turn")
 	check(mirror._right_viewport.vrs_mode == Viewport.VRS_DISABLED, "Both eye reflections must disable VRS")
 
 	# Up close the glass can cover the screen while its center and corners are

@@ -63,6 +63,8 @@ var _fallback_preview: Node3D
 
 func _ready() -> void:
 	_scroll.get_v_scroll_bar().share(%AvatarScrollbar)
+	$Content/Body/Sidebar/CollectionScroll.get_v_scroll_bar().visibility_changed.connect(_collection_scroll_spacing)
+	_collection_scroll_spacing.call_deferred()
 	_apply.pressed.connect(_apply_pressed)
 	%CloseAvatarSettings.pressed.connect(close)
 	%CloseAvatarSettings.icon = preload("res://UI/icons/avatar/done.svg")
@@ -266,6 +268,7 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 		return
 	_update_apply()
 	%SelectedTitle.text = str(entry.get("title", id))
+	%SelectedTitle.tooltip_text = %SelectedTitle.text
 	_layout_browser()
 	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
 	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
@@ -751,6 +754,7 @@ func _style_browser() -> void:
 		list_style.corner_radius_bottom_left = button_style.corner_radius_bottom_left
 		list_style.corner_radius_bottom_right = button_style.corner_radius_bottom_right
 	%ListFrame.add_theme_stylebox_override("panel", list_style)
+	$Content/Body/Sidebar/CollectionScroll.add_theme_stylebox_override("panel", list_style.duplicate())
 	# Reserve room inside the field for its result count. The built-in clear
 	# button is laid out before this margin, so neither text nor controls overlap.
 	for state in ["normal", "focus"]:
@@ -1049,3 +1053,9 @@ func _add_upload_tile() -> void:
 	var owner_ui := get_parent()
 	if owner_ui != null and owner_ui.has_method("_configure_buttons"):
 		owner_ui.call("_configure_buttons", _import_button)
+
+
+func _collection_scroll_spacing() -> void:
+	# Inset the buttons only when the built-in scrollbar occupies the right edge.
+	var bar: VScrollBar = $Content/Body/Sidebar/CollectionScroll.get_v_scroll_bar()
+	%CollectionInset.add_theme_constant_override("margin_right", 12 if bar.visible else 0)

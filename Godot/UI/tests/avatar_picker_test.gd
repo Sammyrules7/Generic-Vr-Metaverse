@@ -129,6 +129,10 @@ func _run() -> void:
 	await get_tree().process_frame
 	check(taps[0] == 1 and not ui.get_node("Navigation")._dragging, "Canceled touches must clear the gesture without activating a card")
 	var collection_scroll: ScrollContainer = card.get_node("Content/Body/Sidebar/CollectionScroll")
+	check(collection_scroll.clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "Collections must clip to a rounded frame")
+	card._collection_scroll_spacing()
+	check(card.get_node("%CollectionInset").get_theme_constant("margin_right") == (12 if collection_scroll.get_v_scroll_bar().visible else 0), "Collection button spacing must depend on scrollbar presence")
+	check(card.get_node("%SelectedTitle").text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS, "Long preview titles must ellipsize")
 	var collection_button: Button = card.get_node("%Collections").get_child(0)
 	var collection_minimum := collection_button.custom_minimum_size
 	collection_button.custom_minimum_size.y += 500

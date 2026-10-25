@@ -403,6 +403,10 @@ func _run() -> void:
 	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == _custom_fixture, "custom content hash announced"):
 		return
 	transfer.ensure(b.client_id, _custom_fixture, true)
+	if not await _wait_until(func():
+		var indicator := am.get_player(b.client_id).get_node_or_null("AvatarProgress")
+		return indicator != null and indicator.visible, "remote avatar download appears beneath name"):
+		return
 	if not await _wait_until(func(): return transfer.completed_transfers > completed_before, "verified custom VRM over dedicated WebRTC channel"):
 		return
 	if not _check(transfer.received_bytes_total - bytes_before == custom_bytes.size(), "WebRTC avatar bytes were lost or duplicated"):
@@ -410,6 +414,8 @@ func _run() -> void:
 	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == _custom_fixture, "custom avatar applied to remote player"):
 		return
 	if not _check(a.voice_chat.speakers[b.client_id].get_parent() == remote_head, "P2P avatar swap replaced the voice anchor"):
+		return
+	if not await _wait_until(func(): return not am.get_player(b.client_id).get_node("AvatarProgress").visible, "remote avatar progress disappears after equipping"):
 		return
 	b.player_replication.broadcast_avatar("godette")
 	if not await _wait_until(func(): return am.get_player(b.client_id).get_node("Avatar").avatar_id == "godette", "custom to catalog avatar switch"):

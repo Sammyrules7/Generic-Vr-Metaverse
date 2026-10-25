@@ -15,8 +15,8 @@ extends Node3D
 ## an internal, unsaved SubViewport. The scene's own SubViewport is left alone so
 ## saving the scene never serializes an editor World3D override.
 
-## Cap the reflection pass; the aspect ratio follows the glass. XR is capped
-## at the same quality as desktop, with two scene renders in stereo.
+## Base reflection size; close oblique views may use up to twice this size
+## to preserve texel density, bounded to 4096 (3072 per eye in XR).
 @export var max_viewport_size := Vector2i(2048, 2048):
 	set(value):
 		max_viewport_size = Vector2i(maxi(1, value.x), maxi(1, value.y))
@@ -36,6 +36,8 @@ var _viewport_size := Vector2i.ZERO
 var _preview_viewport: SubViewport
 var _preview_camera: Camera3D
 var _preview_material: ShaderMaterial
+var _turn_scale := 1.0
+var _quality_hold_until := 0
 var _left_crop := Rect2(0, 0, 1, 1)
 var _right_crop := Rect2(0, 0, 1, 1)
 
@@ -144,6 +146,7 @@ func _process(_delta: float) -> void:
 	if stereo:
 		_right_crop = _visible_crop(right_planes, glass)
 		_fit_reflection(_right_camera, right_eye, source.far, _right_crop)
+	_preserve_turn_detail(source, eye, glass)
 	_fit_reflection(_target_camera(), eye, source.far, _left_crop)
 	var material := _preview_material if Engine.is_editor_hint() else _runtime_material
 	if material != null:
@@ -284,7 +287,8 @@ func _resize_viewport() -> void:
 	var bounds := mirror_glass.get_aabb()
 	var glass := mirror_glass.global_transform
 	var aspect := maxf(0.01, bounds.size.x * glass.basis.x.length()) / maxf(0.01, bounds.size.z * glass.basis.z.length())
-	var cap := max_viewport_size
+	var limit := 3072 if _stereo else 4096
+	var cap := Vector2i(mini(limit, roundi(max_viewport_size.x * _turn_scale)), mini(limit, roundi(max_viewport_size.y * _turn_scale)))
 	var width := float(cap.x)
 	var height := width / aspect
 	if height > cap.y:
@@ -361,3 +365,26 @@ func _visible_crop(planes: Array[Plane], glass: Transform3D) -> Rect2:
 
 func debug_report() -> String:
 	return "Mirror: %s | stereo %s | left %s | right %s | crop L %s / R %s | VRS disabled, scale 1" % [name, _stereo, _target_viewport().size, _right_viewport.size if _right_viewport != null else Vector2i.ZERO, _left_crop, _right_crop]
+
+
+func _preserve_turn_detail(source: Camera3D, eye: Vector3, glass: Transform3D) -> void:
+	# Turning exposes a larger span of glass, but must not dilute that span
+	# into the same number of texels. Increase capture size instead. Use
+	# coarse tiers and a hold period to avoid reallocations on every head turn.
+	var distance := absf((eye - glass.origin).dot(glass.basis.y.normalized()))
+	var height := mirror_glass.get_aabb().size.z * glass.basis.z.length()
+	var projection := source.get_camera_projection()
+	var frontal_extent := clampf(2.0 * distance / maxf(0.01, projection.y.y) / maxf(0.01, height) * 1.08, 0.02, 1.0)
+	var extent := maxf(_left_crop.size.x, _right_crop.size.x if _stereo else 0.0)
+	var ceiling := 1.5 if _stereo else 2.0
+	var wanted := clampf(ceilf(extent / frontal_extent * 2.0 - 0.05) / 2.0, 1.0, ceiling)
+	var now := Time.get_ticks_msec()
+	if wanted > _turn_scale:
+		_turn_scale = wanted
+		_quality_hold_until = now + 2000
+		_resize_viewport()
+	elif wanted == _turn_scale:
+		_quality_hold_until = now + 2000
+	elif now > _quality_hold_until:
+		_turn_scale = wanted
+		_resize_viewport()

@@ -1,5 +1,6 @@
 extends Node
-## Persistent, deduplicated asset loading. All scene/import work stays on main.
+## Persistent, deduplicated asset loading. Parsing is serialized on a worker;
+## scene generation and active scene attachment stay on main.
 
 signal selection_changed(id: String)
 signal springs_changed(enabled: bool)
@@ -29,6 +30,7 @@ var _next_token := 0
 var _active_downloads := 0
 var _importing := false
 var _image_job: AvatarImageJob
+var _parse_job: AvatarParseJob
 var _import_model: Node3D
 var _next_import := 0
 var _exiting := false
@@ -182,11 +184,23 @@ func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
 	var state := _import_state()
 	state.set_additional_data(&"avatar/decoded_images", images)
 	state.set_additional_data(&"avatar/decoded_image_hits", 0)
+	_parse_job = AvatarParseJob.new()
+	_parse_job.bytes = bytes
+	_parse_job.document = document
+	_parse_job.state = state
+	if OS.has_feature("web") and not OS.has_feature("threads"):
+		_parse_job.run()
+	else:
+		_parse_job.task_id = WorkerThreadPool.add_task(_parse_job.run, false, "Parse avatar resources")
+		while not WorkerThreadPool.is_task_completed(_parse_job.task_id):
+			await get_tree().process_frame
+		WorkerThreadPool.wait_for_task_completion(_parse_job.task_id)
+	var result := _parse_job.result
+	record_event(id, "GLTF parse", "single-thread fallback" if _parse_job.task_id < 0 else "worker", _parse_job.elapsed_ms)
+	_parse_job = null
 	var stage_start := Time.get_ticks_usec()
-	var result := document.append_from_buffer(bytes, "", state, 8)
-	record_event(id, "GLTF parse", "main", (Time.get_ticks_usec() - stage_start) / 1000.0)
-	# Keep indivisible engine import calls on main, but don't stack parsing,
-	# generation, geometry baking and consumer instantiation into one frame.
+	# Scene generation and GPU-facing setup still need main-thread time; keep
+	# them separated from geometry baking and consumer instantiation.
 	await get_tree().process_frame
 	var model: Node3D
 	var extensions: Dictionary = state.json.get("extensions", {})
@@ -363,6 +377,8 @@ func _prune_disk_cache() -> void:
 
 func _exit_tree() -> void:
 	_exiting = true
+	if _parse_job != null and _parse_job.task_id >= 0:
+		WorkerThreadPool.wait_for_task_completion(_parse_job.task_id)
 	for job in _remote_jobs:
 		if job.task_id >= 0:
 			WorkerThreadPool.wait_for_task_completion(job.task_id)

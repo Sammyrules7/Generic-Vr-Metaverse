@@ -46,6 +46,10 @@ func run() -> void:
 	check(client.create_client("127.0.0.1", port, 3) == OK, "Cannot connect protocol test")
 	var sender = endpoint("AvatarSender", host, id)
 	var receiver = endpoint("AvatarReceiver", client, "default")
+	receiver.ensure(1, id, true)
+	receiver._process(0.016)
+	check(receiver._wanted.get(1, "") == id, "Pre-connect avatar identity must stay queued")
+	receiver.cancel_receive(1)
 	receiver.avatar_ready.connect(func(_peer, _id): ready_count += 1)
 	receiver.avatar_failed.connect(func(_peer, _id, reason): errors.append(reason))
 	check(await until(func(): return sender.multiplayer.get_peers().size() == 1 and receiver.multiplayer.get_peers().has(1)), "Protocol peers did not connect")
@@ -64,6 +68,27 @@ func run() -> void:
 	check(AvatarCatalog.replication_id(id) == "default", "Received avatars must not be advertised as owned")
 	check(not AvatarLocalLibrary.load_entries().any(func(entry): return entry.id == id and entry.get("remote_custom", false)), "Remote avatar leaked into owned manifest")
 	AvatarCatalog.register_local(owned)
+	# A join can announce selection before the owner has restored its equipped
+	# state. A transient rejection must retry without another manual wear.
+	sender.equipped_id = func(): return "default"
+	receiver.ensure(1, id, true)
+	check(await until(func(): return errors.size() == 1), "Startup rejection was not delivered")
+	check(receiver.progress(1).get("active", false), "Retry delay must remain visible as loading")
+	sender.equipped_id = func(): return id
+	check(await until(func(): return ready_count == 2), "Startup transfer did not recover automatically")
+	check(receiver.progress(1).is_empty(), "Completed transfer retained its progress bar")
+	errors.clear()
+	check(receiver.WINDOW_BYTES <= 48 * 1024, "In-flight bytes must fit a browser's 64 KiB channel queue with overhead")
+	# Simulate a packet dropped by the engine's browser receive queue. Later
+	# ordered packets arrive, but must not discard the valid prefix or file.
+	sender.set_process(false)
+	receiver.ensure(1, id, true)
+	check(await until(func(): return sender._outgoing.has(remote_id)), "Gap recovery fixture did not start")
+	sender._outgoing[remote_id].sent = sender.CHUNK_BYTES
+	sender._outgoing[remote_id].high_water = sender.CHUNK_BYTES
+	sender.set_process(true)
+	check(await until(func(): return ready_count == 3), "Missing byte range did not resume from cumulative ACK")
+	check(errors.is_empty(), "A recoverable chunk gap was treated as a failed avatar")
 	# Pause the sender pump to inject malformed offers/chunks over real RPCs.
 	sender.set_process(false)
 	receiver.ensure(1, id, true)

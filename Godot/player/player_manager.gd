@@ -103,6 +103,7 @@ func _spawn_remote(peer_id: int, use_vr: bool, initial_pose: Transform3D) -> voi
 		existing = null
 	if existing == null:
 		_spawn(peer_id, use_vr, initial_pose)
+		replication.replay_avatar(peer_id)
 
 
 func _apply_pose(peer_id: int, body_pose: Transform3D, head_pose: Transform3D, left_pose: Transform3D, right_pose: Transform3D) -> void:
@@ -123,6 +124,8 @@ func _remove_remote(peer_id: int) -> void:
 
 func _clear_players() -> void:
 	_spawn_generation += 1
+	if is_instance_valid(replication) and room_networking != null and room_networking.current_room == null:
+		replication.clear_remote_avatars()
 	players_clearing.emit()
 	_peer_cache.clear()
 	# An outgoing scene must not unregister a player installed by its replacement.
@@ -139,6 +142,7 @@ func _set_player_name(peer_id: int, display_name: String) -> void:
 	var player := get_player(peer_id)
 	if player != null:
 		player.set_display_name(display_name)
+		player.avatar_replication = replication
 
 
 func _set_player_avatar(peer_id: int, avatar_id: String) -> void:
