@@ -13,25 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// signalingProtocol is the build token for the signaling/WebRTC control plane.
-// Bump it for any incompatible change to packet framing, room admission, or
-// WebRTC channel layouts or gameplay RPC signatures. Older clients cannot join a newer server (and vice versa)
-// instead of failing later during SDP/ICE or RPC.
-const signalingProtocol = "vr-platform-v2"
-
-var wsUpgrader = websocket.Upgrader{
-	CheckOrigin:  checkWebSocketOrigin,
-	Subprotocols: []string{signalingProtocol},
-}
-
-func acceptsSignalingProtocol(r *http.Request) bool {
-	for _, protocol := range websocket.Subprotocols(r) {
-		if protocol == signalingProtocol {
-			return true
-		}
-	}
-	return false
-}
+var wsUpgrader = websocket.Upgrader{CheckOrigin: checkWebSocketOrigin}
 
 func checkWebSocketOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
@@ -83,14 +65,6 @@ func main() {
 }
 
 func handleWsConn(w http.ResponseWriter, r *http.Request) {
-	// Reject mixed builds at the HTTP handshake, before the socket is upgraded,
-	// admitted to the hub, or able to exchange room signaling and WebRTC data.
-	if !acceptsSignalingProtocol(r) {
-		w.Header().Set("Sec-WebSocket-Protocol", signalingProtocol)
-		http.Error(w, "unsupported signaling protocol; this server requires "+signalingProtocol, http.StatusUpgradeRequired)
-		return
-	}
-
 	wsConn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Printf("Error upgrading WebSocket: %s\n", err)

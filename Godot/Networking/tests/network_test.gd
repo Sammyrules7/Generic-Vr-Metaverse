@@ -316,11 +316,8 @@ func _check_refresh_timeout() -> bool:
 
 
 func _run() -> void:
-	var network := root.get_node("Networking")
-	network.set_process(false)
-	if not _check(network.ws.supported_protocols.has(Network.SIGNALING_PROTOCOL), "Signaling client did not request the versioned subprotocol"):
-		return
-	network.ws.close(-1)
+	root.get_node("Networking").set_process(false)
+	root.get_node("Networking").ws.close(-1)
 	if not _check_room_ui():
 		return
 	if not _check_recovery_retries():
@@ -338,8 +335,6 @@ func _run() -> void:
 	var am: PlayerManager = a.get_parent().get_node("PlayerManager")
 	var bm: PlayerManager = b.get_parent().get_node("PlayerManager")
 	if not await _wait_until(func(): return a.client_id > 0 and b.client_id > 0, "signaling handshake"):
-		return
-	if not _check(a.ws.get_selected_protocol() == Network.SIGNALING_PROTOCOL and b.ws.get_selected_protocol() == Network.SIGNALING_PROTOCOL, "Signaling sockets did not negotiate the versioned subprotocol"):
 		return
 	a.room_networking.create_room("Networking regression test", "moon_garden")
 	if not _check(a.room_networking.join_room(999) == ERR_BUSY, "Concurrent room command was accepted"):

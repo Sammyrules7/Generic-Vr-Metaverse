@@ -3,11 +3,6 @@ extends Node
 # The autoload keeps transport alive across world changes. Room state and player
 # replication have separate owners so neither depends on the current scene.
 const Packets = preload("res://Networking/Generated/Packets.gd")
-# Keep in sync with signalingProtocol in Server/main.go. The server rejects the
-# WebSocket handshake before room admission when this build token is missing or
-# different, so mixed builds never reach WebRTC SDP/ICE or RPC negotiation.
-const SIGNALING_PROTOCOL := "vr-platform-v2"
-const PROTOCOL_MISMATCH_REASON := "Server build is incompatible"
 const SERVER_URL_SETTING := "network/signaling/server_url"
 const DEFAULT_SERVER_URL := "wss://api.vr.maio-tech.com/ws"
 
@@ -27,8 +22,6 @@ var reconnect_at := 0
 var connect_deadline := 0
 var connection_message := "Connecting to the room server…"
 var last_disconnect_reason := ""
-# Survives frames between close() and STATE_CLOSED so the UI reports why.
-var protocol_mismatch_pending := false
 
 
 func _configured_server_url() -> String:
@@ -67,24 +60,13 @@ func _process(_delta: float) -> void:
 		ws.close(-1)
 		disconnect_reason = "The server did not respond in time"
 	ws.poll()
-	var protocol_mismatch := ws.get_ready_state() == WebSocketPeer.STATE_OPEN and ws.get_selected_protocol() != SIGNALING_PROTOCOL
-	if protocol_mismatch:
-		# A server that ignored the build token could speak incompatible framing.
-		# Drop it before it can admit us to a room or start WebRTC negotiation.
-		ws.close(-1)
-		protocol_mismatch_pending = true
-	while not protocol_mismatch_pending and ws.get_available_packet_count() > 0:
+	while ws.get_available_packet_count() > 0:
 		_handle_packet(ws.get_packet())
 	# close(-1) can close the socket before poll(); client_id catches that case.
 	if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED and (previous_state != WebSocketPeer.STATE_CLOSED or client_id != 0):
 		client_id = 0
-		if protocol_mismatch_pending:
-			disconnect_reason = PROTOCOL_MISMATCH_REASON
-			protocol_mismatch_pending = false
 		last_disconnect_reason = disconnect_reason
 		connection_message = "Server offline · Retrying automatically"
-		if disconnect_reason == PROTOCOL_MISMATCH_REASON:
-			connection_message = "Incompatible server · Update the app"
 		room_networking.signaling_lost(disconnect_reason)
 		signaling_disconnected.emit()
 		reconnect_at = Time.get_ticks_msec() + 2000
@@ -95,11 +77,7 @@ func _process(_delta: float) -> void:
 func _connect_websocket() -> void:
 	connect_deadline = Time.get_ticks_msec() + 8000
 	reconnect_at = Time.get_ticks_msec() + 2000
-	protocol_mismatch_pending = false
 	ws = WebSocketPeer.new()
-	# Request the versioned build token before connecting; subprotocols are
-	# negotiated in the HTTP upgrade and echoed back by the server.
-	ws.supported_protocols = PackedStringArray([SIGNALING_PROTOCOL])
 	var result := ws.connect_to_url(ws_url)
 	if result != OK:
 		connection_message = "Server unavailable · Retrying automatically"
