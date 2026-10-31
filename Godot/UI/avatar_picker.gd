@@ -18,6 +18,7 @@ const ERROR_COLOR := Color("#f28b82")
 
 const DEFAULT_ID := "default"
 const SPRINGS_SCRIPT := "res://avatar/avatar_springs.gd"
+const SEARCH_DEBOUNCE_MSEC := 150
 
 var _import_button: Button
 var _import_status: Label
@@ -57,6 +58,11 @@ var _prefetch: AvatarLoadRequest
 var _hover_id := ""
 var _hover_generation := 0
 var _fallback_preview: Node3D
+var _search_debounce: Timer
+var _listed_ids: Array[String] = []
+var _listed_custom := false
+var _layout_queued := false
+var _layout_header_height := -1.0
 
 @onready var _list: GridContainer = %AvatarList
 @onready var _scroll: ScrollContainer = %AvatarListScroll
@@ -76,7 +82,14 @@ func _ready() -> void:
 	_apply.pressed.connect(_apply_pressed)
 	%CloseAvatarSettings.pressed.connect(close)
 	%CloseAvatarSettings.icon = preload("res://UI/icons/avatar/done.svg")
-	%AvatarSearch.text_changed.connect(func(_text: String): _filter_changed())
+	# Typing pauses before a catalog search; scope changes and closing the card
+	# cancel the timer and filter through the immediate path below.
+	_search_debounce = Timer.new()
+	_search_debounce.one_shot = true
+	_search_debounce.wait_time = SEARCH_DEBOUNCE_MSEC / 1000.0
+	_search_debounce.timeout.connect(_filter_changed)
+	add_child(_search_debounce)
+	%AvatarSearch.text_changed.connect(_search_text_changed)
 	_build_collection_navigation()
 	%BrowseAll.pressed.connect(_browse_all)
 	%BrowseFavorites.pressed.connect(_browse_favorites)
@@ -87,6 +100,10 @@ func _ready() -> void:
 	_thumbnails.loaded.connect(_thumbnail_loaded)
 	%FavoriteAvatar.icon = preload("res://UI/icons/avatar/favorite.svg")
 	_style_browser.call_deferred()
+	# Layout follows size/theme changes instead of polling every frame.
+	_scroll.resized.connect(_queue_layout_browser)
+	theme_changed.connect(_queue_layout_browser)
+	_queue_layout_browser()
 	_layout_preview_stage()
 	AvatarService.selection_changed.connect(_selection_changed)
 	AvatarService.springs_changed.connect(_springs_changed)
@@ -119,6 +136,7 @@ func set_open(open: bool) -> void:
 	else:
 		# Bump the generation before releasing so a completion emitted during
 		# the release already reads as stale to its awaiting coroutine.
+		_cancel_search_debounce()
 		_generation += 1
 		_release_request()
 		_clear_model()
@@ -143,8 +161,6 @@ func _process(delta: float) -> void:
 		_picker_wait_at = -1
 		_set_import_status("Picker has not returned. Try outside VR.", true)
 		AvatarService.record_event("custom", "file picker waiting", "No file/cancel callback after 10s; retry outside immersive mode")
-	if visible:
-		_layout_browser()
 	if not visible:
 		# A hidden SubViewport stops rendering; the orbit must not unwind either.
 		return
@@ -167,6 +183,7 @@ func _rebuild() -> void:
 
 
 func _filter_changed() -> void:
+	_cancel_search_debounce()
 	var collection := _collection
 	_filtered = AvatarCatalog.search(%AvatarSearch.text, "Custom" if _custom_only else collection)
 	if not _custom_only and not _favorites_only:
@@ -187,6 +204,14 @@ func _filter_changed() -> void:
 
 
 func _refresh_list() -> void:
+	var ids := _filtered_ids()
+	if _same_ids(ids, _listed_ids) and _custom_only == _listed_custom:
+		# Same ordered results and upload mode: keep the cards, loaded batches
+		# and scroll position, but refresh the state derived from profiles.
+		_refresh_list_state()
+		return
+	_listed_ids = ids
+	_listed_custom = _custom_only
 	_cancel_prefetch()
 	_thumbnails.cancel_pending()
 	_scroll.scroll_vertical = 0
@@ -202,6 +227,57 @@ func _refresh_list() -> void:
 	%EmptyResults.text = "Your favorites will appear here.\nChoose a look and select the star to save it." if _favorites_only else "No matching avatars.\nTry another collection or clear your search."
 	%GalleryTrack.visible = _custom_only or not _filtered.is_empty()
 	_append_batch()
+	# The newly created cards and upload tile need a size-aware layout pass.
+	_queue_layout_browser()
+
+
+func _filtered_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for entry: Dictionary in _filtered:
+		var id := str(entry.get("id", ""))
+		if not id.is_empty():
+			ids.append(id)
+	return ids
+
+
+func _same_ids(left: Array[String], right: Array[String]) -> bool:
+	if left.size() != right.size():
+		return false
+	for index in left.size():
+		if left[index] != right[index]:
+			return false
+	return true
+
+
+func _refresh_list_state() -> void:
+	%EmptyResults.visible = _filtered.is_empty() and not _custom_only
+	%EmptyResults.text = "Your favorites will appear here.\nChoose a look and select the star to save it." if _favorites_only else "No matching avatars.\nTry another collection or clear your search."
+	%GalleryTrack.visible = _custom_only or not _filtered.is_empty()
+	_refresh_selection_state()
+	_refresh_favorite_state()
+	_refresh_card_thumbnails()
+	_update_import_access()
+
+
+func _refresh_card_thumbnails() -> void:
+	# Closing the card cancels queued thumbnails; reusing its cards on reopen
+	# must resume the requests for any that never arrived.
+	for button: Button in _buttons.values():
+		var url: String = button.get_meta("thumbnail_url", "")
+		if url.is_empty():
+			continue
+		var texture := _thumbnails.request(url)
+		if texture != null:
+			_set_card_thumbnail(button, texture)
+
+
+func _search_text_changed(_text: String) -> void:
+	_search_debounce.start()
+
+
+func _cancel_search_debounce() -> void:
+	if _search_debounce != null:
+		_search_debounce.stop()
 
 
 func _maybe_append_batch() -> void:
@@ -260,10 +336,7 @@ func _update_apply() -> void:
 
 
 func _sync_selection(id: String, with_preview: bool) -> void:
-	for entry_id in _buttons:
-		(_buttons[entry_id] as Button).set_pressed_no_signal(entry_id == id)
-		var badge: Label = _buttons[entry_id].get_node("Card/Credits/Badge")
-		badge.visible = entry_id == _applied_id
+	_refresh_selection_state()
 	var entry := AvatarCatalog.definition(id)
 	if entry.is_empty():
 		_apply.disabled = true
@@ -272,10 +345,24 @@ func _sync_selection(id: String, with_preview: bool) -> void:
 	_update_apply()
 	_refresh_credits(id)
 	_layout_browser()
-	%FavoriteAvatar.set_pressed_no_signal(id in PlayerProfile.avatar_favorites)
-	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
+	_refresh_favorite_state()
 	if with_preview:
 		_show_preview(id)
+
+
+func _refresh_selection_state() -> void:
+	for entry_id in _buttons:
+		var button: Button = _buttons[entry_id]
+		button.set_pressed_no_signal(entry_id == _pending_id)
+		var badge := button.get_node_or_null("Card/Credits/Badge") as Label
+		if badge != null:
+			badge.visible = entry_id == _applied_id
+
+
+func _refresh_favorite_state() -> void:
+	var favorite := _pending_id in PlayerProfile.avatar_favorites
+	%FavoriteAvatar.set_pressed_no_signal(favorite)
+	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if favorite else "res://UI/icons/avatar/favorite.svg")
 
 
 func _refresh_credits(id: String) -> void:
@@ -596,8 +683,7 @@ func _toggle_favorite() -> void:
 	else:
 		PlayerProfile.avatar_favorites.append(_pending_id)
 	PlayerProfile.save()
-	%FavoriteAvatar.set_pressed_no_signal(_pending_id in PlayerProfile.avatar_favorites)
-	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if _pending_id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
+	_refresh_favorite_state()
 	if _favorites_only:
 		_filter_changed()
 
@@ -719,18 +805,32 @@ func handle_stick(stick: Vector2, point: Vector2, delta: float) -> void:
 	target.scroll_vertical += roundi(-signf(stick.y) * amount * LobbyNavigation.SCROLL_SPEED * delta)
 
 
+func _queue_layout_browser() -> void:
+	if _layout_queued or not is_inside_tree():
+		return
+	_layout_queued = true
+	_layout_browser.call_deferred()
+
+
 func _layout_browser() -> void:
+	# Queued from resized/theme signals and after cards or the upload tile are
+	# created. Only changed values are assigned, so this cannot re-enter itself
+	# through the resized signals it triggers.
+	_layout_queued = false
 	# Keep the first sidebar row, search field and preview heading on one baseline.
 	var header_height := maxf(%BrowseAll.get_minimum_size().y, %AvatarSearch.get_minimum_size().y)
-	%BrowseAll.custom_minimum_size.y = header_height
-	%BrowseFavorites.custom_minimum_size.y = header_height
-	%BrowseCustom.custom_minimum_size.y = header_height
-	%AvatarSearch.custom_minimum_size.y = header_height
-	%SelectedTitle.get_parent().custom_minimum_size.y = header_height
+	if not is_equal_approx(_layout_header_height, header_height):
+		_layout_header_height = header_height
+		for control: Control in [%BrowseAll, %BrowseFavorites, %BrowseCustom, %AvatarSearch, %SelectedTitle.get_parent()]:
+			control.custom_minimum_size.y = header_height
 	var available := _scroll.size.x
-	_list.columns = clampi(int((available + 12.0) / 150.0), 2, 4)
+	var columns := clampi(int((available + 12.0) / 150.0), 2, 4)
+	if _list.columns != columns:
+		_list.columns = columns
 	if is_instance_valid(_import_button):
-		_import_button.custom_minimum_size.x = maxf(138, floorf((available - 12.0 * (_list.columns - 1)) / _list.columns))
+		var width := maxf(138, floorf((available - 12.0 * (columns - 1)) / columns))
+		if not is_equal_approx(_import_button.custom_minimum_size.x, width):
+			_import_button.custom_minimum_size.x = width
 
 
 func _style_scrollbar_control(bar: VScrollBar) -> void:
@@ -788,7 +888,7 @@ func _style_browser() -> void:
 	# Inherit the shared room-selector theme, including panel margins/colors.
 	for button: BaseButton in find_children("*", "BaseButton", true, false):
 		_decorate_button(button, button == _apply or button == %CloseAvatarSettings)
-	%FavoriteAvatar.icon = load("res://UI/icons/avatar/favorite_saved.svg" if _pending_id in PlayerProfile.avatar_favorites else "res://UI/icons/avatar/favorite.svg")
+	_refresh_favorite_state()
 
 
 func _decorate_button(button: BaseButton, primary := false) -> void:

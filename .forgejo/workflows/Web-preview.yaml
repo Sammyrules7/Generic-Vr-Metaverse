@@ -142,16 +142,8 @@ jobs:
       - name: Test player movement
         run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/movement_test.gd
 
-      - name: Test XR hand tracking and menu
-        run: |
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/touch_approach_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_custom_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_transfer_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_render_profiler_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_ground_feet_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
+      - name: Test XR and avatar smoke suites
+        run: bash scripts/check_godot_smoke.sh web
 
       - name: Configure main signaling backend
         env:

@@ -27,6 +27,11 @@ func _ready() -> void:
 	_update_fallback()
 
 
+## True while a download/handoff is still pending for this container.
+func is_preparing() -> bool:
+	return _request != null or _instance_job != null
+
+
 func set_avatar(id: String) -> void:
 	if not AvatarCatalog.has_avatar(id):
 		id = "default"
@@ -121,7 +126,7 @@ func _set_springs_enabled(enabled: bool) -> void:
 func _update_fallback() -> void:
 	var controls := get_parent().controls as PlayerControls
 	if _local and controls != null and controls.has_method("set_avatar_hands"):
-		controls.set_avatar_hands(model != null and is_instance_valid(_driver) and _driver.arm_ik.size() == 2)
+		controls.set_avatar_hands(model != null and is_instance_valid(_driver) and _driver.has_arm_ik())
 	$Body.visible = model == null
 	$Head.visible = model == null
 	$LeftHand.visible = model == null and get_parent().use_vr

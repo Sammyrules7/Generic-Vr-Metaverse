@@ -25,12 +25,16 @@ func run() -> void:
 	check((player.controls.head.cull_mask & avatar.get_node("Head").layers) == 0, "Local fallback head must not obstruct the camera")
 	check((player.controls.head.cull_mask & avatar.get_node("Body").layers) == 0, "Desktop fallback must be hidden from the player camera")
 	check(avatar.get_node("Head").visible and avatar.get_node("Head").layers == AvatarView.FULL_BODY, "Mirrors must retain the fallback head")
+	check(not avatar.is_preparing(), "An idle fallback avatar must not report preparation")
 	player.set_avatar("godette")
+	check(avatar.is_preparing(), "A pending avatar download must report preparation")
 	var deadline := Time.get_ticks_msec() + 15000
 	while avatar.model == null and Time.get_ticks_msec() < deadline:
 		await process_frame
 	check(avatar.model != null, "Player's runtime avatar failed to load")
+	check(not avatar.is_preparing(), "A loaded avatar must stop reporting preparation")
 	if avatar.model != null:
+		check(avatar._driver != null and avatar._driver.has_arm_ik(), "Godette's rig must expose both native arm IK chains")
 		check(avatar.get_node("Head") == anchor, "Loading must preserve voice/pose anchor identity")
 		check(not avatar.get_node("Body").visible, "Loaded avatar must replace the fallback geometry")
 		check(not avatar._springs.is_empty(), "Godette's spring chains must use native simulators")
@@ -66,17 +70,22 @@ func run() -> void:
 	# Supersede a queued network request before it starts; no download required.
 	var remote_id: String = AvatarCatalog.entries()[2].id
 	player.set_avatar(remote_id)
+	check(avatar.is_preparing(), "A queued network request must report preparation")
 	player.set_avatar("default")
 	await process_frame
 	check(avatar.avatar_id == "default" and avatar.model == null, "A superseded selection must never replace the newest avatar")
+	check(not avatar.is_preparing(), "Superseding a request must clear the preparation state")
 	# Queued detached instances must be discarded when superseded or freed.
 	player.set_avatar("godette")
 	var pending: AvatarInstanceJob = avatar._instance_job
 	check(pending != null, "Cached avatars must instantiate through the worker queue")
+	check(avatar.is_preparing(), "A pending detached instance must report preparation")
 	player.set_avatar("default")
 	check(pending.cancelled, "Superseding an instance must cancel its handoff")
+	check(not avatar.is_preparing(), "Cancelling an instance must clear the preparation state")
 	player.set_avatar("godette")
 	pending = avatar._instance_job
+	check(avatar.is_preparing(), "A replacement handoff must report preparation")
 	await process_frame
 	player.free()
 	check(pending.cancelled, "Freeing a player must cancel its detached handoff")

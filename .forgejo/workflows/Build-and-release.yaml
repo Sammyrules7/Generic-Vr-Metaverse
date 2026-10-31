@@ -12,6 +12,7 @@ on:
       - '!Godot/**/*.md'
       - .itch.toml
       - .forgejo/workflows/Build-and-release.yaml
+      - scripts/check_godot_smoke.sh
       - scripts/publish_quest.mjs
       - scripts/publish_desktop.mjs
   workflow_dispatch:
@@ -110,21 +111,8 @@ jobs:
       - name: Test player movement
         run: godot --headless --path ${{ env.PROJECT_PATH }} --xr-mode off --script res://tests/movement_test.gd
 
-      - name: Test XR hand tracking and menu
-        run: |
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/touch_approach_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_custom_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_transfer_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_render_profiler_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_ground_feet_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_loading_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_container_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_rig_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_springs_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
-          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/avatar_picker_test.tscn
+      - name: Test XR and avatar smoke suites
+        run: bash scripts/check_godot_smoke.sh native
 
       - name: Configure release signaling endpoint
         env:
@@ -253,21 +241,8 @@ jobs:
       - name: Test player movement
         run: godot --headless --path ${{ env.PROJECT_PATH }} --xr-mode off --script res://tests/movement_test.gd
 
-      - name: Test XR hand tracking and menu
-        run: |
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/tracked_hand_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/hand_menu_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/touch_approach_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_custom_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_transfer_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_render_profiler_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_ground_feet_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_loading_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_container_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_rig_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/avatar_springs_test.gd
-          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/lobby_test.tscn
-          godot --headless --xr-mode off --path "$PROJECT_PATH" res://UI/tests/avatar_picker_test.tscn
+      - name: Test XR and avatar smoke suites
+        run: bash scripts/check_godot_smoke.sh native
 
       - name: Configure release signaling endpoint
         env:

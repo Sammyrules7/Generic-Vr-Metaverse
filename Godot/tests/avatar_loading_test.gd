@@ -48,18 +48,26 @@ func run() -> void:
 	var survivor: AvatarLoadRequest = service.acquire("godette")
 	cancelled.release()
 	check(cancelled.finished and cancelled.released, "Cancellation must resolve pending awaits")
-	var import_frames := 0
+	# Meaningful yield check: sample a live worker task across a main-thread
+	# frame. A blocking import would never leave an unfinished task observable
+	# for two consecutive main-loop iterations.
+	var worker_frame_overlap := 0
 	var deadline := Time.get_ticks_msec() + 15000
 	while not survivor.finished and Time.get_ticks_msec() < deadline:
-		if service._importing:
-			import_frames += 1
+		var task_pending := false
+		for job: RefCounted in [service._image_job, service._parse_job]:
+			if job != null and job.task_id >= 0 and not WorkerThreadPool.is_task_completed(job.task_id):
+				task_pending = true
+		var frame_before := Engine.get_process_frames()
 		await process_frame
+		if task_pending and Engine.get_process_frames() > frame_before:
+			worker_frame_overlap += 1
 	check(survivor.finished and survivor.scene != null and survivor.error.is_empty(), "Bundled VRM failed: " + survivor.error)
 	if survivor.scene != null:
+		check(worker_frame_overlap > 0, "Avatar preparation must let the main thread advance while its worker task is still running")
 		check(service._events.any(func(event: String): return event.contains("GLTF parse") and event.contains("worker")), "Resource parsing must run on a worker")
 		for stage in ["generate scene", "normalize rig", "pack scene"]:
 			check(service._events.any(func(event: String): return event.contains(stage) and event.contains("worker")), "Detached preparation must stay on the worker: " + stage)
-		check(import_frames >= 3, "Avatar preparation must yield across frames rather than blocking one frame")
 		var first := survivor.scene.instantiate() as Node3D
 		check(int(first.get_meta("avatar_decoded_textures", 0)) > 0, "GLTF import must reuse worker-decoded textures")
 		var second := survivor.scene.instantiate() as Node3D

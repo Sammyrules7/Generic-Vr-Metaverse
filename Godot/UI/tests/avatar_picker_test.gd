@@ -245,6 +245,46 @@ func _run() -> void:
 	check(card.get_node("%AvatarSearch").placeholder_text == "Search in 100Avatars R3" and card.get_node("%ResultCount").text == "100", "Search scope and count must track collection changes")
 	card._browse_all()
 
+	# Typing is debounced; scope navigation filters immediately and cancels it.
+	var search_field: LineEdit = card.get_node("%AvatarSearch")
+	var list_before_search: int = card.get_node("%AvatarList").get_child_count()
+	search_field.text = "Godette"
+	search_field.text_changed.emit(search_field.text)
+	check(card.get_node("%AvatarList").get_child_count() == list_before_search and card._filtered.size() > 1, "Search must not filter before its debounce elapses")
+	check(await _wait_until(func(): return card._filtered.size() == 1), "Debounced search did not filter the catalog")
+	check(card.get_node("%AvatarList").get_child_count() == 1, "Debounced search must reset lazy results")
+	search_field.text = "R3"
+	search_field.text_changed.emit(search_field.text)
+	var bundled_count := AvatarCatalog.search("", "Bundled").size()
+	card._collection_buttons["Bundled"].pressed.emit()
+	check(card._filtered.size() == bundled_count and search_field.text.is_empty(), "Scope navigation must filter immediately and clear the search")
+	await get_tree().create_timer(0.25).timeout
+	check(card._filtered.size() == bundled_count, "A canceled debounce must not filter after scope navigation")
+
+	# Unchanged ordered results reuse the cards and retain the gallery scroll.
+	card._browse_all()
+	var retention_scroll: ScrollContainer = card.get_node("%AvatarListScroll")
+	retention_scroll.get_v_scroll_bar().value = retention_scroll.get_v_scroll_bar().max_value
+	check(await _wait_until(func(): return card._loaded_count > card.BATCH_SIZE), "Gallery did not append before the scroll retention check")
+	var retained_scroll := retention_scroll.scroll_vertical
+	var retained_count: int = card.get_node("%AvatarList").get_child_count()
+	var retained_card: Button = card.get_node("%AvatarList").get_child(0)
+	var retained_card_id := retained_card.get_instance_id()
+	card._filter_changed()
+	check(card.get_node("%AvatarList").get_child_count() == retained_count and retained_card.get_instance_id() == retained_card_id, "An unchanged result set must reuse its existing cards")
+	check(retention_scroll.scroll_vertical == retained_scroll, "An unchanged result set must retain the gallery scroll position")
+	# Profile-derived state still refreshes when the cards are reused.
+	var pending_favorite: String = card._pending_id
+	PlayerProfile.avatar_favorites.erase(pending_favorite)
+	card._filter_changed()
+	check(not card.get_node("%FavoriteAvatar").button_pressed, "Reused cards must refresh the unsaved favorite state")
+	PlayerProfile.avatar_favorites.append(pending_favorite)
+	card._filter_changed()
+	check(card.get_node("%FavoriteAvatar").button_pressed, "Reused cards must refresh the saved favorite state")
+	PlayerProfile.avatar_favorites.erase(pending_favorite)
+	card._filter_changed()
+	card._browse_all()
+
 	check(card.get_node_or_null("%ResetAvatar") == null and card.get_node_or_null("%AutoRotate") == null, "Redundant Explorer/turntable buttons must be removed")
 	check(card.get_node("%FavoriteAvatar").icon != null, "Icons must use bundled SVGs rather than system-font glyphs")
 	var panel_style := card.get_theme_stylebox("panel", "PanelContainer") as StyleBoxFlat
@@ -374,8 +414,15 @@ func _run() -> void:
 	card._leave_avatar("godette")
 	check(card._prefetch == null, "Leaving a card must release its speculative request")
 
-	# Closing restores the menu and the focus that opened the submenu.
+	# Closing cancels a pending search instead of filtering the hidden card.
+	var pre_close_count: int = card._filtered.size()
+	card.get_node("%AvatarSearch").text = "Godette"
+	card.get_node("%AvatarSearch").text_changed.emit("Godette")
 	card.get_node("%CloseAvatarSettings").pressed.emit()
+	await get_tree().create_timer(0.25).timeout
+	check(card._filtered.size() == pre_close_count, "Closing must cancel the pending search debounce")
+
+	# Closing restores the menu and the focus that opened the submenu.
 	check(not card.visible and ui.get_node("VBoxContainer").visible, "Done did not return to the lobby menu")
 	check(ui.get_viewport().gui_get_focus_owner() == ui.get_node("%OpenAvatarPicker"), "Closing the submenu did not restore entry-button focus")
 	check(card._request == null and card._model == null, "Closing the submenu left a preview lease or model alive")

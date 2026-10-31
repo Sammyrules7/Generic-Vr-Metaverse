@@ -16,6 +16,9 @@ On x86_64 Linux, `nix develop` supplies the pinned Go, Godot, protobuf, and revi
 tools. Otherwise install the versions required by `Server/go.mod` and
 `Godot/project.godot` (currently Go 1.26.5 or later and Godot 4.7).
 
+After cloning, run `git lfs pull` to materialize the bundled models and native
+libraries before importing the Godot project.
+
 Start the signaling server in one terminal:
 
 ```sh
@@ -105,7 +108,8 @@ Cloudflare redirects `vr.maio-tech.com` to the app with a Redirect Rule. The API
 proxy remains until the Gateway TLS migration is applied; see
 [Worker routing migration](cloudflare/README.md).
 
-See [player controls](Godot/player/README.md),
+See [runtime avatars](Godot/avatar/README.md),
+[player controls](Godot/player/README.md),
 [murder mystery](Godot/game_modes/murder_mystery/README.md),
 [cluster deployment](cluster/README.md), and the
 [codebase review](docs/codebase-review.md) for details and remaining work.
@@ -115,8 +119,7 @@ image updates, and further optimization options.
 ## Roadmap
 
 - Broader device validation
-- VRM avatar importing and switching
-- Inverse kinematics
+- Broader avatar compatibility and tracking validation
 
 ## Builds and distribution
 

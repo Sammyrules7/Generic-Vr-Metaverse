@@ -189,6 +189,11 @@ func configure(model: Node3D, head: Node3D, left: Node3D, right: Node3D, local: 
 	set_process(true)
 
 
+## True when both arm chains resolved to native IK modifiers.
+func has_arm_ik() -> bool:
+	return arm_ik.has("left") and arm_ik.has("right")
+
+
 ## Switch between tracked hand targets and the natural desktop rest pose.
 func set_control_mode(use_vr: bool) -> void:
 	_reset_animation_pose()

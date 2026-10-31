@@ -38,8 +38,16 @@ size checks, with disk-cache keys derived from their source URLs.
 
 Registry metadata is CC0; models retain their individual licenses. Godette by
 SirRichard94, adapted by Lyuma, is CC-BY 3.0; see `GODOT_VRM_SAMPLE_LICENSES.txt`.
-VRM/MToon addons are vendored from V-Sekai/godot-vrm revision
-`e15199f980064028bfa4fbee5e70dddb82dd55c3`. Preserve their upstream licenses.
+The bundled Godette sample comes from V-Sekai/godot-vrm revision
+`e15199f980064028bfa4fbee5e70dddb82dd55c3`, as recorded in `catalog.json`.
+The addons are vendored separately (see their `.gitrepo` files):
+
+- V-Sekai/godot-vrm, branch `only-addon`, revision
+  `651205484c35f5cd7ba56475ff636e10db8ad674`.
+- V-Sekai/Godot-MToon-Shader, branch `main`, revision
+  `268c0d3b19c0885698b7bd39e21a16c9c2af448f`.
+
+Preserve their upstream licenses.
 The local MToon importer patch records existing ShaderMaterials in its replacement
 map to avoid missing-replacement errors with Godette.
 
@@ -187,6 +195,9 @@ pipeline counters/precompilation. Shader baking is enabled for native presets,
 but cannot run in the headless CI export path.
 
 After editor import, run `scripts/check_runtime.sh` in the development shell.
+Export jobs run `scripts/check_godot_smoke.sh native` for the focused XR/avatar
+suites; `web` runs the same common suites without the loading, container, rig,
+springs and picker checks. `check_runtime.sh` remains the full runtime gate.
 Focused suites live in `Godot/tests/avatar_*_test.gd`,
 `Godot/tests/tracked_hand_test.gd`, `Godot/tests/mirror_test.gd` and
 `Godot/UI/tests/avatar_picker_test.tscn`. Loading tests are offline by default;

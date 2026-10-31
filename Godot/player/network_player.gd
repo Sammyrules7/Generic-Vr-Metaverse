@@ -75,7 +75,7 @@ func _process(_delta: float) -> void:
 	if avatar_replication == null or is_multiplayer_authority():
 		return
 	var progress := avatar_replication.avatar_progress(get_multiplayer_authority())
-	var pending := not progress.is_empty() or $Avatar._request != null or $Avatar._instance_job != null
+	var pending: bool = not progress.is_empty() or $Avatar.is_preparing()
 	if _avatar_progress == null and pending:
 		_avatar_progress = MeshInstance3D.new()
 		_avatar_progress.name = "AvatarProgress"
