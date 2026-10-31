@@ -434,9 +434,9 @@ func _test_desktop_animation() -> void:
 		var arm_length: float = driver._arm_lengths[side]
 		check(max_hand_reach[side] <= arm_length * driver.DESKTOP_REACH + 0.001,
 			"Idle wrist target must stay short of full stretch (" + side + ")")
-	check(idle_hand_swing > 0.002 and idle_hand_swing < 0.12,
-		"Idle hands must sway subtly, got " + str(idle_hand_swing))
-	check(idle_variation > deg_to_rad(0.1), "Desktop idle must keep varying over the loop")
+	check(idle_hand_swing < 0.001,
+		"Idle hands must remain calm, got " + str(idle_hand_swing))
+	check(idle_variation < deg_to_rad(0.01), "Desktop idle must not add torso breathing")
 	var rest_spine: Quaternion = driver._animation_bones["Spine"]
 	check(skeleton.get_bone_pose_rotation(spine).angle_to(rest_spine) < deg_to_rad(8.0),
 		"Idle torso must stay close to this avatar's rest stance")
@@ -476,11 +476,16 @@ func _test_locomotion_clips() -> void:
 	var driver = rig.driver
 	var skeleton: Skeleton3D = driver.skeleton
 	driver.set_process(false)
-	check(driver._walk_clip != null and driver._jog_clip != null, "Authored walk and jog tracks must be shipped")
-	for clip: RefCounted in [driver._walk_clip, driver._jog_clip]:
+	check(driver._walk_clip != null and driver._jog_clip != null and driver._strafe_left_clip != null and driver._strafe_right_clip != null, "Authored walk, jog and directional strafe tracks must be shipped")
+	for clip: RefCounted in [driver._strafe_left_clip, driver._strafe_right_clip]:
+		check(clip.source.get("source_file") == "Neutral_SW.bvh", "Sidesteps must use dedicated captured lateral motion")
+		for bone_name: StringName in [&"LeftUpperLeg", &"RightUpperLeg"]:
+			for direction: Vector3 in clip.tracks[bone_name].frames:
+				check(absf(direction.x) < 0.5, "Captured sidesteps must keep thigh spread restrained")
+	for clip: RefCounted in [driver._walk_clip, driver._jog_clip, driver._strafe_left_clip, driver._strafe_right_clip]:
 		if clip == null:
 			continue
-		check(clip.source.get("license") == "CC0-1.0", "Locomotion provenance must retain its license")
+		check(clip.source.get("license") in ["CC0-1.0", "CC-BY-4.0"], "Locomotion provenance must retain its license")
 		for track: StringName in clip.tracks:
 			check(clip.sample_direction(track, 0.0).distance_to(clip.sample_direction(track, clip.duration - 0.00001)) < 0.002, "Locomotion loop must close without a pose jump: " + str(track))
 		for side in ["left", "right"]:
@@ -568,7 +573,7 @@ func _test_procedural_fallback() -> void:
 	for frame in 300:
 		driver._process(1.0 / 60.0)
 		variation = maxf(variation, skeleton.get_bone_pose_rotation(spine).angle_to(start))
-	check(variation > deg_to_rad(0.1), "Procedural fallback must still animate standing")
+	check(variation < deg_to_rad(0.01), "Missing idle clips must use a calm rest pose")
 	var leg_delta: float = skeleton.get_bone_pose_rotation(leg).angle_to(driver._animation_bones["LeftUpperLeg"])
 	check(leg_delta < deg_to_rad(8.0), "Procedural fallback legs must stay restrained")
 	rig.container.free()

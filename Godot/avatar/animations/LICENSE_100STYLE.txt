@@ -1,0 +1,8 @@
+The 100STYLE Dataset - Ian Mason
+Authors: Ian Mason, Sebastian Starke, Taku Komura (2022)
+Source: https://www.ianxmason.com/100style/
+Original capture: Neutral_SW.bvh
+Changes: extracted left/right loops; removed root travel and heading; converted to humanoid direction/wrist tracks; smoothed loop endpoints.
+License: Creative Commons Attribution 4.0 International
+License and legal terms: https://creativecommons.org/licenses/by/4.0/
+These derived tracks are distributed under that license.

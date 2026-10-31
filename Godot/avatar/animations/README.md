@@ -4,9 +4,12 @@
 `quaternius_universal_walk_loop.json` and `quaternius_universal_jog_fwd_loop.json`
 supply desktop locomotion. These are derived direction/wrist tracks (about
 27 KB idle, 16 KB walk and 12 KB jog), not source glTF files. `AvatarRigDriver`
-also uses the idle for restrained untracked-VR leg motion.
+also uses the idle for restrained untracked-VR leg motion. Dedicated lateral
+motion comes from `100style_neutral_strafe_left.json` and
+`100style_neutral_strafe_right.json`; their CC BY 4.0 source and credits are
+listed below.
 
-## Provenance
+## Quaternius provenance
 
 | Item | Value |
 | --- | --- |
@@ -56,9 +59,9 @@ frames, then normalized.
 
 ## Runtime mapping
 
-- Desktop: torso, shoulders, legs and feet follow the clip; hands get
-  clip-derived wrist targets for the existing two-bone IK, plus a small slow
-  overlay so the 2.5 s loop does not read as mechanical.
+- Desktop standing: torso and hands remain at a calm rest pose. There is no
+  breathing overlay, procedural sway or animated wrist offset. Restrained
+  leg idle remains available.
 - Untracked VR: only the legs and feet receive clip motion, at 55% strength.
   Hips, spine, chest and shoulder rest poses are left untouched, so the tracked
   eye anchor and the tracked arm roots do not move. Head, neck and arms never
@@ -66,7 +69,7 @@ frames, then normalized.
 - A future full-body provider can set `lower_body_tracked`; the fallback then
   stops touching the legs. The driver never reads `XRBodyTracker` itself.
 - If the file is missing or invalid, or a rig lacks the expected bones, the
-  driver falls back to a small procedural idle and keeps working.
+  driver uses the neutral rest pose and keeps working.
 
 ## Desktop locomotion
 
@@ -90,17 +93,29 @@ centering a bent knee around a straight target leg. Wrist offsets use the full
 upper/lower-arm segment lengths, so the jog's bent elbows do not inflate reach;
 target wrist positions are also clamped to the avatar's arm length.
 
-Backward movement reverses the cycle. Strafing redirects the thigh swing and
-hand travel while keeping knee bend in the avatar's forward plane. These are
-adaptations of forward clips, not separately authored directional animations.
-The existing ground helper still handles contact and releases lifted feet.
-The character motor and eye anchor remain authoritative: clips supply no root
-motion and never move the player or camera. VR continues to use its existing
-restrained idle and tracked poses.
+Backward forward-gait movement reverses its cycle. Left/right strafing instead
+uses dedicated neutral sidestep captures from **100STYLE**, with no sideways
+redirection of forward thigh or wrist motion. Diagonal movement blends the
+forward and lateral poses; directional clips share cadence so a diagonal does
+not double the step rate. The slower captured sidestep stride is retained as
+metadata rather than forcing a much faster shuffle at the game's movement speed.
+The character motor and eye anchor remain authoritative, and VR tracking is
+unchanged.
 
-If locomotion data is absent, the rig keeps its idle/rest pose rather than
-preventing movement. No additional export filters are needed: existing
-`avatar/animations/*.json` entries cover all three assets.
+### Sidestep provenance
+
+- Dataset: [100STYLE](https://www.ianxmason.com/100style/), Ian Mason,
+  Sebastian Starke and Taku Komura (2022).
+- Credit: **The 100STYLE Dataset - Ian Mason**.
+- License: [CC BY 4.0 notice](LICENSE_100STYLE.txt), distinct from the Quaternius CC0 assets.
+- Capture: `Neutral_SW.bvh`, SHA-256
+  `07225ded6df11c4eb97a7b42e6121a9e985ae7e8d0f56f9ca971429f9c507ad9`.
+- Source download: `https://drive.google.com/uc?export=download&id=1HzUccloKCjQgpObQ0ZXTEDW7-RllNwHX`.
+- Left frames: 816–894; right frames: 1949–2022 (zero-based, inclusive).
+- Changes: trimmed steady-motion cycles, removed root travel and heading,
+  normalized to target proportions, and applied smooth endpoint correction.
+- Regenerate with `python3 scripts/extract_avatar_strafe.py /path/Neutral_SW.bvh Godot/avatar/animations`.
+- All five exports include the 100STYLE license/credit alongside these JSON tracks.
 
 ## Regenerating
 

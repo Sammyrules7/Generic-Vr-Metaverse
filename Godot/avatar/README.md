@@ -87,8 +87,9 @@ scales remain one. Eye bones take priority over authored LookOffset data, with a
 neck-proportioned fallback for incomplete rigs. Head and wrist anchors remain
 independent of the replaceable visual model.
 
-Desktop avatars blend CC0-authored walk/jog clips by speed and return to idle
-when stopped. Cadence follows distance; the character motor supplies all movement. See
+Desktop avatars blend CC0-authored walk/jog clips with dedicated CC BY 4.0
+100STYLE left/right sidesteps. Standing torso and hands remain calm, without
+breathing or sway overlays. Cadence follows distance; the character motor supplies all movement. See
 [animation provenance and retargeting](animations/README.md). Untracked VR idle
 moves only the lower body; tracked head and hands remain authoritative. Native
 arm IK solves wrist position, with a following modifier applying wrist rotation.
