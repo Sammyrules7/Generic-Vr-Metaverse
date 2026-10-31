@@ -45,6 +45,9 @@ const ARM_BONES := {
 	"right": ["RightUpperArm", "RightLowerArm", "RightHand"],
 }
 const IDLE_CLIP_PATH := "res://avatar/animations/quaternius_universal_idle_loop.json"
+const WALK_SPEED := 5.0
+const JOG_BLEND_START := 6.0
+const JOG_SPEED := 7.0
 const WALK_CLIP_PATH := "res://avatar/animations/quaternius_universal_walk_loop.json"
 const JOG_CLIP_PATH := "res://avatar/animations/quaternius_universal_jog_fwd_loop.json"
 const IDLE_CLIP_SCRIPT := "res://avatar/animations/avatar_idle_clip.gd"
@@ -733,7 +736,7 @@ func _animate_desktop(delta: float) -> void:
 	_motion_velocity = _motion_velocity.lerp(velocity, 1.0 - exp(-10.0 * delta))
 	var speed := minf(_motion_velocity.length(), 7.0)
 	var weight := smoothstep(0.05, 0.8, speed)
-	var jog_weight := smoothstep(1.8, 3.5, speed) if _jog_clip != null else 0.0
+	var jog_weight := smoothstep(JOG_BLEND_START, JOG_SPEED, speed) if _jog_clip != null else 0.0
 	_idle_time += delta
 	_idle_clip_time += delta
 	var direction := skeleton.global_basis.orthonormalized().inverse() * _motion_velocity.normalized() if speed > 0.01 else _source_basis.z
@@ -742,9 +745,11 @@ func _animate_desktop(delta: float) -> void:
 	# Advance by distance, with one shared contact phase for walk and jog.
 	# Scale stride length to the target avatar, not the source mannequin.
 	var leg_scale := maxf(0.4, _rest_skeleton("LeftUpperLeg").distance_to(_rest_skeleton("LeftFoot")) / 0.85)
-	var cycle_distance := lerpf(1.35, 2.35, jog_weight) * leg_scale
+	var walk_duration := float(_walk_clip.duration) if _walk_clip != null else 1.333
+	var jog_duration := float(_jog_clip.duration) if _jog_clip != null else 0.917
+	var cycle_distance := lerpf(WALK_SPEED * walk_duration, JOG_SPEED * jog_duration, jog_weight) * leg_scale
 	var playback_direction := -1.0 if forward_weight < -0.1 else 1.0
-	_stride_phase = fposmod(_stride_phase + playback_direction * minf(speed / cycle_distance, 3.0) * delta * TAU, TAU)
+	_stride_phase = fposmod(_stride_phase + playback_direction * minf(speed / cycle_distance, 1.1 / lerpf(walk_duration, jog_duration, jog_weight)) * delta * TAU, TAU)
 	var walk_rotations := _animation_bones.duplicate()
 	if weight > 0.0:
 		walk_rotations = _locomotion_pose(_walk_clip, forward_weight, side_weight)

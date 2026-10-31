@@ -449,6 +449,13 @@ func _test_desktop_animation() -> void:
 		driver._process(1.0 / 60.0)
 		maximum_leg_angle = maxf(maximum_leg_angle, skeleton.get_bone_pose_rotation(leg).get_angle())
 		maximum_hand_swing = maxf(maximum_hand_swing, driver.hand_target.left.position.distance_to(driver._desktop_target.left.origin))
+	check(driver.WALK_SPEED < driver.JOG_BLEND_START, "Default desktop speed must remain below the jog transition")
+	for frame in 60:
+		container.position.z -= 5.0 / 60.0
+		var previous_phase: float = driver._stride_phase
+		driver._process(1.0 / 60.0)
+		var phase_step := fposmod(float(driver._stride_phase) - previous_phase, TAU)
+		check(phase_step <= TAU * 1.1 / float(driver._walk_clip.duration) / 60.0 + 0.0001, "Normal desktop movement must not rush the walk cycle")
 	check(maximum_leg_angle > 0.2, "Moving desktop avatars must step their legs")
 	check(maximum_hand_swing > 0.05, "Desktop walking must swing the hands")
 	for frame in 120:

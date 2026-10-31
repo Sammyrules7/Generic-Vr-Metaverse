@@ -74,7 +74,9 @@ Walk and jog are authored in-place clips from the same pinned CC0 pack. Both
 are aligned to left-foot forward contact before extraction and sampled with
 one shared normalized phase, so blending between them does not mix opposite
 feet. Cadence follows horizontal movement distance, scaled to the avatar's leg
-length. Walk blends toward jog between 1.8 and 3.5 world units per second;
+length. Normal desktop speed (5 world units per second) uses walk at its authored pace.
+Walk blends toward jog only between 6 and 7 world units per second;
+playback is capped at 110% of authored cadence to avoid frantic stepping.
 near zero speed the pose and wrists blend back to idle. Teleports and control
 mode changes reset cadence.
 
