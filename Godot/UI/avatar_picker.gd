@@ -588,6 +588,7 @@ func _set_status(message: String, is_error := false, is_hint := false) -> void:
 	var status: Label = %PreviewStatus
 	status.visible = not message.is_empty()
 	status.text = message
+	status.tooltip_text = message
 	if message.is_empty():
 		return
 	if is_error:
@@ -598,7 +599,7 @@ func _set_status(message: String, is_error := false, is_hint := false) -> void:
 	elif is_hint:
 		status.add_theme_color_override("font_color", HINT_COLOR)
 	else:
-		status.add_theme_color_override("font_color", STATUS_COLOR)
+		status.add_theme_color_override("font_color", HINT_COLOR)
 
 
 func _release_request() -> void:

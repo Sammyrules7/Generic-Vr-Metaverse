@@ -62,12 +62,6 @@ horizontal_alignment = 2
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="Connection" type="Label" parent="VBoxContainer/Layout/Header"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Connecting to the room server…"
-vertical_alignment = 1
-
 [node name="VRSupportBadge" type="PanelContainer" parent="VBoxContainer/Layout/Header"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 44)
@@ -243,6 +237,14 @@ theme_override_constants/separation = 10
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+
+[node name="Connection" type="Label" parent="VBoxContainer/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Connecting to the room server…"
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 12
+text_overrun_behavior = 3
 
 [node name="Session" type="PanelContainer" parent="."]
 visible = false
