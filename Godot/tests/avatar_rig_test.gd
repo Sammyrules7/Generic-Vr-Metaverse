@@ -455,7 +455,9 @@ func _test_desktop_animation() -> void:
 		var previous_phase: float = driver._stride_phase
 		driver._process(1.0 / 60.0)
 		var phase_step := fposmod(float(driver._stride_phase) - previous_phase, TAU)
-		check(phase_step <= TAU * 1.1 / float(driver._walk_clip.duration) / 60.0 + 0.0001, "Normal desktop movement must not rush the walk cycle")
+		var leg_length: float = driver._rest_skeleton("LeftUpperLeg").distance_to(driver._rest_skeleton("LeftLowerLeg")) + driver._rest_skeleton("LeftLowerLeg").distance_to(driver._rest_skeleton("LeftFoot"))
+		var expected_step: float = driver._motion_velocity.length() / (float(driver._walk_clip.stride_per_leg_length) * leg_length) * TAU / 60.0
+		check(absf(phase_step - expected_step) < 0.0001, "Cadence must match measured stride length and actual travel speed")
 	check(maximum_leg_angle > 0.2, "Moving desktop avatars must step their legs")
 	check(maximum_hand_swing > 0.05, "Desktop walking must swing the hands")
 	for frame in 120:

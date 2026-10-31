@@ -9,6 +9,7 @@ extends RefCounted
 
 const DEFAULT_PATH := "res://avatar/animations/quaternius_universal_idle_loop.json"
 
+var stride_per_leg_length := 0.0
 var duration := 0.0
 var sample_count := 0
 var source := {}
@@ -33,6 +34,7 @@ func load_file(path: String = DEFAULT_PATH) -> bool:
 		error = "invalid JSON"
 		return false
 	var data: Dictionary = parsed
+	stride_per_leg_length = float(data.get("stride_per_leg_length", 0.0))
 	duration = float(data.get("duration", 0.0))
 	sample_count = int(data.get("sample_count", 0))
 	source = data.get("source", {})

@@ -744,12 +744,15 @@ func _animate_desktop(delta: float) -> void:
 	var side_weight := direction.dot(_source_basis.x)
 	# Advance by distance, with one shared contact phase for walk and jog.
 	# Scale stride length to the target avatar, not the source mannequin.
-	var leg_scale := maxf(0.4, _rest_skeleton("LeftUpperLeg").distance_to(_rest_skeleton("LeftFoot")) / 0.85)
-	var walk_duration := float(_walk_clip.duration) if _walk_clip != null else 1.333
-	var jog_duration := float(_jog_clip.duration) if _jog_clip != null else 0.917
-	var cycle_distance := lerpf(WALK_SPEED * walk_duration, JOG_SPEED * jog_duration, jog_weight) * leg_scale
+	var hip := _rest_skeleton("LeftUpperLeg")
+	var knee := _rest_skeleton("LeftLowerLeg")
+	var ankle := _rest_skeleton("LeftFoot")
+	var leg_length := maxf(0.1, (hip.distance_to(knee) + knee.distance_to(ankle)) * skeleton.global_basis.get_scale().abs().y)
+	var walk_stride := float(_walk_clip.stride_per_leg_length) if _walk_clip != null else 1.5
+	var jog_stride := float(_jog_clip.stride_per_leg_length) if _jog_clip != null else 2.5
+	var cycle_distance := maxf(0.1, lerpf(walk_stride, jog_stride, jog_weight) * leg_length)
 	var playback_direction := -1.0 if forward_weight < -0.1 else 1.0
-	_stride_phase = fposmod(_stride_phase + playback_direction * minf(speed / cycle_distance, 1.1 / lerpf(walk_duration, jog_duration, jog_weight)) * delta * TAU, TAU)
+	_stride_phase = fposmod(_stride_phase + playback_direction * speed / cycle_distance * delta * TAU, TAU)
 	var walk_rotations := _animation_bones.duplicate()
 	if weight > 0.0:
 		walk_rotations = _locomotion_pose(_walk_clip, forward_weight, side_weight)

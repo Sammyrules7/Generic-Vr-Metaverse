@@ -6,6 +6,7 @@ as redistributed in J-Ponzo/gltf-universal-animation-library commit e24c23c.
 Select a named clip from the pinned source; the original file is not shipped.
 """
 import argparse
+import statistics
 import json, struct, math, hashlib
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -222,6 +223,26 @@ out = {
 }
 if args.animation != "Idle_Loop":
     out["source"]["phase_offset_seconds"] = phase_offset
+    # In-place stance feet travel backwards at the intended ground speed.
+    # Estimate that speed from low, backwards-moving ankle samples, excluding
+    # the airborne return. Median rejects contact/turnaround outliers.
+    velocities = []
+    leg_lengths = []
+    intervals = 240
+    dt = DURATION / intervals
+    for side in ["L", "R"]:
+        points = [world(idx("DEF-foot." + side), i * dt)[0] for i in range(intervals + 1)]
+        low = min(p[1] for p in points)
+        high = max(p[1] for p in points)
+        for a, c in zip(points, points[1:]):
+            speed = (a[2] - c[2]) / dt
+            if max(a[1], c[1]) < low + (high - low) * 0.2 and speed > 0:
+                velocities.append(speed)
+        hip = world(idx("DEF-thigh." + side), 0.0, False)[0]
+        knee = world(idx("DEF-shin." + side), 0.0, False)[0]
+        ankle = world(idx("DEF-foot." + side), 0.0, False)[0]
+        leg_lengths.append(math.dist(hip, knee) + math.dist(knee, ankle))
+    out["stride_per_leg_length"] = statistics.median(velocities) * DURATION / statistics.mean(leg_lengths)
     # Locomotion must retain authored knee flexion, rather than centering the
     # shin around a straight leg and making half the cycle hyperextend.
     for name, bone, child in TRACKS:
