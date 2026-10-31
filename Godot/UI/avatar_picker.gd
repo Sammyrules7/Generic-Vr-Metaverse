@@ -107,6 +107,7 @@ func _ready() -> void:
 	_layout_preview_stage()
 	AvatarService.selection_changed.connect(_selection_changed)
 	AvatarService.springs_changed.connect(_springs_changed)
+	_update_search_access()
 	set_open(false)
 
 
@@ -331,8 +332,8 @@ func _selection_changed(id: String) -> void:
 
 
 func _update_apply() -> void:
-	_apply.disabled = not _preview_failed and (_pending_id == _applied_id or not _preview_ready)
-	_apply.text = "Retry preview" if _preview_failed else "Loading..." if not _preview_ready else "Wearing" if _pending_id == _applied_id else "Wear avatar"
+	_apply.disabled = _pending_id == _applied_id
+	_apply.text = "Wearing" if _pending_id == _applied_id else "Wear avatar"
 
 
 func _sync_selection(id: String, with_preview: bool) -> void:
@@ -579,9 +580,6 @@ func _simulation_nodes(model: Node3D) -> Array:
 
 func _apply_pressed() -> void:
 	if _apply.disabled or _pending_id.is_empty() or not AvatarCatalog.has_avatar(_pending_id):
-		return
-	if _preview_failed:
-		_show_preview(_pending_id)
 		return
 	AvatarService.select_avatar(_pending_id)
 
@@ -1113,6 +1111,20 @@ func set_import_context(home: bool, immersive: bool) -> void:
 	_import_immersive = immersive
 	if is_node_ready():
 		_update_import_access()
+		_update_search_access()
+
+
+func _update_search_access() -> void:
+	var immersive_web := _web_client and _import_immersive
+	%AvatarSearch.virtual_keyboard_enabled = not immersive_web
+	%AvatarSearch.visible = not immersive_web
+	if immersive_web:
+		%AvatarSearch.release_focus()
+		_cancel_search_debounce()
+		# Do not leave an invisible query restricting collection browsing.
+		if not %AvatarSearch.text.is_empty():
+			%AvatarSearch.text = ""
+			_filter_changed()
 
 
 func _upload_blocked() -> bool:

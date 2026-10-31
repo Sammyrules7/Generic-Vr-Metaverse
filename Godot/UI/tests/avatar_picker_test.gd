@@ -377,7 +377,7 @@ func _run() -> void:
 	check(not card.get_node("%PreviewStatus").visible and card._fallback_preview.visible, "Explorer should show a preview without extra hint text")
 	check(await _wait_until(func(): return card._model == null), "Default avatar preview kept the loaded model")
 
-	# Loading overlays must not resize the viewer, and retry shares the Wear action.
+	# Loading overlays must not resize the viewer or block wearing a selection.
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -390,11 +390,16 @@ func _run() -> void:
 	check(card.get_node("%DownloadProgress").get_parent() == card.get_node("%PreviewFrame") and card.get_node("%PreviewStatus").get_parent() == card.get_node("%PreviewFrame"), "Loading feedback must overlay the preview")
 	check(card.get_node("%PreviewFrame").clip_children == CanvasItem.CLIP_CHILDREN_AND_DRAW, "Preview must clip progress and images at its rounded corners")
 	check(card.get_node_or_null("%RetryPreview") == null, "Retry must not have its own button")
+	card._pending_id = "godette"
 	card._preview_ready = false
+	card._update_apply()
+	check(card.get_node("%Apply").text == "Wear avatar" and not card.get_node("%Apply").disabled, "Loading previews must not block Wear")
 	card._set_status("Preview download failed", true)
-	check(card.get_node("%Apply").text == "Retry preview" and not card.get_node("%Apply").disabled, "Failed previews must turn Wear into an enabled retry action")
+	check(card.get_node("%Apply").text == "Wear avatar" and not card.get_node("%Apply").disabled, "Preview failures must not repurpose Wear")
 	card.get_node("%Apply").pressed.emit()
-	check(card._preview_ready and not card._preview_failed and card.get_node("%Apply").text == "Wearing", "Retry must reload the selected preview and restore Wear state")
+	check(PlayerProfile.avatar_id == "godette", "Wear must apply the selection without waiting for its preview")
+	card.sync_pending("default")
+	card.get_node("%Apply").pressed.emit()
 	var done: Button = card.get_node("%CloseAvatarSettings")
 	check(done.get_theme_color("icon_normal_color") == done.get_theme_color("font_color") and done.get_theme_color("icon_hover_color") == done.get_theme_color("font_hover_color"), "Done icon colors must follow its text colors")
 	check(card.get_node("%GalleryTrack").get_theme_constant("separation") == 12, "Cards must have a separate gap before the scrollbar")
@@ -456,9 +461,12 @@ func _run() -> void:
 	var web_client: bool = card._web_client
 	card._web_client = true
 	card._quest_browser = true
+	card.get_node("%AvatarSearch").text = "Godette"
 	card.set_import_context(false, true)
+	check(not card.get_node("%AvatarSearch").visible and not card.get_node("%AvatarSearch").virtual_keyboard_enabled and card.get_node("%AvatarSearch").text.is_empty(), "Immersive WebXR must hide search, disable the browser keyboard and clear hidden queries")
 	check(card.get_node("%ImportAvatar").disabled and card._import_status.text == "Exit VR to upload", "Quest immersive WebXR must disable file uploads")
 	card.set_import_context(false, false)
+	check(card.get_node("%AvatarSearch").visible and card.get_node("%AvatarSearch").virtual_keyboard_enabled, "Leaving immersive WebXR must restore search")
 	check(not card.get_node("%ImportAvatar").disabled, "Quest browser outside immersive must allow uploads")
 	card._web_client = false
 	card.set_import_context(false, true)
