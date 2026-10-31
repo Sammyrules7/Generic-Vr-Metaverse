@@ -1,10 +1,10 @@
 extends RefCounted
-## Loads the derived humanoid idle tracks used by AvatarRigDriver.
+## Loads the derived humanoid animation tracks used by AvatarRigDriver.
 ##
 ## The data file contains source-space bone directions sampled from a CC0
-## animation plus the mean direction of each track. The rig applies only the
-## motion around that mean, so each VRM keeps its own rest stance instead of
-## inheriting the source character's proportions, A/T pose or foot placement.
+## animation plus a reference direction for each track. Idle uses its mean;
+## locomotion uses the source rest direction to preserve knee flexion. The rig
+## maps direction changes onto the target proportions and bone axes.
 ## Wrist offsets are stored relative to the upper arm and scaled at runtime.
 
 const DEFAULT_PATH := "res://avatar/animations/quaternius_universal_idle_loop.json"
@@ -51,6 +51,7 @@ func load_file(path: String = DEFAULT_PATH) -> bool:
 			return false
 		tracks[StringName(key)] = {
 			"mean": _vector(entry.get("mean", [0.0, 1.0, 0.0])).normalized(),
+			"reference": _vector(entry.get("reference", entry.get("mean", [0.0, 1.0, 0.0]))).normalized(),
 			"frames": frames,
 		}
 	var raw_wrists: Dictionary = data.get("wrists", {})
@@ -75,6 +76,11 @@ func mean_direction(bone_name: StringName) -> Vector3:
 		return Vector3.UP
 	var track: Dictionary = tracks[bone_name]
 	return track["mean"]
+
+
+## Idle uses its mean; locomotion uses source rest directions to retain knee flexion.
+func reference_direction(bone_name: StringName) -> Vector3:
+	return tracks[bone_name]["reference"] if tracks.has(bone_name) else Vector3.UP
 
 
 func sample_direction(bone_name: StringName, time: float) -> Vector3:

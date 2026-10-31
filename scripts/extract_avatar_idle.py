@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Extract a CC0 idle clip into humanoid direction tracks for the avatar rig.
+"""Extract a CC0 humanoid clip into humanoid direction tracks for the avatar rig.
 
 Source: Quaternius Universal Animation Library (CC0 1.0), standard/free version,
 as redistributed in J-Ponzo/gltf-universal-animation-library commit e24c23c.
-Only the Idle_Loop animation is sampled; the original file is not shipped.
+Select a named clip from the pinned source; the original file is not shipped.
 """
 import argparse
 import json, struct, math, hashlib
@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("source_gltf", help="Pinned Quaternius AnimationLibrary_Godot_Standard.gltf")
 parser.add_argument("source_bin", help="Its matching glTF buffer")
 parser.add_argument("output", help="Destination JSON direction tracks")
+parser.add_argument("--animation", default="Idle_Loop", choices=["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop"], help="Animation to extract (default: Idle_Loop)")
 args = parser.parse_args()
 SRC, BIN, OUT = args.source_gltf, args.source_bin, args.output
 expected = {SRC: "0ff075c7ad6855c5c2c37a171592ee8f0d6ab2f58259e2be77a9b63dd8027765",
@@ -80,8 +81,7 @@ for i, n in enumerate(nodes):
     for c in n.get("children", []):
         parent[c] = i
 
-anim = j["animations"][9]
-assert anim["name"] == "Idle_Loop"
+anim = next(a for a in j["animations"] if a["name"] == args.animation)
 chans = {}
 for ch in anim["channels"]:
     ti = ch["target"]["node"]
@@ -113,7 +113,7 @@ def sample(i, path, t, default):
     return vals[-1]
 
 
-def world(i, t):
+def world(i, t, animated=True):
     chain = []
     while i is not None:
         chain.append(i)
@@ -123,8 +123,8 @@ def world(i, t):
     rot = (0.0, 0.0, 0.0, 1.0)
     for idx in chain:
         n = nodes[idx]
-        tr = sample(idx, "translation", t, tuple(n.get("translation", [0, 0, 0])))
-        rr = sample(idx, "rotation", t, tuple(n.get("rotation", [0, 0, 0, 1])))
+        tr = sample(idx, "translation", t, tuple(n.get("translation", [0, 0, 0]))) if animated else tuple(n.get("translation", [0, 0, 0]))
+        rr = sample(idx, "rotation", t, tuple(n.get("rotation", [0, 0, 0, 1]))) if animated else tuple(n.get("rotation", [0, 0, 0, 1]))
         rp = qrot(rot, tr)
         pos = tuple(pos[k] + rp[k] for k in range(3))
         rot = qnorm(qmul(rot, rr))
@@ -163,6 +163,11 @@ for side, upper, hand in WRISTS:
     p0 = world(idx(upper), 0.0)[0]
     p1 = world(idx(hand), 0.0)[0]
     arm_len[side] = math.sqrt(sum((p1[k] - p0[k]) ** 2 for k in range(3)))
+    if args.animation != "Idle_Loop":
+        # Jogging elbows are bent: shoulder-to-wrist distance would exaggerate
+        # the normalized hand reach. Use the two physical segment lengths.
+        elbow = world(idx("DEF-forearm.L" if side == "left" else "DEF-forearm.R"), 0.0)[0]
+        arm_len[side] = sum(math.dist(a, c) for a, c in [(p0, elbow), (elbow, p1)])
 
 steps = int(round(DURATION * HZ))
 count = steps + 1
@@ -175,8 +180,13 @@ def unit(v):
     return [v[k] / l for k in range(3)] if l > 1e-8 else [0.0, 1.0, 0.0]
 
 
+# Align locomotion loops at left-foot forward contact before blending walk/jog.
+phase_offset = 0.0
+if args.animation != "Idle_Loop":
+    phase_offset = max((DURATION * i / 240 for i in range(240)),
+                       key=lambda t: world(idx("DEF-foot.L"), t)[0][2])
 for step in range(count):
-    t = min(DURATION, step / HZ)
+    t = min(DURATION, step / HZ) if args.animation == "Idle_Loop" else (phase_offset + DURATION * step / steps) % DURATION
     for name, bone, child in TRACKS:
         p = world(idx(bone), t)[0]
         c = world(idx(child), t)[0]
@@ -192,7 +202,7 @@ for name in tracks:
 
 out = {
     "format": 1,
-    "id": "quaternius_universal_idle_loop",
+    "id": "quaternius_universal_" + args.animation.lower(),
     "duration": DURATION,
     "sample_count": count,
     "sample_hz": HZ,
@@ -205,11 +215,19 @@ out = {
         "redistribution_commit": "e24c23cf2a1323488a3faa226ea7ea21f644b73e",
         "source_file": "glTF/AnimationLibrary_Godot_Standard.gltf",
         "source_sha256": hashlib.sha256(open(SRC, "rb").read()).hexdigest(),
-        "animation": "Idle_Loop",
+        "animation": args.animation,
     },
     "tracks": {name: {"mean": [round(sum(row[k] for row in rows) / len(rows), 4) for k in range(3)], "frames": rows} for name, rows in tracks.items()},
     "wrists": wrists,
 }
+if args.animation != "Idle_Loop":
+    out["source"]["phase_offset_seconds"] = phase_offset
+    # Locomotion must retain authored knee flexion, rather than centering the
+    # shin around a straight leg and making half the cycle hyperextend.
+    for name, bone, child in TRACKS:
+        p = world(idx(bone), 0.0, False)[0]
+        c = world(idx(child), 0.0, False)[0]
+        out["tracks"][name]["reference"] = [round(v, 4) for v in unit(tuple(c[k] - p[k] for k in range(3)))]
 with open(OUT, "w") as f:
     json.dump(out, f, separators=(",", ":"))
 print("wrote", OUT, len(open(OUT, "rb").read()), "bytes, samples", count)

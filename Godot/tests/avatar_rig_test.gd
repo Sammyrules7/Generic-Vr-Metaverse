@@ -50,6 +50,7 @@ func run() -> void:
 	_test_eye_alignment()
 	_test_idle_clip_data()
 	_test_desktop_animation()
+	_test_locomotion_clips()
 	_test_rest_bases()
 	_test_procedural_fallback()
 	await _test_vr_lower_body_idle()
@@ -384,6 +385,21 @@ func _test_bundled_vrm() -> void:
 		check(headless.layers == AvatarView.FIRST_PERSON, "VR body must use the first-person layer")
 	if third_person != null:
 		check(third_person.layers == AvatarView.FULL_BODY, "Mirror must retain the complete avatar")
+	# Run authored locomotion on the real imported rig, including its native
+	# arm modifiers and eye attachment, not just the synthetic bone fixture.
+	driver.set_control_mode(false)
+	driver.set_process(false)
+	var foot: int = driver.skeleton.find_bone("LeftFoot")
+	var foot_start: Vector3 = driver.skeleton.get_bone_global_pose(foot).origin
+	var foot_motion := 0.0
+	for frame in 45:
+		container.position.z -= 3.0 / 60.0
+		driver._process(1.0 / 60.0)
+		await process_frame
+		foot_motion = maxf(foot_motion, driver.skeleton.get_bone_global_pose(foot).origin.distance_to(foot_start))
+		if look != null:
+			check(look.global_position.distance_to(head.global_position) < 0.01, "Bundled avatar's walking must keep its eyes on the anchor")
+	check(foot_motion > 0.05, "Authored locomotion must move the real avatar's feet")
 	container.free()
 
 
@@ -444,6 +460,44 @@ func _test_desktop_animation() -> void:
 	driver._process(1.0 / 60.0)
 	check(driver._motion_velocity.is_zero_approx(), "Teleporting must reset locomotion velocity")
 	container.free()
+
+
+func _test_locomotion_clips() -> void:
+	var rig := build_rig(build_fixture_model(), false, false)
+	var driver = rig.driver
+	var skeleton: Skeleton3D = driver.skeleton
+	driver.set_process(false)
+	check(driver._walk_clip != null and driver._jog_clip != null, "Authored walk and jog tracks must be shipped")
+	for clip: RefCounted in [driver._walk_clip, driver._jog_clip]:
+		if clip == null:
+			continue
+		check(clip.source.get("license") == "CC0-1.0", "Locomotion provenance must retain its license")
+		for track: StringName in clip.tracks:
+			check(clip.sample_direction(track, 0.0).distance_to(clip.sample_direction(track, clip.duration - 0.00001)) < 0.002, "Locomotion loop must close without a pose jump: " + str(track))
+		for side in ["left", "right"]:
+			for step in 30:
+				check(clip.sample_wrist(side, float(step) / 30.0 * clip.duration).length() <= 1.01, "Bent source elbows must not exaggerate normalized wrist reach")
+	# Exercise walking, jogging, diagonal movement and backpedaling without
+	# moving the head anchor or exceeding the target avatar's arm reach.
+	for velocity in [Vector3(0, 0, -0.4), Vector3(0, 0, -1.5), Vector3(0, 0, -5.0), Vector3(2, 0, 0), Vector3(0, 0, 2), Vector3(2, 0, -2)]:
+		for frame in 45:
+			rig.container.position += velocity / 60.0
+			driver._process(1.0 / 60.0)
+			for side in ["left", "right"]:
+				var upper := skeleton.find_bone("LeftUpperArm" if side == "left" else "RightUpperArm")
+				var target: Vector3 = driver.hand_target[side].position
+				check(target.is_finite(), "Directional locomotion must keep finite wrist targets")
+				check(target.distance_to(driver._pose_global(upper).origin) <= float(driver._arm_lengths[side]) * driver.DESKTOP_REACH + 0.001, "Walk/jog blending must keep wrists within the avatar's reach")
+			for bone in skeleton.get_bone_count():
+				check(skeleton.get_bone_pose_rotation(bone).is_finite(), "Locomotion retargeting must keep finite bone poses")
+		var head_bone := skeleton.find_bone("Head")
+		var eye: Vector3 = skeleton.global_transform * (skeleton.get_bone_global_pose(head_bone) * driver._eye_offset)
+		check(eye.distance_to(driver.head_anchor.global_position) < 0.001, "Authored locomotion must preserve the authoritative eye anchor")
+	# No accumulated root motion after stopping; changing control modes also
+	# resets cadence instead of leaking a desktop gait into tracked VR.
+	driver.set_control_mode(true)
+	check(is_zero_approx(driver._stride_phase) and driver._motion_velocity.is_zero_approx(), "Entering VR must clear desktop cadence")
+	rig.container.free()
 
 
 func _test_idle_clip_data() -> void:
