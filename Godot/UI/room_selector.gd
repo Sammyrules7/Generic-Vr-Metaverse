@@ -23,6 +23,8 @@ var _pointer_lock_callback: JavaScriptObject
 var _browser_document: JavaScriptObject
 var _last_unlock_msec := -1000
 var _fit_queued := false
+var _debug_hold: Timer
+var _debug_hold_active := false
 
 
 func _ready() -> void:
@@ -61,7 +63,22 @@ func _ready() -> void:
 	%CloseVoiceSettings.pressed.connect(func(): _set_voice_settings_open(false))
 	# One shared avatar card lives in this scene (like VoiceSettings) and serves
 	# both the lobby and the in-room menu.
-	%OpenDebug.pressed.connect(_set_debug_open.bind(true))
+	_debug_hold = Timer.new()
+	_debug_hold.one_shot = true
+	_debug_hold.wait_time = 1.5
+	add_child(_debug_hold)
+	%Title.button_down.connect(func():
+		_debug_hold_active = true
+		_debug_hold.start()
+	)
+	%Title.button_up.connect(_cancel_debug_hold)
+	%Title.mouse_exited.connect(_cancel_debug_hold)
+	%Title.visibility_changed.connect(_cancel_debug_hold)
+	_debug_hold.timeout.connect(func():
+		if _debug_hold_active and %Title.is_visible_in_tree():
+			_cancel_debug_hold()
+			_set_debug_open(true)
+	)
 	%OpenSessionDebug.pressed.connect(_set_debug_open.bind(true))
 	%DebugSettings.closed.connect(_set_debug_open.bind(false))
 	%AvatarSettings.closed.connect(_set_avatar_open.bind(false))
@@ -737,4 +754,15 @@ func _set_debug_open(open: bool) -> void:
 	elif in_room:
 		%OpenSessionDebug.grab_focus()
 	else:
-		%OpenDebug.grab_focus()
+		%Title.grab_focus()
+
+
+func _cancel_debug_hold() -> void:
+	_debug_hold_active = false
+	if _debug_hold != null:
+		_debug_hold.stop()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_cancel_debug_hold()

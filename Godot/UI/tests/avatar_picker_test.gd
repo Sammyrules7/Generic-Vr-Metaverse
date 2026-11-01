@@ -500,7 +500,7 @@ func _run() -> void:
 	card._set_import_status("")
 	card._browse_all()
 
-	ui.get_node("%OpenDebug").pressed.emit()
+	ui._set_debug_open(true)
 	check(ui.get_node("%DebugSettings").visible and not card.visible, "Debug must replace other submenus")
 	var report: String = ui.get_node("%DebugSettings").report()
 	check(report.contains("\n") and not report.contains("\\n"), "Debug report must contain readable line breaks")

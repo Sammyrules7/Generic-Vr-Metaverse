@@ -42,7 +42,9 @@ theme_override_constants/separation = 16
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="VBoxContainer/Layout/Header"]
+[node name="Title" type="Button" parent="VBoxContainer/Layout/Header"]
+unique_name_in_owner = true
+flat = true
 layout_mode = 2
 text = "Rooms"
 theme_override_font_sizes/font_size = 28
@@ -466,11 +468,6 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 0
 script = ExtResource("99_debug")
-
-[node name="OpenDebug" type="Button" parent="VBoxContainer/Layout/Columns/Setup/Fields"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Debug"
 
 [node name="OpenSessionDebug" type="Button" parent="Session/Content"]
 unique_name_in_owner = true
