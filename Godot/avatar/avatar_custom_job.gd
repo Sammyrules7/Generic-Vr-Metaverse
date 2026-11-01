@@ -37,12 +37,17 @@ func run() -> void:
 		chunks.clear()
 	if not source_path.is_empty():
 		var source := FileAccess.open(source_path, FileAccess.READ)
-		if source == null or source.get_length() > MAX_BYTES:
-			error = "Could not read avatar, or file exceeds 32 MiB"
+		if source == null:
+			error = "Could not open selected avatar: " + error_string(FileAccess.get_open_error())
+			return
+		if source.get_length() > MAX_BYTES:
+			error = "Avatar file exceeds 32 MiB"
 			return
 		bytes = source.get_buffer(source.get_length())
 		filename = source_path.get_file()
-	if filename.get_extension().to_lower() not in ["vrm", "glb"]:
+	# Android SAF can return opaque document IDs rather than filenames. In
+	# that case the binary GLB header and VRM metadata below are authoritative.
+	if not source_path.begins_with("content://") and filename.get_extension().to_lower() not in ["vrm", "glb"]:
 		error = "Choose a VRM file (.vrm or .glb)"
 		return
 	if bytes.size() < 28 or bytes.size() > MAX_BYTES:

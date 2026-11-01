@@ -14,6 +14,11 @@ static func normalize(model: Node3D, eye_height := 1.7, prepared_meshes: Diction
 	if eye.y < 0.3 or eye.y > 3.0:
 		return
 	var factor := clampf(eye_height / eye.y, 0.5, 3.0)
+	# Rebuilding an already normalized mesh needlessly duplicates every base
+	# and blend-shape buffer, and queues more GPU surface/pipeline work.
+	if is_equal_approx(factor, 1.0):
+		model.set_meta("avatar_height_scale", 1.0)
+		return
 	var meshes := prepared_meshes
 	var skins := {}
 	var springs := {}

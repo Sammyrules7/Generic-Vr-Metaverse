@@ -20,6 +20,31 @@ func run() -> void:
 	if thumbnail != null:
 		check(thumbnail.get_pixel(0, 0).a == 0.0 and thumbnail.get_pixel(1, 0).r == 1.0, "GIF palette/transparency decoding failed")
 	check(AvatarGIF.decode(gif.slice(0, 15)) == null, "Truncated GIF must fail without a partial image")
+	# Decode a real embedded PNG through the worker path and verify that the
+	# Android texture budget preserves aspect ratio without modifying source bytes.
+	var test_image := Image.create(64, 32, false, Image.FORMAT_RGBA8)
+	test_image.fill(Color.CORNFLOWER_BLUE)
+	var image_json := JSON.stringify({"asset": {"version": "2.0"}, "images": [{"uri": "data:image/png;base64," + Marshalls.raw_to_base64(test_image.save_png_to_buffer())}]}).to_utf8_buffer()
+	while image_json.size() % 4 != 0:
+		image_json.append(32)
+	var image_glb := PackedByteArray()
+	image_glb.resize(20)
+	image_glb.encode_u32(0, 0x46546c67)
+	image_glb.encode_u32(4, 2)
+	image_glb.encode_u32(8, 20 + image_json.size())
+	image_glb.encode_u32(12, image_json.size())
+	image_glb.encode_u32(16, 0x4e4f534a)
+	image_glb.append_array(image_json)
+	for limit in [0, 16, 128]:
+		var image_job := AvatarImageJob.new()
+		image_job.bytes = image_glb
+		image_job.max_dimension = limit
+		image_job.run()
+		check(image_job.images.size() == 1, "Embedded avatar texture must decode")
+		if not image_job.images.is_empty():
+			var decoded: Image = image_job.images.values()[0]
+			check(decoded.get_size() == (Vector2i(16, 8) if limit == 16 else Vector2i(64, 32)), "Texture limit must preserve aspect and never upscale")
+		check(image_job.bytes == image_glb, "Texture preparation must not alter verified source bytes")
 	var service := root.get_node("AvatarService")
 	check(AvatarCatalog.entries().size() > 4000, "Full registry catalog missing")
 	check(AvatarCatalog.collections().size() == 11, "Bundled and all upstream collections must be available")
@@ -69,6 +94,12 @@ func run() -> void:
 		for stage in ["generate scene", "normalize rig", "pack scene"]:
 			check(service._events.any(func(event: String): return event.contains(stage) and event.contains("worker")), "Detached preparation must stay on the worker: " + stage)
 		var first := survivor.scene.instantiate() as Node3D
+		var normalized_meshes := {}
+		for mesh: MeshInstance3D in first.find_children("*", "MeshInstance3D", true, false):
+			normalized_meshes[mesh] = mesh.mesh
+		AvatarScale.normalize(first)
+		for mesh: MeshInstance3D in normalized_meshes:
+			check(mesh.mesh == normalized_meshes[mesh], "Already normalized avatars must reuse geometry instead of reuploading it")
 		check(int(first.get_meta("avatar_decoded_textures", 0)) > 0, "GLTF import must reuse worker-decoded textures")
 		var second := survivor.scene.instantiate() as Node3D
 		var reference_scene: PackedScene = service.import_bytes(FileAccess.get_file_as_bytes("res://avatar/godette.vrm"))

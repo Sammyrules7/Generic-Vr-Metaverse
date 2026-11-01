@@ -218,3 +218,22 @@ plugin, including inferred lower-body joints. It is not wired into this rig.
 feature-gated bridge through the existing WebXR JS patch, consent, tracking-loss
 handling, replication and hardware validation. Neither path replaces the current
 head/hands fallback yet; Debug reports tracker availability for investigation.
+
+### Native Android import and rendering
+
+The Android document picker is unfiltered because document providers may mark
+`.vrm` files as an unknown MIME type. The importer still requires valid GLB/VRM
+contents and applies its existing size and resource limits. Android SAF content
+URIs may contain opaque document IDs, so their filename extension is not treated
+as proof of content type. Picker cancellation means no file was returned; the
+next diagnostic event after a successful selection is `file chosen`.
+
+Native Android decodes embedded avatar textures on the worker and downsizes
+images larger than 2048 pixels on their longest edge before GPU texture creation.
+Aspect ratio and verified source bytes are preserved; desktop/web keep original
+resolution. Decode diagnostics include the resize count and active limit.
+Already normalized avatars retain their mesh buffers instead of rebuilding them.
+The preview matches the main viewport's MSAA on Mobile/Forward+ to avoid an
+additional 4x-MSAA pipeline family. Driver-specific first-use pipelines for runtime
+VRM/MToon materials can still cause hitches; these changes do not guarantee
+stutter-free imports or remove shader features.

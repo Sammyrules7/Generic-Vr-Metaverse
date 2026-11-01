@@ -440,6 +440,8 @@ func _run() -> void:
 		return
 	if not _check(am.players.get_node(str(b.client_id)).get_node("NameTag").text == PlayerProfile.display_name, "Remote name does not match chosen identity"):
 		return
+	if not _check(am.players.get_node(str(b.client_id)).get_node("NameTag").billboard == BaseMaterial3D.BILLBOARD_FIXED_Y, "Remote names must stay upright when the viewer rolls their head"):
+		return
 	if not _check(am.local_player.controls != null and (am.players.get_node(str(b.client_id)) as NetworkPlayer).controls == null, "Remote player instantiated local controls"):
 		return
 	var mesh: WebRTCMesh = b.room_networking.rtc_mesh

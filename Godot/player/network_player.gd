@@ -62,7 +62,7 @@ func set_display_name(display_name: String) -> void:
 		label = Label3D.new()
 		label.name = "NameTag"
 		label.layers = AvatarView.LOCAL_UI
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
 		label.font_size = 48
 		label.pixel_size = 0.004
 		label.position.y = 2.15

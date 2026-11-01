@@ -133,6 +133,10 @@ func set_open(open: bool) -> void:
 		return
 	visible = open
 	if open:
+		# Match the main render target instead of introducing an 4x-MSAA
+		# pipeline family just for the preview (notably expensive on Quest).
+		if RenderingServer.get_current_rendering_method() != "gl_compatibility":
+			%PreviewViewport.msaa_3d = get_tree().root.msaa_3d
 		_rebuild()
 	else:
 		# Bump the generation before releasing so a completion emitted during
@@ -983,7 +987,10 @@ func _open_import_avatar() -> void:
 		_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 		_file_dialog.use_native_dialog = true
-		_file_dialog.filters = PackedStringArray(["*.vrm,*.glb ; VRM avatars"])
+		# Android document providers often classify VRM as an unknown MIME
+		# type and disable it under extension filters. Let the provider return
+		# any document; the importer still validates GLB and VRM contents.
+		_file_dialog.filters = PackedStringArray() if OS.has_feature("android") else PackedStringArray(["*.vrm,*.glb ; VRM avatars"])
 		_file_dialog.file_selected.connect(_on_import_avatar_file_selected)
 		_file_dialog.canceled.connect(_picker_canceled)
 		add_child(_file_dialog)
@@ -999,7 +1006,7 @@ func _begin_import() -> void:
 
 func _on_import_avatar_file_selected(path: String) -> void:
 	_picker_wait_at = -1
-	AvatarService.record_event("custom", "file chosen", path.get_file())
+	AvatarService.record_event("custom", "file chosen", "content URI" if path.begins_with("content://") else path.get_file())
 	if _import_busy:
 		return
 	_begin_import()
@@ -1096,7 +1103,7 @@ func _set_import_status(message: String, is_error := false) -> void:
 func _picker_canceled() -> void:
 	_picker_wait_at = -1
 	_set_import_status("")
-	AvatarService.record_event("custom", "file picker canceled")
+	AvatarService.record_event("custom", "file picker canceled", "No file returned by the system picker")
 
 
 func _browse_custom() -> void:

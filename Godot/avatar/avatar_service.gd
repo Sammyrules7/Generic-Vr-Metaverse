@@ -183,7 +183,7 @@ func _import_and_complete(id: String, bytes: PackedByteArray) -> void:
 		while not WorkerThreadPool.is_task_completed(_image_job.task_id):
 			await get_tree().process_frame
 		WorkerThreadPool.wait_for_task_completion(_image_job.task_id)
-	record_event(id, "decode textures", "%d images, worker" % _image_job.images.size() if not OS.has_feature("web") or OS.has_feature("threads") else "single-thread fallback", _image_job.elapsed_ms)
+	record_event(id, "decode textures", "%d images, %s; %d resized (limit %d px)" % [_image_job.images.size(), "worker" if not OS.has_feature("web") or OS.has_feature("threads") else "single-thread fallback", _image_job.resized_images, _image_job.max_dimension], _image_job.elapsed_ms)
 	var images := _image_job.images
 	_image_job = null
 	if not _import_is_current(id, generation):
