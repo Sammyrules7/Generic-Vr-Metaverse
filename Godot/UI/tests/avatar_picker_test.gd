@@ -458,6 +458,12 @@ func _run() -> void:
 	check(card.get_node("%ImportAvatar").get_parent() == card.get_node("%AvatarList"), "Upload must be a gallery tile, not a sidebar action")
 	check(card.get_node("%ImportAvatar").visible, "Import must be available on desktop home Custom tab")
 	check(not card._collection_buttons.has("Custom"), "Custom must not appear among public collections")
+	card._picker_wait_at = Time.get_ticks_msec()
+	card._android_import_result(false, PackedStringArray(), 0)
+	check(card._picker_wait_at == -1 and not card._import_busy, "Native picker cancellation must release the pending interaction")
+	card._picker_wait_at = Time.get_ticks_msec()
+	card._android_import_result(true, PackedStringArray(), 0)
+	check(card._picker_wait_at == -1 and not card._import_busy, "An empty Android picker result must not leave the UI waiting")
 	var web_client: bool = card._web_client
 	card._web_client = true
 	card._quest_browser = true
@@ -478,7 +484,9 @@ func _run() -> void:
 	card.set_import_context(false, false)
 	check(card.get_node("%ImportAvatar").visible, "Upload must be available in a room")
 	card.set_import_context(true, false)
-	card._finish_import_avatar(local_bytes, "Local Godette.vrm")
+	card._picker_wait_at = Time.get_ticks_msec()
+	card._android_import_result(true, PackedStringArray(["res://avatar/godette.vrm"]), 0)
+	check(card._picker_wait_at == -1, "Successful native selection must clear the pending picker")
 	check(await _wait_until(func(): return not card._import_busy), "Local import did not finish")
 	check(card._pending_id == local_id and PlayerProfile.avatar_id == previously_worn, "Import must select its preview without auto-wearing")
 	check(card.get_node("%BrowseCustom").button_pressed, "Import did not open the Custom collection")

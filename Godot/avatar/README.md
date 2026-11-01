@@ -221,6 +221,10 @@ head/hands fallback yet; Debug reports tracker availability for investigation.
 
 ### Native Android import and rendering
 
+Android calls the system document picker directly through DisplayServer, rather
+than creating an additional Godot FileDialog window inside the XR interface.
+Callback diagnostics record acceptance, returned-path count and XR session state;
+the debug report also records session state and window focus.
 The Android document picker is unfiltered because document providers may mark
 `.vrm` files as an unknown MIME type. The importer still requires valid GLB/VRM
 contents and applies its existing size and resource limits. Android SAF content

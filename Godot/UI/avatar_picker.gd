@@ -133,7 +133,7 @@ func set_open(open: bool) -> void:
 		return
 	visible = open
 	if open:
-		# Match the main render target instead of introducing an 4x-MSAA
+		# Match the main render target instead of introducing a 4x-MSAA
 		# pipeline family just for the preview (notably expensive on Quest).
 		if RenderingServer.get_current_rendering_method() != "gl_compatibility":
 			%PreviewViewport.msaa_3d = get_tree().root.msaa_3d
@@ -982,19 +982,36 @@ func _open_import_avatar() -> void:
 	if OS.has_feature("web"):
 		_open_web_import_avatar()
 		return
+	if OS.has_feature("android"):
+		# Use the main Android activity's picker directly. Avoid an extra Godot
+		# modal Window in the XR UI, and accept unknown document MIME types.
+		# The importer validates binary GLB/VRM contents after selection.
+		var result := DisplayServer.file_dialog_show("Choose avatar", "", "", false, DisplayServer.FILE_DIALOG_MODE_OPEN_FILE, PackedStringArray(), _android_import_result)
+		if result != OK:
+			_picker_wait_at = -1
+			_set_import_status("Could not open file picker: " + error_string(result), true)
+			AvatarService.record_event("custom", "file picker failed to open", error_string(result))
+		return
 	if not is_instance_valid(_file_dialog):
 		_file_dialog = FileDialog.new()
 		_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 		_file_dialog.use_native_dialog = true
-		# Android document providers often classify VRM as an unknown MIME
-		# type and disable it under extension filters. Let the provider return
-		# any document; the importer still validates GLB and VRM contents.
-		_file_dialog.filters = PackedStringArray() if OS.has_feature("android") else PackedStringArray(["*.vrm,*.glb ; VRM avatars"])
+		_file_dialog.filters = PackedStringArray(["*.vrm,*.glb ; VRM avatars"])
 		_file_dialog.file_selected.connect(_on_import_avatar_file_selected)
 		_file_dialog.canceled.connect(_picker_canceled)
 		add_child(_file_dialog)
 	_file_dialog.popup_centered_ratio(0.75)
+
+
+func _android_import_result(accepted: bool, paths: PackedStringArray, _filter: int) -> void:
+	var xr := XRServer.primary_interface
+	var state := str(xr.call("get_session_state")) if xr != null and xr.has_method("get_session_state") else "unavailable"
+	AvatarService.record_event("custom", "Android picker result", "accepted %s | %d paths | XR state %s" % [accepted, paths.size(), state])
+	if not accepted or paths.is_empty():
+		_picker_canceled()
+		return
+	_on_import_avatar_file_selected(paths[0])
 
 
 func _begin_import() -> void:

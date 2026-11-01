@@ -496,6 +496,8 @@ func debug_report() -> String:
 		lines.append("None")
 	var xr := XRServer.primary_interface
 	lines.append("XR: %s | initialized: %s" % [xr.get_name() if xr != null else "None", xr.is_initialized() if xr != null else false])
+	if xr != null and xr.has_method("get_session_state"):
+		lines.append("XR session state: %s | window focused: %s" % [xr.call("get_session_state"), get_window().has_focus()])
 	var body := XRServer.get_tracker("/user/body_tracker") as XRBodyTracker
 	lines.append("Body tracker: %s | valid data: %s" % ["registered" if body != null else "none", body.has_tracking_data if body != null else false])
 	lines.append("\nStage times (last / maximum milliseconds):")
