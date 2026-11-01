@@ -37,11 +37,11 @@ func _run() -> void:
 	await get_tree().create_timer(2.3).timeout
 	check(Networking.connect_deadline > deadline, "Offline connection did not retry automatically")
 	check(ui.get_node("%CreateRoom").disabled, "Offline room creation is enabled")
-	check(ui.get_node("%Connection").text.contains("offline"), "Offline banner not updated")
+	check(ui.get_node_or_null("%Connection") == null, "Main menu must not show a connection status label")
 	Networking.retry_connection(actual_server)
 	check(await _wait_until(func(): return Networking.room_networking.connected), "Failed to recover when server returned")
 	check(not ui.get_node("%CreateRoom").disabled, "Room actions did not recover")
-	check(not ui.get_node("%Connection").visible, "Connection status remained visible online")
+	check(ui.get_node_or_null("%Connection") == null, "Main menu must not show a connection status label")
 	check(ui.get_node("%RoomName").text == "Keep this room name", "Reconnect erased form state")
 	Networking.room_networking.create_room("Disconnect test", "moon_garden")
 	check(await _wait_until(func(): return Networking.room_networking.current_room != null), "Test room did not open")

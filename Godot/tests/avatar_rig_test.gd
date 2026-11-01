@@ -613,6 +613,22 @@ func _test_vr_lower_body_idle() -> void:
 		"VR fallback must not animate the spine")
 	check(driver.hand_target.left.global_position.distance_to(rig.left.global_position) < 0.001,
 		"VR fallback must keep tracked hand targets authoritative")
+	# All movement directions use authored lower-body motion without borrowing
+	# the clip's hips/torso/shoulders or overriding tracked hand targets.
+	for velocity in [Vector3(0, 0, -3), Vector3(2, 0, 0), Vector3(-2, 0, 0), Vector3(0, 0, 2), Vector3(2, 0, -2)]:
+		var moving_leg_angle := 0.0
+		for frame in 45:
+			rig.container.position += velocity / 60.0
+			driver._process(1.0 / 60.0)
+			await process_frame
+			moving_leg_angle = maxf(moving_leg_angle, skeleton.get_bone_pose_rotation(leg).angle_to(driver._animation_bones["LeftUpperLeg"]))
+			for bone_name in ["Hips", "Spine", "Chest"]:
+				var bone := skeleton.find_bone(bone_name)
+				check(skeleton.get_bone_pose_rotation(bone).is_equal_approx(driver._animation_bones[bone_name]), "VR locomotion must not animate " + bone_name)
+			check(driver.hand_target.left.global_position.distance_to(rig.left.global_position) < 0.001 and driver.hand_target.right.global_position.distance_to(rig.right.global_position) < 0.001, "Walking in VR must preserve both tracked hand targets")
+			if look != null:
+				check(look.global_position.distance_to(head.global_position) < 0.002, "Walking in VR must preserve the tracked eye anchor")
+		check(moving_leg_angle > deg_to_rad(8.0), "VR locomotion must step its legs beyond standing idle")
 	driver.lower_body_tracked = true
 	driver.set_control_mode(true)
 	driver._process(1.0 / 60.0)

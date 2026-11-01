@@ -141,7 +141,7 @@ func _run() -> void:
 	ui.get_node("%DisplayName").text = "Nova"
 	ui.get_node("%RoomName").text = "Friday room"
 	check(ui.get_node("%CreateRoom").disabled, "Offline create must be disabled")
-	check(ui.get_node("%Connection").visible and ui.get_node("%Connection").text.contains("offline"), "Offline banner missing")
+	check(ui.get_node_or_null("%Connection") == null, "Main menu must not show a connection status label")
 	check(state.create_room("offline") == ERR_UNAVAILABLE, "Offline requests must be rejected")
 	await _capture("/tmp/lobby-offline.png")
 	var sent: Array = []
@@ -150,7 +150,7 @@ func _run() -> void:
 	state.connected = true
 	Networking.connection_message = "Connected · Rooms update live"
 	Networking.signaling_connected.emit()
-	check(not ui.get_node("%Connection").visible, "Online connection status should be hidden")
+	check(ui.get_node_or_null("%Connection") == null, "Main menu must not show a connection status label")
 	ui._select_world("moon_garden")
 	ui.get_node("%CreateRoom").pressed.emit()
 	check(sent.size() == 1, "Create should send exactly one command")

@@ -247,9 +247,9 @@ func _process(delta: float) -> void:
 		# A future body solver can claim the lower body. Until then this is the
 		# untracked path: animate only legs and feet, never hips, head or arms.
 		if not lower_body_tracked:
-			_animate_vr_idle(delta)
+			_animate_locomotion(delta, true)
 	else:
-		_animate_desktop(delta)
+		_animate_locomotion(delta)
 	_update_body_pose()
 	_update_hand_targets()
 	_update_ground_feet(delta)
@@ -691,8 +691,8 @@ func _aim_bone(bone: int, child: int, desired: Vector3) -> void:
 	skeleton.set_bone_pose_rotation(bone, (parent_rotation.inverse() * global_rotation).normalized())
 
 
-func _animate_desktop(delta: float) -> void:
-	if vr_mode or delta <= 0.0 or _space == null:
+func _animate_locomotion(delta: float, legs_only := false) -> void:
+	if delta <= 0.0 or _space == null:
 		return
 	var position_now := _space.global_position
 	var movement := position_now - _motion_position if _motion_initialized else Vector3.ZERO
@@ -728,19 +728,22 @@ func _animate_desktop(delta: float) -> void:
 	# Directional clips share one cadence, so diagonals do not double the step
 	# rate of the forward gait. The source sidesteps were captured at low speed.
 	_stride_phase = fposmod(_stride_phase + speed / cycle_distance * delta * TAU, TAU)
+	var active_bones := VR_IDLE_BONES if legs_only else CONTROLLED_BONES
 	var walk_rotations := _animation_bones.duplicate()
 	if weight > 0.0:
-		walk_rotations = _locomotion_pose(_walk_clip, playback_direction)
+		walk_rotations = _locomotion_pose(_walk_clip, playback_direction, active_bones)
 	if jog_weight > 0.0:
-		var jog_rotations := _locomotion_pose(_jog_clip, playback_direction)
+		var jog_rotations := _locomotion_pose(_jog_clip, playback_direction, active_bones)
 		for bone_name in walk_rotations:
 			walk_rotations[bone_name] = (walk_rotations[bone_name] as Quaternion).slerp(jog_rotations[bone_name], jog_weight)
 	if lateral_weight > 0.0 and weight > 0.0:
-		var strafe_rotations := _locomotion_pose(strafe_clip)
+		var strafe_rotations := _locomotion_pose(strafe_clip, 1.0, active_bones)
 		for bone_name in walk_rotations:
 			walk_rotations[bone_name] = (walk_rotations[bone_name] as Quaternion).slerp(strafe_rotations[bone_name], lateral_weight)
-	_apply_idle_pose(walk_rotations, weight, 1.0, CONTROLLED_BONES)
+	_apply_idle_pose(walk_rotations, weight, VR_IDLE_SCALE if legs_only else 1.0, active_bones)
 	skeleton.force_update_all_bone_transforms()
+	if legs_only:
+		return
 	for side in ["left", "right"]:
 		if not _desktop_target.has(side) or not hand_target.has(side):
 			continue
@@ -759,13 +762,16 @@ func _animate_desktop(delta: float) -> void:
 		hand_target[side].transform = Transform3D(Basis.IDENTITY, target)
 
 
-func _locomotion_pose(clip: RefCounted, playback_direction := 1.0) -> Dictionary:
+func _locomotion_pose(clip: RefCounted, playback_direction := 1.0, active_bones: Array = CONTROLLED_BONES) -> Dictionary:
 	var rotations := {}
 	for bone_name in _animation_bones:
 		rotations[bone_name] = _animation_bones[bone_name]
-	_reset_animation_pose()
+	for bone_name in active_bones:
+		var bone := skeleton.find_bone(bone_name)
+		if bone >= 0 and _animation_bones.has(bone_name):
+			skeleton.set_bone_pose_rotation(bone, _animation_bones[bone_name])
 	if clip != null:
-		_apply_clip_motion(rotations, CONTROLLED_BONES, clip, _stride_phase / TAU * float(clip.duration) * playback_direction)
+		_apply_clip_motion(rotations, active_bones, clip, _stride_phase / TAU * float(clip.duration) * playback_direction)
 	return rotations
 
 
@@ -775,20 +781,6 @@ func _locomotion_hand_target(side: String, clip: RefCounted, playback_direction 
 		return (_desktop_target[side] as Transform3D).origin
 	var offset: Vector3 = clip.sample_wrist(side, _stride_phase / TAU * float(clip.duration) * playback_direction)
 	return _pose_global(upper).origin + _source_basis * offset * float(_arm_lengths.get(side, 0.0))
-
-
-## Restrained standing motion for an untracked VR body without a known pose.
-## Head, neck, arms and hands are never touched here.
-func _animate_vr_idle(delta: float) -> void:
-	if delta <= 0.0 or skeleton == null:
-		return
-	_idle_clip_time += delta
-	var rest_rotations := {}
-	for bone_name in VR_IDLE_BONES:
-		if _animation_bones.has(bone_name):
-			rest_rotations[bone_name] = _animation_bones[bone_name]
-	_apply_idle_pose(rest_rotations, 0.0, VR_IDLE_SCALE, VR_IDLE_BONES)
-	skeleton.force_update_all_bone_transforms()
 
 
 func _apply_idle_pose(walk_rotations: Dictionary, walk_weight: float, idle_scale: float, active_bones: Array) -> void:

@@ -589,9 +589,6 @@ func _available() -> bool:
 func _update_controls() -> void:
 	var available := _available()
 	%CreateRoom.text = "Creating room…" if room_networking.pending_operation == RoomNetworking.Operation.CREATE else "Create room"
-	%Connection.visible = not room_networking.connected
-	%Connection.text = Networking.connection_message
-	%Connection.add_theme_color_override("font_color", Color("#74869a"))
 	%CreateRoom.disabled = not available or %DisplayName.text.strip_edges().is_empty() or WorldCatalog.WORLDS.is_empty()
 	%LeaveRoom.disabled = room_networking.current_room == null or room_networking.pending_operation not in [RoomNetworking.Operation.NONE, RoomNetworking.Operation.RECOVER]
 	%DisplayName.editable = room_networking.pending_operation == RoomNetworking.Operation.NONE

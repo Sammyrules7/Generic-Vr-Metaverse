@@ -99,8 +99,10 @@ redirection of forward thigh or wrist motion. Diagonal movement blends the
 forward and lateral poses; directional clips share cadence so a diagonal does
 not double the step rate. The slower captured sidestep stride is retained as
 metadata rather than forcing a much faster shuffle at the game's movement speed.
-The character motor and eye anchor remain authoritative, and VR tracking is
-unchanged.
+The character motor and eye anchor remain authoritative. VR locomotion uses
+the same directional clips only for the thighs, shins and feet; hips, torso,
+shoulders and tracked hands/head never receive clip motion. A tracked lower
+body disables this fallback. Standing VR legs retain the restrained idle.
 
 ### Sidestep provenance
 
