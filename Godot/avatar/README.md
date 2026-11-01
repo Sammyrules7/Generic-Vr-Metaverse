@@ -241,3 +241,26 @@ The preview matches the main viewport's MSAA on Mobile/Forward+ to avoid an
 additional 4x-MSAA pipeline family. Driver-specific first-use pipelines for runtime
 VRM/MToon materials can still cause hitches; these changes do not guarantee
 stutter-free imports or remove shader features.
+
+### Export shader baking
+
+Native Android and Linux exports use `scripts/export_with_shader_baking.sh`.
+Shader baking is already enabled in their presets, but `--headless` prevents it
+from running. The export helper supplies Xvfb and a Vulkan rendering device;
+the native Nix CI image pins Mesa lavapipe so no physical GPU is needed. The
+helper verifies that the export log includes baked Vulkan shader-cache files
+and fails instead of silently publishing an unbaked export.
+
+Headless import and runtime tests remain headless. Windows currently targets
+D3D12, whose shader baking needs a Windows rendering device and is not covered
+by this Linux runner. Web/Compatibility does not support this baker.
+
+When changing the native image, run the existing **Build Nix images** workflow
+on the branch to publish its closure to the binary cache before dispatching
+**Build native platforms**. Its pinned image references must match the cached
+image. The helper deliberately reports an error if the old image lacks Xvfb.
+
+Baking supplies portable shader intermediate code, including exported MToon
+shaders; it cannot bake the Quest driver's final device-specific pipelines or
+predict every combination of a runtime avatar's meshes and materials. Godot's
+automatic ubershaders and pipeline precompilation remain responsible for those.

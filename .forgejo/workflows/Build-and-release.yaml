@@ -13,6 +13,7 @@ on:
       - .itch.toml
       - .forgejo/workflows/Build-and-release.yaml
       - scripts/check_godot_smoke.sh
+      - scripts/export_with_shader_baking.sh
       - scripts/publish_quest.mjs
       - scripts/publish_desktop.mjs
   workflow_dispatch:
@@ -43,7 +44,7 @@ jobs:
     container:
       # The image bundles godot, export templates, the Android SDK, and butler.
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/2mc9172w42pw5wnhsbpr2d18bjcga0gq-nix-image-vr-platform-godot-ci.tar
+      image: nix:0/nix/store/f9ich0ip29x163qzizcic7hmmac2vn2c-nix-image-vr-platform-godot-ci.tar
     steps:
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. No GitHub actions: this must stay act-runner native.
@@ -123,8 +124,10 @@ jobs:
       - name: Build Linux Release
         run: |
           mkdir -p ${{ env.EXPORT_DIR }}/linux
-          godot --headless --verbose --path ${{ env.PROJECT_PATH }} --export-release "Linux - Release" "${{ env.EXPORT_DIR }}/linux/${{ env.EXPORT_NAME }}.x86_64"
+          bash scripts/export_with_shader_baking.sh --rendering-method forward_plus --path ${{ env.PROJECT_PATH }} --export-release "Linux - Release" "${{ env.EXPORT_DIR }}/linux/${{ env.EXPORT_NAME }}.x86_64"
 
+      # D3D12 shader baking needs a Windows rendering device; the Linux runner
+      # can bake Vulkan for Linux/Android, not the Windows D3D12 export.
       # --- WINDOWS BUILD ---
       - name: Build Windows Release
         run: |
@@ -164,7 +167,7 @@ jobs:
     container:
       # The image bundles godot, export templates, the Android SDK, and butler.
       # Updated automatically from the flake by Server-container.yaml.
-      image: nix:0/nix/store/2mc9172w42pw5wnhsbpr2d18bjcga0gq-nix-image-vr-platform-godot-ci.tar
+      image: nix:0/nix/store/f9ich0ip29x163qzizcic7hmmac2vn2c-nix-image-vr-platform-godot-ci.tar
     steps:
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. No GitHub actions: this must stay act-runner native.
@@ -312,7 +315,7 @@ jobs:
           ndk="$(find -L "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           test -n "$ndk"
           sed -i -E "s/(ndkVersion[[:space:]]*:[[:space:]]*)'[^']*'/\1'${ndk##*\/}'/" "$PROJECT_PATH/android/build/config.gradle"
-          godot --headless --xr-mode off --verbose --path "$PROJECT_PATH" --export-release "Android - Release" "$EXPORT_DIR/android/$EXPORT_NAME.apk"
+          bash scripts/export_with_shader_baking.sh --rendering-method mobile --path "$PROJECT_PATH" --export-release "Android - Release" "$EXPORT_DIR/android/$EXPORT_NAME.apk"
 
       # Preserve a successful build's downloads even if publication later fails.
       - name: Save Gradle downloads
