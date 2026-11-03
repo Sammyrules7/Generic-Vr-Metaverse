@@ -1,14 +1,13 @@
 name: Delivery drift checks
 
-# Internal branches are checked on push; PR events cover forks only.
+# PRs are checked once per update; main pushes validate the merged result.
 concurrency:
-  group: delivery-checks-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  group: delivery-checks-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
   push:
-    branches: ['**']
-    tags-ignore: ['**']
+    branches: [main]
     paths:
       - Godot/**
       - Server/**
@@ -30,10 +29,10 @@ on:
       - .gitattributes
       - .forgejo/workflows/Delivery-checks.yaml
   pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 jobs:
   drift:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: nix
     # Run inside the builder image so git-lfs, python, and the nix daemon are
     # all available; the bare host lacked node-lfs tooling.
