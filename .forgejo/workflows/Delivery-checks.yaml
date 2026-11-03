@@ -1,12 +1,9 @@
 name: Delivery drift checks
 
-# A branch push and its pull_request event describe the same commit. Serialize
-# them so the heavyweight import, nine Godot suites, and Go server build do not
-# run twice at once; concurrent runs have exhausted the runner pod and killed
-# the job mid-step.
+# Internal branches are checked on push; PR events cover forks only.
 concurrency:
-  group: delivery-checks-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: delivery-checks-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 on:
   push:
@@ -20,6 +17,7 @@ on:
       - scripts/check_delivery.py
       - scripts/check_house_audio.gd
       - scripts/check_runtime.sh
+      - scripts/ci_timing.sh
       - scripts/publish_web.sh
       - scripts/publish_quest.mjs
       - scripts/publish_desktop.mjs
@@ -35,6 +33,7 @@ on:
   workflow_dispatch:
 jobs:
   drift:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: nix
     # Run inside the builder image so git-lfs, python, and the nix daemon are
     # all available; the bare host lacked node-lfs tooling.
@@ -97,11 +96,13 @@ jobs:
         run: |
           HOME="$(mktemp -d /tmp/nix-home.XXXXXX)"
           export HOME
-          nix develop --command bash -euo pipefail -c '
-            python3 scripts/check_delivery.py
-            python3 -m unittest discover -s scripts/tests -v
-            bash Protocol/generate.sh
+          source scripts/ci_timing.sh
+          ci_timed delivery-environment nix develop --command bash -euo pipefail -c '
+            source scripts/ci_timing.sh
+            ci_timed delivery-inventory python3 scripts/check_delivery.py
+            ci_timed script-tests python3 -m unittest discover -s scripts/tests -v
+            ci_timed protocol-generation bash Protocol/generate.sh
             git diff --exit-code -- Server/protocol/packets.pb.go Godot/Networking/Generated/Packets.gd
-            bash scripts/check_runtime.sh
-            godot --headless --xr-mode off --path Godot res://tests/world_loading_test.tscn
+            ci_timed runtime-suites bash scripts/check_runtime.sh
+            ci_timed world-loading godot --headless --xr-mode off --path Godot res://tests/world_loading_test.tscn
           '

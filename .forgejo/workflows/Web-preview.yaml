@@ -8,7 +8,8 @@ name: Web preview
 # The in-game lobby test is wall-clock sensitive and can flake on busy runners.
 
 concurrency:
-  group: web-publish
+  # Serialize publication within each destination, without blocking other branches.
+  group: web-publish-${{ inputs.publish_main && 'main' || inputs.ref || github.head_ref || github.ref_name }}
   cancel-in-progress: false
 
 on:
@@ -37,16 +38,41 @@ env:
 jobs:
   web-preview:
     name: Build and publish web preview
+    # Internal PR heads already build on push; fork PRs still get validation.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: default
     container:
       # The image bundles godot, web export templates, and s5cmd for publishing.
       # Updated automatically from the flake by Server-container.yaml.
       image: nix:0/nix/store/5n7k4az0wdzn2z1z76dazrvdk8gr399a-nix-image-vr-platform-godot-web-ci.tar
     steps:
+      # Check after waiting for the publication lock, before downloading assets.
+      - name: Skip superseded branch preview
+        id: freshness
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
+          BUILD_SHA: ${{ github.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          current=true
+          if [ "$EVENT_NAME" = push ]; then
+            TOKEN="${FORGEJO_TOKEN:-$GITHUB_TOKEN}"
+            header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+            latest="$(git -c "http.$REPO_URL.extraheader=$header" ls-remote "$REPO_URL" "$REF_NAME" | cut -f1)"
+            if [ "$latest" != "$BUILD_SHA" ]; then
+              current=false
+              echo "Skipping superseded or deleted branch preview"
+            fi
+          fi
+          printf 'current=%s\n' "$current" >> "$GITHUB_OUTPUT"
+
       # This runner starts with an empty workspace, so clone explicitly with
       # the job token. A workflow_dispatch run can target a ref different from
       # the selected one. No GitHub actions: this must stay act-runner native.
       - name: Checkout requested ref with large files
+        if: steps.freshness.outputs.current == 'true'
         env:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           REQUESTED_REF: ${{ inputs.ref || (github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number)) || github.sha }}
@@ -84,6 +110,7 @@ jobs:
           git lfs pull
 
       - name: Describe build
+        if: steps.freshness.outputs.current == 'true'
         id: describe
         shell: bash
         env:
@@ -102,8 +129,8 @@ jobs:
           printf 'BUILD_COMMIT=%s\nBUILD_BRANCH=%s\nBUILD_SLUG=%s\nPUBLISH_MAIN=%s\n' "$commit" "$branch" "$slug" "$publish_main" >> "$GITHUB_ENV"
           printf 'commit=%s\nslug=%s\npublish_main=%s\n' "$commit" "$slug" "$publish_main" >> "$GITHUB_OUTPUT"
 
-      - name: Mark PR preview as building
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      - name: Mark preview as building
+        if: steps.freshness.outputs.current == 'true' && github.event_name != 'pull_request'
         env:
           PREVIEW_STATUS: pending
         run: node scripts/report_web_preview.mjs
@@ -112,6 +139,7 @@ jobs:
       # --editor --import and both branches commit changed assets regularly.
       # Distinct key prefix so a web snapshot never reuses a desktop snapshot.
       - name: Restore Godot import cache
+        if: steps.freshness.outputs.current == 'true'
         id: godot-cache
         uses: https://code.forgejo.org/actions/cache/restore@v4
         with:
@@ -121,36 +149,43 @@ jobs:
             godot-import-v2-web-${{ runner.os }}-${{ hashFiles('flake.lock') }}-
 
       - name: Read engine version
+        if: steps.freshness.outputs.current == 'true'
         id: engine
         run: printf 'version=%s\n' "$(godot --version)" >> "$GITHUB_OUTPUT"
 
       - name: Import project
+        if: steps.freshness.outputs.current == 'true'
         run: godot --headless --xr-mode off --editor --import --path "$PROJECT_PATH"
 
       - name: Save Godot import cache
-        if: steps.godot-cache.outputs.cache-hit != 'true'
+        if: steps.freshness.outputs.current == 'true' && (steps.godot-cache.outputs.cache-hit != 'true')
         uses: https://code.forgejo.org/actions/cache/save@v4
         with:
           path: Godot/.godot
           key: ${{ steps.godot-cache.outputs.cache-primary-key }}
 
       - name: Test native voice codec and audiences
+        if: steps.freshness.outputs.current == 'true'
         run: |
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_codec_test.gd
           godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/voice_audience_test.gd
 
       - name: Test player movement
+        if: steps.freshness.outputs.current == 'true'
         run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tests/movement_test.gd
 
       - name: Test XR and avatar smoke suites
+        if: steps.freshness.outputs.current == 'true'
         run: bash scripts/check_godot_smoke.sh web
 
       - name: Configure main signaling backend
+        if: steps.freshness.outputs.current == 'true'
         env:
           VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
         run: godot --headless --xr-mode off --path "$PROJECT_PATH" --script res://tools/configure_release.gd -- --web
 
       - name: Record delivery identity
+        if: steps.freshness.outputs.current == 'true'
         env:
           VR_PLATFORM_SERVER_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
         run: |
@@ -164,6 +199,7 @@ jobs:
           } > "$EXPORT_DIR/delivery-identity.txt"
 
       - name: Export web client
+        if: steps.freshness.outputs.current == 'true'
         run: |
           mkdir -p "$EXPORT_DIR"
           godot --headless --verbose --path "$PROJECT_PATH" --export-release "Web - Preview" "$EXPORT_DIR/index.html"
@@ -175,6 +211,7 @@ jobs:
       # Publishing runs inline in the same job so the exported client never
       # travels through a GitHub-compatible artifact transfer.
       - name: Decompress web client for HTTP range requests
+        if: steps.freshness.outputs.current == 'true'
         shell: bash
         run: |
           find "$EXPORT_DIR" -type f -print0 | while IFS= read -r -d '' asset; do
@@ -185,6 +222,7 @@ jobs:
           done
 
       - name: Verify house audio in exported client
+        if: steps.freshness.outputs.current == 'true'
         shell: bash
         run: |
           audio_check_project="$(mktemp -d /tmp/house-audio-check.XXXXXX)"
@@ -192,7 +230,7 @@ jobs:
           godot --headless --xr-mode off --path "$audio_check_project" --script "$GITHUB_WORKSPACE/scripts/check_house_audio.gd" -- "$EXPORT_DIR/index.pck"
 
       - name: Publish immutable branch build
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: steps.freshness.outputs.current == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         shell: bash
         env:
           GARAGE_BUCKET: vr-platform-web
@@ -203,7 +241,7 @@ jobs:
         run: bash scripts/publish_web.sh "branches/$BUILD_SLUG"
 
       - name: Publish main channel
-        if: github.event_name != 'pull_request' && env.PUBLISH_MAIN == 'true'
+        if: steps.freshness.outputs.current == 'true' && (github.event_name != 'pull_request' && env.PUBLISH_MAIN == 'true')
         shell: bash
         env:
           GARAGE_BUCKET: vr-platform-web
@@ -214,7 +252,7 @@ jobs:
         run: bash scripts/publish_web.sh channels/main
 
       - name: Publish links
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: steps.freshness.outputs.current == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         shell: bash
         env:
           BACKEND_URL: ${{ vars.VR_PLATFORM_SERVER_URL }}
@@ -230,8 +268,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$preview_url"
 
-      - name: Report PR preview in checks
-        if: always() && steps.describe.outcome == 'success' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      - name: Report preview in checks
+        if: steps.freshness.outputs.current == 'true' && (always() && steps.describe.outcome == 'success' && github.event_name != 'pull_request')
         env:
           PREVIEW_STATUS: ${{ job.status }}
         run: node scripts/report_web_preview.mjs

@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+phase_started=$SECONDS
+publish_timing() {
+  printf 'CI timing: publish-%s: %ss\n' "$1" "$((SECONDS - phase_started))"
+  phase_started=$SECONDS
+}
 
 # Publish all objects before moving the small directory pointer. Existing builds
 # are retained so a pinned browser can finish fetching its original JS/WASM/PCK.
@@ -54,6 +59,8 @@ else
   done || true
 fi
 
+publish_timing retention
+
 # A completed commit is immutable even when its workflow is rerun.
 if s3 ls "$build_prefix/complete.txt" >/dev/null; then
   remote_identity="$(s3 cat "$build_prefix/assets/delivery-identity.txt")"
@@ -72,11 +79,14 @@ else
       compressed_file=""
     fi
   done < <(find "$EXPORT_DIR" -type f \( -name '*.pck' -o -name '*.wasm' -o -name '*.js' \) -print0)
+  publish_timing compression
   # Upload the large originals only once, with their explicit MIME types below.
   # Compressed siblings still belong in the general sync.
   s3 sync --exclude '*.wasm' --exclude '*.pck' "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.wasm" --content-type application/wasm "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --include "*.pck" --content-type application/octet-stream "$EXPORT_DIR/" "$build_prefix/assets/"
   s3 cp --content-type text/plain "$pointer_file" "$build_prefix/complete.txt"
+  publish_timing upload
 fi
 s3 cp --content-type text/plain --cache-control no-cache "$pointer_file" "$prefix/commit.txt"
+publish_timing pointer

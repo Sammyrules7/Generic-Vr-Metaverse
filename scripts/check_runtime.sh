@@ -4,6 +4,7 @@ set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
+source scripts/ci_timing.sh
 test_dir="$(mktemp -d)"
 server_pid=""
 cleanup() {
@@ -24,7 +25,7 @@ export VR_PLATFORM_SERVER_URL=ws://127.0.0.1:1/ws
 
 run_godot() {
   local log="$test_dir/godot.log"
-  if ! timeout --kill-after=10s 120s godot --headless --xr-mode off --path Godot "$@" >"$log" 2>&1; then
+  if ! ci_timed "godot $*" timeout --kill-after=10s 120s godot --headless --xr-mode off --path Godot "$@" >"$log" 2>&1; then
     cat "$log"
     return 1
   fi
@@ -42,7 +43,7 @@ run_godot res://UI/tests/avatar_picker_test.tscn
 
 # Bind port zero and discover the selected port from the server's startup log.
 # Building first gives cleanup a single owned process rather than go-run children.
-(cd Server && CGO_ENABLED=0 go build -o "$test_dir/server" .)
+(cd Server && ci_timed signaling-server-build env CGO_ENABLED=0 go build -o "$test_dir/server" .)
 VR_PLATFORM_LISTEN_ADDR=127.0.0.1:0 "$test_dir/server" >"$test_dir/server.log" 2>&1 &
 server_pid=$!
 if ! endpoint="$(python3 - "$test_dir/server.log" <<'PY'

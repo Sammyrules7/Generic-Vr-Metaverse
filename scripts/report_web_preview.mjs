@@ -6,8 +6,8 @@ import { pathToFileURL } from 'node:url';
 export async function report(env = process.env, request = fetch) {
   const { BUILD_COMMIT: commit, BUILD_SLUG: slug, PREVIEW_STATUS: result,
     GITHUB_SERVER_URL: server, GITHUB_REPOSITORY: repo } = env;
-  if (!/^[0-9a-f]{40}$/.test(commit) || !/^pr-[1-9][0-9]*$/.test(slug) ||
-      !/^\d+$/.test(env.GITHUB_RUN_NUMBER) || !repo || !server) throw new Error('Missing PR preview identity');
+  if (!/^[0-9a-f]{40}$/.test(commit) || !/^[a-z0-9][a-z0-9-]{0,62}$/.test(slug) ||
+      !/^\d+$/.test(env.GITHUB_RUN_NUMBER) || !repo || !server) throw new Error('Missing preview identity');
   const token = env.FORGEJO_TOKEN || env.GITHUB_TOKEN;
   if (!token) throw new Error('Missing repository status credential');
   const statuses = {

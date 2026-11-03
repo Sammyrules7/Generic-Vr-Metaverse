@@ -67,3 +67,13 @@ test('desktop release stays draft until both archives upload, including branch b
     }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+// Internal PRs reuse the push build and its branch URL in commit checks.
+test('branch preview status links to the published branch commit', async () => {
+  await report({ ...identity, BUILD_SLUG: 'feature-avatar', PREVIEW_STATUS: 'success' },
+    async (_url, options) => {
+      assert.equal(JSON.parse(options.body).target_url,
+        `https://app.vr.maio-tech.com/feature-avatar/${identity.BUILD_COMMIT}/`);
+      return new Response(null, { status: 201 });
+    });
+});
